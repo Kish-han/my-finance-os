@@ -41,6 +41,7 @@ describe("EMI calculations", () => {
         date: "2026-02-05",
         amountPaise: 500_000,
         paymentMethod: "bank_debit",
+        paymentKind: "scheduled_emi",
       },
     ];
 
@@ -63,6 +64,7 @@ describe("EMI calculations", () => {
         amountPaise: 500_000,
         interestComponentPaise: 80_000,
         paymentMethod: "bank_debit",
+        paymentKind: "scheduled_emi",
       },
       {
         id: "payment-2",
@@ -71,6 +73,7 @@ describe("EMI calculations", () => {
         amountPaise: 500_000,
         interestComponentPaise: 70_000,
         paymentMethod: "bank_debit",
+        paymentKind: "scheduled_emi",
       },
     ];
 
@@ -86,6 +89,7 @@ describe("EMI calculations", () => {
         amountPaise: 500_000,
         principalComponentPaise: 400_000,
         paymentMethod: "bank_debit",
+        paymentKind: "scheduled_emi",
       },
     ];
 
@@ -110,4 +114,28 @@ describe("EMI calculations", () => {
 
     expect(calculateForeclosureTotalPaise(quote)).toBe(10_196_000);
   });
+
+  
+  it("reduces principal without counting an extra repayment as an EMI", () => {
+    const payments: EmiPaymentRecord[] = [
+      {
+        id: "extra-payment-1",
+        debtId: debt.id,
+        date: "2026-02-10",
+        amountPaise: 1_000_000,
+        principalComponentPaise: 1_000_000,
+        paymentMethod: "bank_debit",
+        paymentKind: "extra_principal",
+      },
+    ];
+
+    expect(calculateInstallmentsCompleted(debt, payments)).toBe(6);
+
+    expect(calculateRemainingInstallments(debt, payments)).toBe(18);
+
+    expect(
+      calculateEstimatedOutstandingPrincipalPaise(debt, payments)
+    ).toBe(9_000_000);
+  });
+
 });

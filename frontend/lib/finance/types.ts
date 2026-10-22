@@ -125,6 +125,12 @@ export type DebtPaymentMethod =
     | "foreclosure";
 
 export interface EmiPaymentRecord {
+    paymentKind:
+    | "scheduled_emi"
+    | "extra_principal"
+    | "fee_only"
+    | "foreclosure_settlement";
+
     id: string;
     debtId: string;
     date: string;
