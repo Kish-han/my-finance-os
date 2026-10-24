@@ -26,9 +26,16 @@ export default function EmiLayout({
 
           <Link
             href="/emi/foreclosure"
-            className="rounded-lg bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
             Foreclosure Calculator
+          </Link>
+
+          <Link
+            href="/emi/foreclosure/settle"
+            className="rounded-lg bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            Record Actual Foreclosure
           </Link>
         </div>
       </nav>

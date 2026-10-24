@@ -7,6 +7,9 @@ type LoanOption = {
   id: string;
   label: string;
   outstandingPrincipalRupees: string;
+  emiRupees: string;
+  remainingInstallments: number;
+  estimatedRemainingPaymentsRupees: string;
 };
 
 type Props = {
@@ -15,8 +18,11 @@ type Props = {
 };
 
 function rupeesToPaise(value: string): number {
+  if (!value.trim()) return 0;
+
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) return 0;
+
   return Math.round(parsed * 100);
 }
 
@@ -37,6 +43,8 @@ export default function ForeclosureQuoteForm({ loans, today }: Props) {
   const [waivers, setWaivers] = useState("0");
   const [source, setSource] = useState("lender_quote");
 
+  const selectedLoan = loans.find((loan) => loan.id === debtId);
+
   const totalPayoff = Math.max(
     0,
     rupeesToPaise(principal) +
@@ -46,13 +54,19 @@ export default function ForeclosureQuoteForm({ loans, today }: Props) {
       rupeesToPaise(waivers),
   );
 
+  const remainingScheduledPayments = selectedLoan
+    ? rupeesToPaise(selectedLoan.estimatedRemainingPaymentsRupees)
+    : 0;
+
+  // Positive means scheduled EMI outflow is greater than the payoff estimate.
+  const difference = remainingScheduledPayments - totalPayoff;
+
   function handleLoanChange(id: string) {
     setDebtId(id);
 
-    const selectedLoan = loans.find((loan) => loan.id === id);
+    const loan = loans.find((item) => item.id === id);
 
-    // Prefill the principal from the selected loan.
-    setPrincipal(selectedLoan?.outstandingPrincipalRupees ?? "");
+    setPrincipal(loan?.outstandingPrincipalRupees ?? "");
   }
 
   const inputClass =
@@ -78,12 +92,12 @@ export default function ForeclosureQuoteForm({ loans, today }: Props) {
             ))}
           </select>
           <span className="mt-1 block text-xs font-normal text-slate-500">
-            Selecting a loan fills the principal amount below automatically.
+            Selecting a loan fills in its estimated remaining principal.
           </span>
         </label>
 
         <label className="block text-sm font-medium text-slate-700">
-          Date you received the amount
+          Date you received the quote
           <input
             name="quote_date"
             type="date"
@@ -92,12 +106,13 @@ export default function ForeclosureQuoteForm({ loans, today }: Props) {
             className={inputClass}
           />
           <span className="mt-1 block text-xs font-normal text-slate-500">
-            Usually the date printed on the bank's foreclosure quote.
+            Use the date printed on the lender&apos;s quote. For your own
+            estimate, use today.
           </span>
         </label>
 
         <label className="block text-sm font-medium text-slate-700">
-          Amount valid until / review by
+          Quote valid until / review by
           <input
             name="valid_until"
             type="date"
@@ -107,8 +122,8 @@ export default function ForeclosureQuoteForm({ loans, today }: Props) {
             className={inputClass}
           />
           <span className="mt-1 block text-xs font-normal text-slate-500">
-            For a lender quote, use its expiry date. For your own estimate,
-            choose when you plan to review it again.
+            For an official quote, enter its expiry date. For an estimate,
+            choose a date to review it again.
           </span>
         </label>
 
@@ -126,9 +141,9 @@ export default function ForeclosureQuoteForm({ loans, today }: Props) {
             className={inputClass}
           />
           <span className="mt-1 block text-xs font-normal text-slate-500">
-            This is the estimated remaining loan principal, not the original
-            loan amount or the sum of all remaining EMIs. Update it if the
-            lender gives you a different current figure.
+            This is the estimated principal remaining, not the original loan
+            amount or the sum of all future EMIs. Replace it with the lender&apos;s
+            latest figure when available.
           </span>
         </label>
 
@@ -209,7 +224,7 @@ export default function ForeclosureQuoteForm({ loans, today }: Props) {
           name="notes"
           rows={3}
           maxLength={1000}
-          placeholder="For example, quote reference number or details from the lender"
+          placeholder="Quote reference number or details from the lender"
           className={inputClass}
         />
       </label>
@@ -225,26 +240,112 @@ export default function ForeclosureQuoteForm({ loans, today }: Props) {
         <div className="mt-3 space-y-1 text-sm text-slate-600">
           <p>Principal: {formatMoney(rupeesToPaise(principal))}</p>
           <p>
-            Foreclosure charges:{" "}
-            {formatMoney(rupeesToPaise(foreclosureCharges))}
+            Foreclosure charges: {formatMoney(rupeesToPaise(foreclosureCharges))}
           </p>
           <p>Taxes: {formatMoney(rupeesToPaise(tax))}</p>
           <p>Other charges: {formatMoney(rupeesToPaise(otherCharges))}</p>
           <p>Waiver: −{formatMoney(rupeesToPaise(waivers))}</p>
         </div>
-
-        {source === "estimate" && (
-          <p className="mt-3 text-xs leading-5 text-slate-500">
-            This is your own estimate, not a confirmed lender payoff amount.
-          </p>
-        )}
       </section>
+
+      {selectedLoan && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+          <h3 className="font-semibold text-slate-950">
+            Foreclose now or continue paying?
+          </h3>
+
+          <p className="mt-1 text-sm text-slate-500">
+            A rough comparison based on your saved EMI schedule and the
+            foreclosure amount currently entered above.
+          </p>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="rounded-xl bg-slate-50 p-4">
+              <p className="text-sm text-slate-500">
+                Continue scheduled EMIs
+              </p>
+              <p className="mt-2 text-xl font-bold text-slate-950">
+                {formatMoney(remainingScheduledPayments)}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {selectedLoan.remainingInstallments} instalments ×{" "}
+                {formatMoney(rupeesToPaise(selectedLoan.emiRupees))}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-slate-50 p-4">
+              <p className="text-sm text-slate-500">
+                Estimated foreclosure payoff
+              </p>
+              <p className="mt-2 text-xl font-bold text-slate-950">
+                {formatMoney(totalPayoff)}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Includes the charges and waiver entered above.
+              </p>
+            </div>
+          </div>
+
+          {selectedLoan.remainingInstallments > 0 ? (
+            <div className="mt-4 rounded-xl border border-slate-200 p-4">
+              {difference > 0 ? (
+                <>
+                  <p className="font-semibold text-slate-950">
+                    {formatMoney(difference)} lower than the remaining EMI total
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    The entered payoff is less than the total of your scheduled
+                    future EMI payments. This is a cash-outflow comparison, not
+                    a guarantee of savings.
+                  </p>
+                </>
+              ) : difference < 0 ? (
+                <>
+                  <p className="font-semibold text-slate-950">
+                    {formatMoney(Math.abs(difference))} higher than the
+                    remaining EMI total
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    The entered payoff is higher than the total of your
+                    scheduled future EMI payments. Verify the principal,
+                    charges, remaining tenure and quote before drawing a
+                    conclusion.
+                  </p>
+                </>
+              ) : (
+                <p className="font-semibold text-slate-950">
+                  Both amounts are currently equal.
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-slate-600">
+              No scheduled instalments remain according to the loan details
+              currently recorded. Verify the loan status and the lender&apos;s
+              actual payoff quote.
+            </p>
+          )}
+
+          <p className="mt-3 text-xs leading-5 text-slate-500">
+            This comparison does not account for the time value of money,
+            changes in interest, prepayment conditions or your ability to use
+            the money elsewhere. It relies on the accuracy of your stored loan
+            schedule and the payoff amount entered.
+          </p>
+        </section>
+      )}
+
+      {source === "estimate" && (
+        <p className="text-sm text-slate-500">
+          This is your own estimate, not a confirmed lender settlement amount.
+        </p>
+      )}
 
       <button
         type="submit"
         className="w-full rounded-xl bg-slate-950 px-4 py-3 font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
       >
-        Save Foreclosure Quote
+        Calculate and Save Quote
       </button>
     </form>
   );

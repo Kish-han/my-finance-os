@@ -12,11 +12,15 @@ type DebtRow = {
   status: string;
   current_outstanding_principal_paise: number | string;
   outstanding_as_of_date: string;
+  emi_amount_paise: number | string;
+  total_tenure_months: number;
+  installments_paid_before_tracking: number;
 };
 
 type PaymentRow = {
   debt_id: string;
   payment_date: string;
+  payment_kind: string;
   principal_component_paise: number | string | null;
 };
 
@@ -114,6 +118,20 @@ function estimatePrincipal(
   );
 }
 
+function completedInstallments(
+  debt: DebtRow,
+  payments: PaymentRow[],
+): number {
+  const laterScheduledPayments = payments.filter(
+    (payment) =>
+      payment.debt_id === debt.id &&
+      payment.payment_kind === "scheduled_emi" &&
+      payment.payment_date > debt.outstanding_as_of_date,
+  ).length;
+
+  return debt.installments_paid_before_tracking + laterScheduledPayments;
+}
+
 function QuoteComparison({
   quotes,
   today,
@@ -134,11 +152,11 @@ function QuoteComparison({
   const difference =
     previousTotal === null ? null : latestTotal - previousTotal;
 
-  const expiryMessage =
+  const validityMessage =
     latest.source === "estimate"
       ? latest.valid_until < today
         ? "Review date has passed"
-        : "Estimated amount · review date set"
+        : "Estimate — review date set"
       : latest.valid_until < today
         ? "Lender quote expired"
         : latest.valid_until === today
@@ -165,7 +183,9 @@ function QuoteComparison({
         <div>
           <p className="text-xs text-slate-500">Previous total</p>
           <p className="mt-1 font-semibold text-slate-950">
-            {previousTotal === null ? "No previous quote" : money(previousTotal)}
+            {previousTotal === null
+              ? "No previous quote"
+              : money(previousTotal)}
           </p>
           {previous && (
             <p className="mt-1 text-xs text-slate-500">
@@ -176,9 +196,10 @@ function QuoteComparison({
 
         <div>
           <p className="text-xs text-slate-500">Change in total</p>
+
           {difference === null ? (
-            <p className="mt-1 font-medium text-slate-700">
-              Save another quote to compare
+            <p className="mt-1 text-sm text-slate-700">
+              Save another quote to compare.
             </p>
           ) : difference < 0 ? (
             <p className="mt-1 font-semibold text-emerald-700">
@@ -197,8 +218,7 @@ function QuoteComparison({
       </div>
 
       <p className="mt-3 text-xs text-slate-500">
-        {expiryMessage}. Comparison is between the two most recently saved
-        records, which may be lender quotes or your own estimates.
+        {validityMessage}. Comparison uses the two most recently saved records.
       </p>
     </div>
   );
@@ -218,13 +238,15 @@ async function ForeclosureContent({
     supabase
       .from("emi_debts")
       .select(
-        "id,name,lender_name,debt_type,status,current_outstanding_principal_paise,outstanding_as_of_date",
+        "id,name,lender_name,debt_type,status,current_outstanding_principal_paise,outstanding_as_of_date,emi_amount_paise,total_tenure_months,installments_paid_before_tracking",
       )
       .order("name"),
 
     supabase
       .from("emi_payments")
-      .select("debt_id,payment_date,principal_component_paise")
+      .select(
+        "debt_id,payment_date,payment_kind,principal_component_paise",
+      )
       .order("payment_date"),
 
     supabase
@@ -240,16 +262,38 @@ async function ForeclosureContent({
   const payments = (paymentResult.data ?? []) as unknown as PaymentRow[];
   const quotes = (quoteResult.data ?? []) as unknown as QuoteRow[];
 
-  const today = getTodayInIndia();
   const activeDebts = debts.filter((debt) => debt.status === "active");
+  const today = getTodayInIndia();
 
-  const loans = activeDebts.map((debt) => ({
-    id: debt.id,
-    label: `${debt.name}${debt.lender_name ? ` · ${debt.lender_name}` : ""}`,
-    outstandingPrincipalRupees: (
-      estimatePrincipal(debt, payments) / 100
-    ).toFixed(2),
-  }));
+  // IMPORTANT: These are all the fields required by LoanOption
+  // in ForeclosureQuoteForm.tsx.
+  const loans = activeDebts.map((debt) => {
+    const paidInstallments = completedInstallments(debt, payments);
+
+    const remainingInstallments = Math.max(
+      0,
+      debt.total_tenure_months - paidInstallments,
+    );
+
+    const emiPaise = numeric(debt.emi_amount_paise);
+    const estimatedRemainingPaymentsPaise =
+      emiPaise * remainingInstallments;
+
+    return {
+      id: debt.id,
+      label: `${debt.name}${
+        debt.lender_name ? ` · ${debt.lender_name}` : ""
+      }`,
+      outstandingPrincipalRupees: (
+        estimatePrincipal(debt, payments) / 100
+      ).toFixed(2),
+      emiRupees: (emiPaise / 100).toFixed(2),
+      remainingInstallments,
+      estimatedRemainingPaymentsRupees: (
+        estimatedRemainingPaymentsPaise / 100
+      ).toFixed(2),
+    };
+  });
 
   const debtNames = new Map(
     debts.map((debt) => [
@@ -258,7 +302,6 @@ async function ForeclosureContent({
     ]),
   );
 
-  // Group quotes per loan, with most recent quote first in each group.
   const quoteGroups = new Map<string, QuoteRow[]>();
 
   for (const quote of quotes) {
@@ -301,8 +344,8 @@ async function ForeclosureContent({
             Foreclosure calculator
           </h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Estimate how much you need to close a loan early, then compare
-            saved payoff figures over time.
+            Estimate your foreclosure amount, compare it with scheduled EMI
+            payments and keep saved quotes for reference.
           </p>
         </div>
       </header>
@@ -341,10 +384,8 @@ async function ForeclosureContent({
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          Select a loan to fill in its estimated remaining principal. You can
-          change that amount to match the lender's current figure. Add
-          foreclosure charges, taxes and other adjustments to calculate the
-          total.
+          Select a loan to fill in its estimated principal and compare paying
+          it off now with the remaining scheduled EMI outflow.
         </p>
 
         {activeDebts.length === 0 ? (
@@ -366,8 +407,7 @@ async function ForeclosureContent({
             Quote comparison by loan
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Each comparison uses the two most recent saved quote records for
-            that loan.
+            Compare the two most recently saved quotes for each loan.
           </p>
         </div>
 
@@ -412,6 +452,7 @@ async function ForeclosureContent({
                             {dateLabel(quote.valid_until)}
                           </p>
                         </div>
+
                         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">
                           {formatLabel(quote.source)}
                         </span>
@@ -435,16 +476,14 @@ async function ForeclosureContent({
                         </div>
 
                         <div>
-                          <p className="text-xs text-slate-500">Taxes</p>
+                          <p className="text-xs text-slate-500">Taxes / GST</p>
                           <p className="mt-1 font-medium text-slate-900">
                             {money(quote.tax_paise)}
                           </p>
                         </div>
 
                         <div>
-                          <p className="text-xs text-slate-500">
-                            Other charges
-                          </p>
+                          <p className="text-xs text-slate-500">Other charges</p>
                           <p className="mt-1 font-medium text-slate-900">
                             {money(quote.other_charges_paise)}
                           </p>
