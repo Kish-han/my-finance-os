@@ -15,9 +15,11 @@ import {
   Plus,
   Zap,
   TrendingUp,
+  Pencil,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DashboardMonthlyChart } from "../DashboardMonthlyChart";
+import { EditTransactionModal } from "./EditTransactionModal";
 import {
   type DateRangePreset,
   type TransactionRecord,
@@ -39,6 +41,7 @@ export interface CreditCardOption {
   name: string;
   bank_name: string;
   last_four_digits: string | null;
+  opening_outstanding_date?: string;
 }
 
 export interface CategoryOption {
@@ -54,6 +57,7 @@ interface TransactionAnalysisViewProps {
   availableCategories?: string[];
   today: string;
   createdSuccess?: boolean;
+  updatedSuccess?: boolean;
   errorCode?: string;
   errorMessages?: Record<string, string>;
 }
@@ -104,6 +108,7 @@ export function TransactionAnalysisView({
   availableCategories = [],
   today,
   createdSuccess,
+  updatedSuccess,
   errorCode,
   errorMessages = {},
 }: TransactionAnalysisViewProps) {
@@ -123,6 +128,10 @@ export function TransactionAnalysisView({
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [accountFilter, setAccountFilter] = useState<string>("all");
   const [limitToDateRange, setLimitToDateRange] = useState<boolean>(true);
+
+  // 3. Edit Transaction State
+  const [editingTx, setEditingTx] = useState<TransactionRecord | null>(null);
+  const [localUpdatedSuccess, setLocalUpdatedSuccess] = useState<boolean>(false);
 
   // Quick Account & Card Lookup Maps
   const accountMap = useMemo(() => {
@@ -321,6 +330,20 @@ export function TransactionAnalysisView({
             <Zap className="h-4 w-4 shrink-0" />
           </div>
           <p>Transaction recorded successfully into your verified ledger.</p>
+        </div>
+      )}
+
+      {(updatedSuccess || localUpdatedSuccess) && (
+        <div
+          role="status"
+          className="flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-950/40 px-5 py-4 text-xs sm:text-sm font-semibold text-emerald-300 shadow-xl backdrop-blur-xl animate-in fade-in"
+        >
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+            <Zap className="h-4 w-4 shrink-0" />
+          </div>
+          <p>
+            Transaction updated successfully. All affected balances, available credit, and financial analytics have been recalculated.
+          </p>
         </div>
       )}
 
@@ -778,26 +801,38 @@ export function TransactionAnalysisView({
                     </div>
                   </div>
 
-                  {/* Amount Column */}
-                  <div className="shrink-0 text-right">
-                    <p
-                      className={`text-sm sm:text-base font-black tabular-nums ${
-                        isIncome
-                          ? "text-[#4edea3]"
-                          : isTransfer || isCardRepayment
-                          ? "text-cyan-300"
-                          : "text-white"
-                      }`}
+                  {/* Amount Column & Actions */}
+                  <div className="shrink-0 flex items-center gap-2.5 sm:gap-3">
+                    <div className="text-right">
+                      <p
+                        className={`text-sm sm:text-base font-black tabular-nums ${
+                          isIncome
+                            ? "text-[#4edea3]"
+                            : isTransfer || isCardRepayment
+                            ? "text-cyan-300"
+                            : "text-white"
+                        }`}
+                      >
+                        {isIncome ? "+" : isTransfer || isCardRepayment ? "" : "−"}
+                        {formatRupees(tx.amount_paise, 2)}
+                      </p>
+                      <Badge
+                        variant={badgeInfo.variant}
+                        className="mt-1 text-[9px] uppercase px-1.5 py-0"
+                      >
+                        {badgeInfo.label}
+                      </Badge>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setEditingTx(tx)}
+                      title="Edit this transaction"
+                      className="flex h-8 w-8 sm:h-8.5 sm:w-auto sm:px-2.5 items-center justify-center gap-1 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-emerald-500/40 text-slate-300 hover:text-white transition-all text-xs font-semibold cursor-pointer active:scale-95"
                     >
-                      {isIncome ? "+" : isTransfer || isCardRepayment ? "" : "−"}
-                      {formatRupees(tx.amount_paise, 2)}
-                    </p>
-                    <Badge
-                      variant={badgeInfo.variant}
-                      className="mt-1 text-[9px] uppercase px-1.5 py-0"
-                    >
-                      {badgeInfo.label}
-                    </Badge>
+                      <Pencil className="h-3.5 w-3.5 text-[#4edea3] shrink-0" />
+                      <span className="hidden sm:inline">Edit</span>
+                    </button>
                   </div>
                 </article>
               );
@@ -831,6 +866,18 @@ export function TransactionAnalysisView({
           <span>Add Transaction</span>
         </Link>
       </section>
+      {/* Edit Transaction Modal */}
+      <EditTransactionModal
+        isOpen={Boolean(editingTx)}
+        onClose={() => setEditingTx(null)}
+        transaction={editingTx}
+        accounts={accounts}
+        creditCards={creditCards}
+        categories={categories}
+        availableCategories={availableCategories}
+        today={today}
+        onSuccess={() => setLocalUpdatedSuccess(true)}
+      />
     </div>
   );
 }

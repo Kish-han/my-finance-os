@@ -17,6 +17,7 @@ type TransactionsPageProps = {
   searchParams: Promise<{
     error?: string;
     created?: string;
+    updated?: string;
     type?: string;
   }>;
 };
@@ -58,7 +59,7 @@ async function TransactionsContent({
 
     supabase
       .from("credit_cards")
-      .select("id, name, bank_name, last_four_digits")
+      .select("id, name, bank_name, last_four_digits, opening_outstanding_date")
       .eq("user_id", userId)
       .eq("is_archived", false)
       .order("name"),
@@ -151,6 +152,7 @@ async function TransactionsContent({
           availableCategories={availableCategories}
           today={today}
           createdSuccess={params.created === "1"}
+          updatedSuccess={params.updated === "1"}
           errorCode={params.error}
           errorMessages={errorMessages}
         />
