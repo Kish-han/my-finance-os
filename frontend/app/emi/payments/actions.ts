@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import {
+  generateAmortizationSchedule,
+  isLoanEligibleForAmortization,
+} from "@/lib/finance/amortization";
 
 function readRupees(value: FormDataEntryValue | null): number | null {
   const text = String(value ?? "").trim();
@@ -152,6 +156,49 @@ export async function recordEmiPayment(formData: FormData) {
     fail("Select the credit card used for payment.");
   }
 
+  let finalPrincipal = principal;
+  let finalInterest = interest;
+
+  // If user didn't specify split for a scheduled EMI on an amortized loan, compute from schedule
+  if (
+    finalPrincipal === null &&
+    finalInterest === null &&
+    paymentKind === "scheduled_emi" &&
+    installmentNumber !== null &&
+    debtId
+  ) {
+    const { data: debtData } = await supabase
+      .from("emi_debts")
+      .select(
+        "debt_type, linked_credit_card_id, original_principal_paise, annual_interest_rate_basis_points, total_tenure_months, first_emi_due_date, emi_amount_paise, installments_paid_before_tracking"
+      )
+      .eq("id", debtId)
+      .maybeSingle();
+
+    if (debtData && isLoanEligibleForAmortization(debtData)) {
+      const schedule = generateAmortizationSchedule({
+        principalPaise: Number(debtData.original_principal_paise),
+        annualInterestRateBasisPoints: Number(
+          debtData.annual_interest_rate_basis_points
+        ),
+        totalTenureMonths: debtData.total_tenure_months,
+        firstEmiDate: debtData.first_emi_due_date,
+        emiAmountPaise: Number(debtData.emi_amount_paise),
+        installmentsPaidBeforeTracking:
+          debtData.installments_paid_before_tracking,
+      });
+
+      const matchedInstallment = schedule.installments.find(
+        (i) => i.installmentNumber === installmentNumber
+      );
+
+      if (matchedInstallment) {
+        finalPrincipal = matchedInstallment.principalPaise;
+        finalInterest = matchedInstallment.interestPaise;
+      }
+    }
+  }
+
   const { error } = await supabase.rpc("record_emi_payment", {
     p_debt_id: debtId,
     p_payment_date: paymentDate,
@@ -159,8 +206,8 @@ export async function recordEmiPayment(formData: FormData) {
       paymentKind === "scheduled_emi" ? installmentNumber : null,
     p_payment_kind: paymentKind,
     p_amount_paise: amount,
-    p_principal_component_paise: principal,
-    p_interest_component_paise: interest,
+    p_principal_component_paise: finalPrincipal,
+    p_interest_component_paise: finalInterest,
     p_charges_paise: charges,
     p_payment_method: paymentMethod,
     p_payment_account_id:
@@ -178,6 +225,7 @@ export async function recordEmiPayment(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/emi");
+  revalidatePath("/emi/schedule");
   revalidatePath("/emi/payments");
   revalidatePath("/transactions");
   revalidatePath("/cards");

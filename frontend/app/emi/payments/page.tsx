@@ -1,21 +1,46 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { recordEmiPayment } from "./actions";
+import ScheduledEmiForm from "./ScheduledEmiForm";
+import type { LoanOption, AccountOption, CardOption } from "./ScheduledEmiForm";
+import {
+  generateAmortizationSchedule,
+  getEmiCategory,
+  isLoanEligibleForAmortization,
+} from "@/lib/finance/amortization";
+import {
+  ArrowLeft,
+  Calendar,
+  Receipt,
+  Zap,
+} from "lucide-react";
 
-type DebtRow = {
+type SearchParams = Promise<{
+  debt_id?: string;
+  created?: string;
+  error?: string;
+}>;
+
+type EmiDebtRow = {
   id: string;
   name: string;
-  lender_name: string | null;
   debt_type: string;
+  lender_name: string | null;
+  linked_credit_card_id: string | null;
+  payment_account_id: string | null;
+  original_principal_paise: number | string;
   current_outstanding_principal_paise: number | string;
   outstanding_as_of_date: string;
+  annual_interest_rate_basis_points: number | string | null;
+  interest_method: string;
+  total_tenure_months: number;
+  installments_paid_before_tracking: number;
   emi_amount_paise: number | string;
+  first_emi_due_date: string;
   next_due_date: string | null;
   status: string;
-  installments_paid_before_tracking: number;
-  total_tenure_months: number;
 };
 
 type AccountRow = {
@@ -38,12 +63,7 @@ type PaymentRow = {
   notes: string | null;
 };
 
-type SearchParams = Promise<{
-  created?: string;
-  error?: string;
-}>;
-
-function value(value: number | string | null | undefined): number {
+function numeric(value: number | string | null | undefined): number {
   return Number(value ?? 0);
 }
 
@@ -52,22 +72,13 @@ function money(paise: number | string | null | undefined): string {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 2,
-  }).format(value(paise) / 100);
-}
-
-function recordedAmount(
-  paise: number | string | null | undefined,
-): string {
-  return paise == null ? "Not entered" : money(paise);
+  }).format(numeric(paise) / 100);
 }
 
 function dateLabel(date: string | null | undefined): string {
   if (!date) return "Not set";
-
   const parsed = new Date(`${date}T00:00:00`);
-
   if (Number.isNaN(parsed.getTime())) return date;
-
   return parsed.toLocaleDateString("en-IN", {
     day: "numeric",
     month: "short",
@@ -75,511 +86,336 @@ function dateLabel(date: string | null | undefined): string {
   });
 }
 
-function estimatedPrincipal(
-  debt: DebtRow,
-  payments: PaymentRow[],
-): number {
-  if (debt.status === "foreclosed" || debt.status === "closed") {
-    return 0;
-  }
+function todayInIndia(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
 
-  const principalPaid = payments
-    .filter(
-      (payment) =>
-        payment.debt_id === debt.id &&
-        payment.payment_date > debt.outstanding_as_of_date,
-    )
-    .reduce(
-      (sum, payment) =>
-        sum + value(payment.principal_component_paise),
-      0,
-    );
-
-  return Math.max(
-    0,
-    value(debt.current_outstanding_principal_paise) - principalPaid,
+  const values = Object.fromEntries(
+    parts.map((part) => [part.type, part.value])
   );
+
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
-function completedInstallments(
-  debt: DebtRow,
-  payments: PaymentRow[],
-): number {
-  const recordedAfterSnapshot = payments.filter(
-    (payment) =>
-      payment.debt_id === debt.id &&
-      payment.payment_kind === "scheduled_emi" &&
-      payment.payment_date > debt.outstanding_as_of_date,
-  ).length;
-
-  return debt.installments_paid_before_tracking + recordedAfterSnapshot;
-}
-
-function PaymentsContent({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
-  return <PaymentsData searchParams={searchParams} />;
-}
-
-async function PaymentsData({
+async function PaymentsContent({
   searchParams,
 }: {
   searchParams: SearchParams;
 }) {
   await connection();
-
   const params = await searchParams;
   const supabase = await createClient();
 
-  const [debtResult, accountResult, paymentResult] = await Promise.all([
+  const { data: claimsData, error: claimsError } =
+    await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub;
+
+  if (claimsError || !userId) {
+    redirect("/login");
+  }
+
+  type CreditCardOptionRow = {
+    id: string;
+    name: string;
+    bank_name: string;
+    last_four_digits: string | null;
+  };
+
+  const [debtResult, accountResult, paymentResult, cardResult] = await Promise.all([
     supabase
       .from("emi_debts")
       .select(
-        "id,name,lender_name,debt_type,current_outstanding_principal_paise,outstanding_as_of_date,emi_amount_paise,next_due_date,status,installments_paid_before_tracking,total_tenure_months",
+        "id,name,debt_type,lender_name,linked_credit_card_id,payment_account_id,original_principal_paise,current_outstanding_principal_paise,outstanding_as_of_date,annual_interest_rate_basis_points,interest_method,total_tenure_months,installments_paid_before_tracking,emi_amount_paise,first_emi_due_date,next_due_date,status"
       )
-      .order("name"),
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false }),
 
     supabase
       .from("accounts")
       .select("id,name,account_type,institution")
+      .eq("user_id", userId)
       .eq("is_archived", false)
       .order("name"),
 
     supabase
       .from("emi_payments")
       .select(
-        "id,debt_id,payment_date,installment_number,payment_kind,amount_paise,principal_component_paise,interest_component_paise,payment_method,notes",
+        "id,debt_id,payment_date,installment_number,payment_kind,amount_paise,principal_component_paise,interest_component_paise,payment_method,notes"
       )
+      .eq("user_id", userId)
       .order("payment_date", { ascending: false }),
+
+    supabase
+      .from("credit_cards")
+      .select("id,name,bank_name,last_four_digits")
+      .eq("user_id", userId)
+      .eq("is_archived", false)
+      .order("name"),
   ]);
 
-  const debts = (debtResult.data ?? []) as unknown as DebtRow[];
+  const allDebts = (debtResult.data ?? []) as unknown as EmiDebtRow[];
+  const activeDebts = allDebts.filter((d) => d.status === "active");
   const accounts = (accountResult.data ?? []) as unknown as AccountRow[];
   const payments = (paymentResult.data ?? []) as unknown as PaymentRow[];
+  const cards = (cardResult.data ?? []) as unknown as CreditCardOptionRow[];
 
-  const activeDebts = debts.filter((debt) => debt.status === "active");
-  const debtNames = new Map(debts.map((debt) => [debt.id, debt.name]));
+  const debtMap = new Map(allDebts.map((d) => [d.id, d.name]));
 
-  const outstanding = activeDebts.reduce(
-    (sum, debt) => sum + estimatedPrincipal(debt, payments),
-    0,
-  );
+  // Pre-calculate loan options with exact next installment number and split
+  const loanOptions: LoanOption[] = activeDebts.map((debt) => {
+    const category = getEmiCategory(debt);
+    const debtPayments = payments.filter((p) => p.debt_id === debt.id);
 
-  const monthlyEmi = activeDebts.reduce(
-    (sum, debt) => sum + value(debt.emi_amount_paise),
-    0,
-  );
+    let nextInstallmentNumber =
+      debt.installments_paid_before_tracking +
+      debtPayments.filter((p) => p.payment_kind === "scheduled_emi").length +
+      1;
 
-  const loadError =
-    debtResult.error || accountResult.error || paymentResult.error;
+    let expectedPrincipalRupees: string | undefined;
+    let expectedInterestRupees: string | undefined;
+    let outstandingRupees: string | undefined;
+
+    if (category === "loan_emi" && isLoanEligibleForAmortization(debt)) {
+      const schedule = generateAmortizationSchedule({
+        principalPaise: numeric(debt.original_principal_paise),
+        annualInterestRateBasisPoints: numeric(
+          debt.annual_interest_rate_basis_points
+        ),
+        totalTenureMonths: debt.total_tenure_months,
+        firstEmiDate: debt.first_emi_due_date,
+        emiAmountPaise: numeric(debt.emi_amount_paise),
+        installmentsPaidBeforeTracking: debt.installments_paid_before_tracking,
+        actualPayments: debtPayments.map((p) => ({
+          date: p.payment_date,
+          installmentNumber: p.installment_number,
+          amountPaise: numeric(p.amount_paise),
+          principalComponentPaise:
+            p.principal_component_paise != null
+              ? numeric(p.principal_component_paise)
+              : null,
+          interestComponentPaise:
+            p.interest_component_paise != null
+              ? numeric(p.interest_component_paise)
+              : null,
+          paymentKind: p.payment_kind,
+        })),
+      });
+
+      if (schedule.nextDueInstallment) {
+        nextInstallmentNumber = schedule.nextDueInstallment.installmentNumber;
+        expectedPrincipalRupees = (
+          schedule.nextDueInstallment.principalPaise / 100
+        ).toFixed(2);
+        expectedInterestRupees = (
+          schedule.nextDueInstallment.interestPaise / 100
+        ).toFixed(2);
+      }
+      outstandingRupees = (schedule.remainingPrincipalPaise / 100).toFixed(2);
+    } else {
+      outstandingRupees = (
+        numeric(debt.current_outstanding_principal_paise) / 100
+      ).toFixed(2);
+    }
+
+    return {
+      id: debt.id,
+      label: `${debt.name}${debt.lender_name ? ` · ${debt.lender_name}` : ""}`,
+      emiRupees: (numeric(debt.emi_amount_paise) / 100).toFixed(2),
+      nextInstallmentNumber: Math.min(
+        debt.total_tenure_months,
+        nextInstallmentNumber
+      ),
+      totalTenureMonths: debt.total_tenure_months,
+      nextDueDate: debt.next_due_date,
+      category,
+      linkedCreditCardId: debt.linked_credit_card_id ?? null,
+      expectedPrincipalRupees,
+      expectedInterestRupees,
+      outstandingRupees,
+    };
+  });
+
+  const accountOptions: AccountOption[] = accounts.map((a) => ({
+    id: a.id,
+    label: `${a.name}${a.institution ? ` · ${a.institution}` : ""}`,
+  }));
+
+  const cardOptions: CardOption[] = cards.map((c) => ({
+    id: c.id,
+    label: `${c.bank_name} ${c.name}${c.last_four_digits ? ` (••${c.last_four_digits})` : ""}`,
+  }));
+
+  const today = todayInIndia();
 
   return (
-    <main className="mx-auto w-full max-w-4xl space-y-6 px-4 py-6 sm:px-6">
-      <header className="space-y-3">
-        <Link
-          href="/emi"
-          className="text-sm font-medium text-blue-700 hover:underline"
-        >
-          ← Back to EMI overview
-        </Link>
-
+    <div className="mx-auto w-full max-w-5xl space-y-8 px-4 py-4 sm:px-6 pb-20">
+      {/* Top Heading */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-medium tracking-wide text-slate-500">
-            MY FINANCE OS
-          </p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">
-            Record an EMI
-          </h1>
-          <p className="mt-2 text-slate-600">
-            Record your usual monthly loan payment and keep track of what
-            remains to be paid.
+          <div className="flex items-center gap-2">
+            <Link
+              href="/emi"
+              className="text-slate-400 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+              Record EMI Payment
+            </h1>
+          </div>
+          <p className="mt-0.5 text-xs text-slate-400">
+            Log an installment payment and update your loan ledger with verified principal reduction
           </p>
         </div>
-      </header>
 
+        <Link
+          href="/emi/schedule"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-cyan-300 hover:text-cyan-200"
+        >
+          <Calendar className="h-3.5 w-3.5" />
+          <span>View Full Schedule</span>
+        </Link>
+      </div>
+
+      {/* Notifications */}
       {params.created === "1" && (
         <div
           role="status"
-          className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900"
+          className="flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-950/40 px-5 py-4 text-xs sm:text-sm font-semibold text-emerald-300 shadow-xl backdrop-blur-xl animate-float-slow"
         >
-          Your EMI payment was saved successfully.
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+            <Zap className="h-4 w-4" />
+          </div>
+          <p>
+            Payment recorded successfully. Your loan ledger and remaining principal balance have been updated.
+          </p>
         </div>
       )}
 
       {params.error && (
         <div
           role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800"
+          className="rounded-2xl border border-rose-500/30 bg-rose-950/40 p-4 text-sm font-semibold text-rose-300 backdrop-blur-xl"
         >
           {params.error}
         </div>
       )}
 
-      {loadError && (
-        <div
-          role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800"
-        >
-          Some data could not be loaded. Refresh the page and check your
-          Supabase connection if the problem continues.
-        </div>
-      )}
-
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-sm text-slate-500">Active loans</p>
-          <p className="mt-2 text-2xl font-bold text-slate-950">
-            {activeDebts.length}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-sm text-slate-500">
-            Estimated principal remaining
-          </p>
-          <p className="mt-2 text-2xl font-bold text-slate-950">
-            {money(outstanding)}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-sm text-slate-500">Monthly EMI commitments</p>
-          <p className="mt-2 text-2xl font-bold text-slate-950">
-            {money(monthlyEmi)}
-          </p>
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
-        <div className="mb-5">
-          <h2 className="text-xl font-semibold text-slate-950">
-            Monthly EMI details
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Fill this in after making your regular EMI payment.
-          </p>
-        </div>
-
-        {activeDebts.length === 0 ? (
-          <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-            You have no active loans. Add one on the{" "}
-            <Link href="/emi" className="font-medium text-blue-700 underline">
-              EMI overview page
-            </Link>{" "}
-            first.
+      {/* Form Card */}
+      <section className="aura-panel p-6 sm:p-8 space-y-6">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-400 ring-1 ring-cyan-500/30">
+            <Receipt className="h-4 w-4" />
           </div>
-        ) : accounts.length === 0 ? (
-          <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-            Add a bank or cash account on the Accounts page before recording an
-            EMI payment.
+          <div>
+            <h2 className="text-base sm:text-lg font-bold tracking-tight text-white">
+              Log Scheduled Installment
+            </h2>
+            <p className="text-xs text-slate-400">
+              For reducing-balance loans, principal and interest splits are calculated automatically from your schedule.
+            </p>
           </div>
-        ) : (
-          <form action={recordEmiPayment} className="space-y-4">
-            <input
-              type="hidden"
-              name="payment_kind"
-              value="scheduled_emi"
-            />
-            <input
-              type="hidden"
-              name="payment_method"
-              value="bank_debit"
-            />
-            <input type="hidden" name="charges_rupees" value="0" />
+        </div>
 
-            <label className="block text-sm font-medium text-slate-700">
-              Which loan did you pay?
-              <select
-                name="debt_id"
-                required
-                defaultValue=""
-                className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-base"
-              >
-                <option value="" disabled>
-                  Select your loan
-                </option>
-                {activeDebts.map((debt) => (
-                  <option key={debt.id} value={debt.id}>
-                    {debt.name} — EMI {money(debt.emi_amount_paise)}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <label className="block text-sm font-medium text-slate-700">
-                Payment date
-                <input
-                  type="date"
-                  name="payment_date"
-                  required
-                  className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-3 text-base"
-                />
-              </label>
-
-              <label className="block text-sm font-medium text-slate-700">
-                Which instalment number?
-                <input
-                  type="number"
-                  name="installment_number"
-                  min="1"
-                  step="1"
-                  required
-                  placeholder="e.g. 8"
-                  className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-3 text-base"
-                />
-                <span className="mt-1 block text-xs font-normal text-slate-500">
-                  For example, enter 8 if this is your eighth EMI.
-                </span>
-              </label>
-
-              <label className="block text-sm font-medium text-slate-700">
-                Total amount paid (₹)
-                <input
-                  type="number"
-                  name="amount_rupees"
-                  min="0.01"
-                  step="0.01"
-                  required
-                  placeholder="e.g. 8613"
-                  className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-3 text-base"
-                />
-              </label>
-
-              <label className="block text-sm font-medium text-slate-700">
-                Which account paid it?
-                <select
-                  name="payment_account_id"
-                  required
-                  defaultValue=""
-                  className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-base"
-                >
-                  <option value="" disabled>
-                    Select bank or cash account
-                  </option>
-                  {accounts.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name}
-                      {account.institution ? ` · ${account.institution}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <details className="rounded-xl border border-slate-200 p-4">
-              <summary className="cursor-pointer text-sm font-medium text-slate-800">
-                Optional: loan principal and interest breakdown
-              </summary>
-              <p className="mt-3 text-sm leading-6 text-slate-600">
-                Your EMI includes interest and principal. If your lender
-                statement shows the split, enter it here. The principal amount
-                helps the app estimate how much of your loan remains. Leave
-                these fields blank if you do not know the figures.
-              </p>
-
-              <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <label className="block text-sm font-medium text-slate-700">
-                  Principal repaid (₹)
-                  <input
-                    type="number"
-                    name="principal_rupees"
-                    min="0"
-                    step="0.01"
-                    placeholder="e.g. 6000"
-                    className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-3 text-base"
-                  />
-                </label>
-
-                <label className="block text-sm font-medium text-slate-700">
-                  Interest paid (₹)
-                  <input
-                    type="number"
-                    name="interest_rupees"
-                    min="0"
-                    step="0.01"
-                    placeholder="e.g. 2613"
-                    className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-3 text-base"
-                  />
-                </label>
-              </div>
-            </details>
-
-            <label className="block text-sm font-medium text-slate-700">
-              Notes (optional)
-              <textarea
-                name="notes"
-                rows={2}
-                maxLength={1000}
-                placeholder="Any reminder about this payment"
-                className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-3 text-base"
-              />
-            </label>
-
-            <div className="rounded-xl bg-slate-50 p-3 text-sm leading-6 text-slate-600">
-              Saving this form records the EMI and a corresponding expense
-              against the selected account. The amount is deducted from that
-              account balance.
-            </div>
-
-            <button
-              type="submit"
-              className="w-full rounded-xl bg-slate-950 px-4 py-3 font-semibold text-white hover:bg-slate-800"
+        {loanOptions.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-8 text-center">
+            <p className="text-sm font-semibold text-white">No active loans found</p>
+            <p className="mt-1 text-xs text-slate-400">
+              Add a loan on the Loans Overview page before recording installment payments.
+            </p>
+            <Link
+              href="/emi"
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2 text-xs font-bold text-slate-950"
             >
-              Save EMI payment
-            </button>
-          </form>
-        )}
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-xl font-semibold text-slate-950">
-          Your loans
-        </h2>
-
-        {debts.length === 0 ? (
-          <p className="rounded-xl border border-slate-200 p-4 text-sm text-slate-600">
-            No loans added yet.
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {debts.map((debt) => {
-              const paid = completedInstallments(debt, payments);
-              const progress =
-                debt.total_tenure_months > 0
-                  ? Math.min(
-                      100,
-                      Math.round(
-                        (paid / debt.total_tenure_months) * 100,
-                      ),
-                    )
-                  : 0;
-
-              return (
-                <article
-                  key={debt.id}
-                  className="rounded-2xl border border-slate-200 bg-white p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="font-semibold text-slate-950">
-                        {debt.name}
-                      </h3>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {debt.lender_name || debt.debt_type.replaceAll("_", " ")}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">
-                      {debt.status}
-                    </span>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-xs text-slate-500">
-                        Estimated principal left
-                      </p>
-                      <p className="mt-1 font-semibold text-slate-950">
-                        {money(estimatedPrincipal(debt, payments))}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500">Monthly EMI</p>
-                      <p className="mt-1 font-semibold text-slate-950">
-                        {money(debt.emi_amount_paise)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    <div className="flex justify-between gap-3 text-xs text-slate-500">
-                      <span>Instalments recorded</span>
-                      <span>
-                        {Math.min(paid, debt.total_tenure_months)} of{" "}
-                        {debt.total_tenure_months}
-                      </span>
-                    </div>
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className="h-full rounded-full bg-slate-800"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <p className="mt-3 text-xs text-slate-500">
-                    Next due date: {dateLabel(debt.next_due_date)}
-                  </p>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-xl font-semibold text-slate-950">
-          Recent EMI payments
-        </h2>
-
-        {payments.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
-            Your recorded payments will appear here.
+              <span>Add Loan</span>
+            </Link>
           </div>
         ) : (
-          <div className="space-y-3">
-            {payments.slice(0, 20).map((payment) => (
-              <article
-                key={payment.id}
-                className="rounded-2xl border border-slate-200 bg-white p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-medium text-slate-950">
-                      {debtNames.get(payment.debt_id) ?? "Loan"}
-                    </h3>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {dateLabel(payment.payment_date)} · Instalment{" "}
-                      {payment.installment_number ?? "—"}
-                    </p>
-                  </div>
-                  <p className="font-semibold text-slate-950">
-                    {money(payment.amount_paise)}
-                  </p>
-                </div>
-
-                <p className="mt-2 text-xs text-slate-500">
-                  Principal: {recordedAmount(payment.principal_component_paise)}
-                  {" · "}
-                  Interest: {recordedAmount(payment.interest_component_paise)}
-                </p>
-
-                {payment.notes && (
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">
-                    {payment.notes}
-                  </p>
-                )}
-              </article>
-            ))}
-          </div>
+          <ScheduledEmiForm
+            loans={loanOptions}
+            accounts={accountOptions}
+            cards={cardOptions}
+            today={today}
+            defaultDebtId={params.debt_id}
+          />
         )}
       </section>
 
-      <footer className="pb-4">
-        <Link
-          href="/emi"
-          className="text-sm font-medium text-blue-700 hover:underline"
-        >
-          ← Return to EMI overview
-        </Link>
-      </footer>
-    </main>
+      {/* Payment History Table */}
+      {payments.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2.5">
+            <div className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+            <h2 className="text-base sm:text-lg font-bold tracking-tight text-white">
+              Recorded EMI Payments ({payments.length})
+            </h2>
+          </div>
+
+          <div className="aura-panel overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs whitespace-nowrap">
+                <thead>
+                  <tr className="border-b border-white/10 bg-white/[0.04] text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Loan / EMI</th>
+                    <th className="px-4 py-3 text-center">Installment</th>
+                    <th className="px-4 py-3 text-right">Amount Paid</th>
+                    <th className="px-4 py-3 text-right text-emerald-400">Principal</th>
+                    <th className="px-4 py-3 text-right text-amber-300">Interest</th>
+                    <th className="px-4 py-3">Method</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 font-medium">
+                  {payments.map((payment) => (
+                    <tr key={payment.id} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="px-4 py-3 text-slate-200">
+                        {dateLabel(payment.payment_date)}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-white">
+                        {debtMap.get(payment.debt_id) ?? "Loan"}
+                      </td>
+                      <td className="px-4 py-3 text-center font-bold text-slate-300">
+                        {payment.installment_number ? `#${payment.installment_number}` : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-bold text-white tabular-nums">
+                        {money(payment.amount_paise)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-emerald-400 tabular-nums">
+                        {payment.principal_component_paise != null
+                          ? money(payment.principal_component_paise)
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right text-amber-300/90 tabular-nums">
+                        {payment.interest_component_paise != null
+                          ? money(payment.interest_component_paise)
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-slate-400">
+                        {payment.payment_method === "bank_debit"
+                          ? "Bank Debit"
+                          : payment.payment_method === "foreclosure"
+                          ? "Foreclosure Payoff"
+                          : payment.payment_method === "billed_to_credit_card"
+                          ? "Card Billed"
+                          : "Manual"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      )}
+    </div>
   );
 }
 
-export default function EmiPaymentsPage({
+export default function PaymentsPage({
   searchParams,
 }: {
   searchParams: SearchParams;
@@ -587,9 +423,10 @@ export default function EmiPaymentsPage({
   return (
     <Suspense
       fallback={
-        <main className="mx-auto max-w-4xl px-4 py-10 text-sm text-slate-500">
-          Loading EMI payments…
-        </main>
+        <div className="mx-auto max-w-5xl px-4 py-16 text-center text-sm text-slate-400">
+          <div className="mx-auto h-5 w-5 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
+          <p className="mt-3">Loading payments...</p>
+        </div>
       }
     >
       <PaymentsContent searchParams={searchParams} />

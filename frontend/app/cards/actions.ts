@@ -4,6 +4,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isValidCardNetwork } from "@/lib/finance/card-networks";
 
 function isValidDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -62,6 +63,8 @@ function parseRupees(value: string): number | null {
 export async function createCreditCard(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const bankName = String(formData.get("bankName") ?? "").trim();
+  const cardholderName = String(formData.get("cardholderName") ?? "").trim();
+  const cardNetwork = String(formData.get("cardNetwork") ?? "").trim();
   const lastFourDigits = String(
     formData.get("lastFourDigits") ?? ""
   ).trim();
@@ -97,6 +100,9 @@ export async function createCreditCard(formData: FormData) {
     name.length > 80 ||
     bankName.length < 1 ||
     bankName.length > 100 ||
+    cardholderName.length < 1 ||
+    cardholderName.length > 100 ||
+    !isValidCardNetwork(cardNetwork) ||
     (lastFourDigits !== "" &&
       !/^\d{4}$/.test(lastFourDigits)) ||
     creditLimitPaise === null ||
@@ -127,6 +133,8 @@ export async function createCreditCard(formData: FormData) {
       user_id: userId,
       name,
       bank_name: bankName,
+      cardholder_name: cardholderName,
+      card_network: cardNetwork,
       last_four_digits: lastFourDigits || null,
       credit_limit_paise: creditLimitPaise,
       opening_outstanding_paise: openingOutstandingPaise,

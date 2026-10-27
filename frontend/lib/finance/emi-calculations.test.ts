@@ -1,4 +1,3 @@
-
 import { describe, expect, it } from "vitest";
 import type { EmiDebt, EmiPaymentRecord, ForeclosureQuote } from "./types";
 import {
@@ -115,7 +114,6 @@ describe("EMI calculations", () => {
     expect(calculateForeclosureTotalPaise(quote)).toBe(10_196_000);
   });
 
-  
   it("reduces principal without counting an extra repayment as an EMI", () => {
     const payments: EmiPaymentRecord[] = [
       {
@@ -130,12 +128,59 @@ describe("EMI calculations", () => {
     ];
 
     expect(calculateInstallmentsCompleted(debt, payments)).toBe(6);
-
     expect(calculateRemainingInstallments(debt, payments)).toBe(18);
-
     expect(
       calculateEstimatedOutstandingPrincipalPaise(debt, payments)
     ).toBe(9_000_000);
   });
 
+  it("returns zero outstanding principal for foreclosed or closed debt", () => {
+    const foreclosedDebt: EmiDebt = {
+      ...debt,
+      status: "foreclosed",
+    };
+    const closedDebt: EmiDebt = {
+      ...debt,
+      status: "closed",
+    };
+
+    expect(
+      calculateEstimatedOutstandingPrincipalPaise(foreclosedDebt, [])
+    ).toBe(0);
+    expect(
+      calculateEstimatedOutstandingPrincipalPaise(closedDebt, [])
+    ).toBe(0);
+  });
+
+  it("keeps ordinary EMI payment dates strictly later than the snapshot date", () => {
+    // Payment on the snapshot date (2026-01-31) must NOT be counted as a new post-snapshot instalment
+    const paymentOnSnapshot: EmiPaymentRecord[] = [
+      {
+        id: "payment-on-snapshot",
+        debtId: debt.id,
+        date: "2026-01-31",
+        amountPaise: 500_000,
+        paymentMethod: "bank_debit",
+        paymentKind: "scheduled_emi",
+      },
+    ];
+
+    expect(calculateInstallmentsCompleted(debt, paymentOnSnapshot)).toBe(6);
+    expect(calculateRemainingInstallments(debt, paymentOnSnapshot)).toBe(18);
+
+    // Payment strictly after snapshot date (2026-02-01) is counted
+    const paymentAfterSnapshot: EmiPaymentRecord[] = [
+      {
+        id: "payment-after-snapshot",
+        debtId: debt.id,
+        date: "2026-02-01",
+        amountPaise: 500_000,
+        paymentMethod: "bank_debit",
+        paymentKind: "scheduled_emi",
+      },
+    ];
+
+    expect(calculateInstallmentsCompleted(debt, paymentAfterSnapshot)).toBe(7);
+    expect(calculateRemainingInstallments(debt, paymentAfterSnapshot)).toBe(17);
+  });
 });

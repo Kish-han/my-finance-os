@@ -32,6 +32,9 @@ function indiaToday(): string {
 }
 
 export async function createTransaction(formData: FormData) {
+  const returnTo =
+    String(formData.get("returnTo") ?? "").trim() || "/transactions/new";
+
   const description = String(
     formData.get("description") ?? ""
   ).trim();
@@ -55,7 +58,7 @@ export async function createTransaction(formData: FormData) {
     !isValidDate(transactionDate) ||
     transactionDate > indiaToday()
   ) {
-    redirect("/transactions?error=invalid-input");
+    redirect(`${returnTo}?error=invalid-input`);
   }
 
   const amountRupees = Number(amountInput);
@@ -66,7 +69,7 @@ export async function createTransaction(formData: FormData) {
     !Number.isSafeInteger(amountPaise) ||
     amountPaise <= 0
   ) {
-    redirect("/transactions?error=invalid-input");
+    redirect(`${returnTo}?error=invalid-input`);
   }
 
   const supabase = await createClient();
@@ -94,7 +97,7 @@ export async function createTransaction(formData: FormData) {
     !account ||
     transactionDate < account.opening_balance_date
   ) {
-    redirect("/transactions?error=invalid-account-or-date");
+    redirect(`${returnTo}?error=invalid-account-or-date`);
   }
 
   // Find or create a category belonging to this user and transaction type.
@@ -115,7 +118,7 @@ export async function createTransaction(formData: FormData) {
     .single();
 
   if (categoryError || !category) {
-    redirect("/transactions?error=save-failed");
+    redirect(`${returnTo}?error=save-failed`);
   }
 
   // Only income and expense transactions are supported in this first form.
@@ -132,12 +135,13 @@ export async function createTransaction(formData: FormData) {
     });
 
   if (transactionError) {
-    redirect("/transactions?error=save-failed");
+    redirect(`${returnTo}?error=save-failed`);
   }
 
   revalidatePath("/");
   revalidatePath("/transactions");
+  revalidatePath("/transactions/new");
   revalidatePath("/accounts");
 
-  redirect("/transactions?created=1");
+  redirect(`${returnTo}?created=1`);
 }

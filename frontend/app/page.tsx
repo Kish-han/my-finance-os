@@ -2,13 +2,35 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  Wallet,
+  Landmark,
+  CreditCard,
+  TrendingUp,
+  ArrowUpRight,
+  ArrowDownLeft,
+  ArrowLeftRight,
+  Zap,
+  ChevronRight,
+  Percent,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { calculateAccountBalance } from "@/lib/finance/balances";
+import {
+  calculateAccountBalance,
+  separateAccountBalances,
+  partitionDebtsForLiabilities,
+  calculateNetWorth,
+} from "@/lib/finance/balances";
 import type {
   FinancialAccount,
   Transaction,
 } from "@/lib/finance/types";
 import { logout } from "./login/actions";
+import { AuraHeader, AuraBottomNav } from "@/components/AuraNav";
+import { resolveDisplayName } from "@/lib/auth/user-display";
+import { DashboardNetWorth } from "./DashboardNetWorth";
+import UpcomingPaymentsCenter from "./UpcomingPaymentsCenter";
+import { buildUpcomingPaymentsList } from "@/lib/finance/payment-schedule";
 
 type TransactionType =
   | "income"
@@ -57,9 +79,15 @@ type EmiDebtRow = {
   name: string;
   lender_name: string;
   debt_type: string;
+  linked_credit_card_id: string | null;
   status: "active" | "foreclosed" | "closed";
   emi_amount_paise: number | string;
   current_outstanding_principal_paise: number | string;
+  original_principal_paise?: number | string;
+  annual_interest_rate_basis_points?: number | string | null;
+  total_tenure_months?: number;
+  installments_paid_before_tracking?: number;
+  first_emi_due_date?: string;
   outstanding_as_of_date: string;
   next_due_date: string | null;
 };
@@ -67,7 +95,24 @@ type EmiDebtRow = {
 type EmiPaymentRow = {
   debt_id: string;
   payment_date: string;
+  installment_number: number | null;
+  amount_paise: number | string;
   principal_component_paise: number | string | null;
+  interest_component_paise: number | string | null;
+  payment_kind: string;
+};
+
+type StatementRow = {
+  id: string;
+  user_id: string;
+  credit_card_id: string;
+  statement_date: string;
+  payment_due_date: string;
+  statement_balance_paise: number | string;
+  minimum_due_paise?: number | string | null;
+  is_settled?: boolean | null;
+  settled_at?: string | null;
+  notes?: string | null;
 };
 
 type TransactionLoadResult = {
@@ -96,15 +141,6 @@ function indiaDate(): string {
   );
 
   return `${values.year}-${values.month}-${values.day}`;
-}
-
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${value}T12:00:00Z`));
 }
 
 function toFinancialAccount(row: AccountRow): FinancialAccount {
@@ -174,33 +210,22 @@ async function loadTransactions(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string
 ): Promise<TransactionLoadResult> {
-  const allRows: TransactionRow[] = [];
-  const pageSize = 500;
+  const { data, error } = await supabase
+    .from("transactions")
+    .select(
+      "id, transaction_date, description, amount_paise, transaction_type, account_id, from_account_id, to_account_id, credit_card_id, category_id"
+    )
+    .eq("user_id", userId)
+    .order("transaction_date", { ascending: false });
 
-  // Fetch all pages so old transactions are not silently omitted
-  // from account balance calculations.
-  for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase
-      .from("transactions")
-      .select(
-        "id, transaction_date, description, amount_paise, transaction_type, account_id, from_account_id, to_account_id, credit_card_id, category_id"
-      )
-      .eq("user_id", userId)
-      .order("transaction_date", { ascending: true })
-      .order("id", { ascending: true })
-      .range(offset, offset + pageSize - 1);
-
-    if (error) {
-      return { rows: [], failed: true };
-    }
-
-    const batch = (data ?? []) as unknown as TransactionRow[];
-    allRows.push(...batch);
-
-    if (batch.length < pageSize) {
-      return { rows: allRows, failed: false };
-    }
+  if (error || !data) {
+    return { rows: [], failed: true };
   }
+
+  return {
+    rows: data as unknown as TransactionRow[],
+    failed: false,
+  };
 }
 
 function calculateCardOutstanding(
@@ -210,26 +235,22 @@ function calculateCardOutstanding(
   let outstanding = Number(card.opening_outstanding_paise);
 
   for (const transaction of transactions) {
-    if (transaction.transaction_date < card.opening_outstanding_date) {
+    if (
+      transaction.credit_card_id !== card.id ||
+      transaction.transaction_date < card.opening_outstanding_date
+    ) {
       continue;
     }
 
     const amount = Number(transaction.amount_paise);
 
-    if (
-      transaction.transaction_type === "card_purchase" &&
-      transaction.credit_card_id === card.id
-    ) {
+    if (transaction.transaction_type === "card_purchase") {
       outstanding += amount;
-    } else if (
-      transaction.transaction_type === "card_payment" &&
-      transaction.credit_card_id === card.id
-    ) {
+    } else if (transaction.transaction_type === "card_payment") {
       outstanding -= amount;
     }
   }
 
-  // This shows debt outstanding, not any credit balance from an overpayment.
   return Math.max(0, outstanding);
 }
 
@@ -237,9 +258,7 @@ function calculateEmiPrincipal(
   debt: EmiDebtRow,
   payments: EmiPaymentRow[]
 ): number {
-  let outstanding = Number(
-    debt.current_outstanding_principal_paise
-  );
+  let outstanding = Number(debt.current_outstanding_principal_paise);
 
   for (const payment of payments) {
     if (
@@ -253,74 +272,38 @@ function calculateEmiPrincipal(
   return Math.max(0, outstanding);
 }
 
-function transactionLabel(type: TransactionType): string {
-  switch (type) {
-    case "income":
-      return "Income";
-    case "expense":
-      return "Expense";
-    case "transfer":
-      return "Transfer";
-    case "card_purchase":
-      return "Card purchase";
-    case "card_payment":
-      return "Card repayment";
-  }
-}
-
-function transactionSign(type: TransactionType): string {
-  switch (type) {
-    case "income":
-      return "+";
-    case "expense":
-    case "card_purchase":
-    case "card_payment":
-      return "−";
-    case "transfer":
-      return "↔ ";
-  }
-}
-
-function AmountCard({
-  label,
-  amount,
-  note,
+async function DashboardContent({
+  searchParams,
 }: {
-  label: string;
-  amount: string;
-  note: string;
+  searchParams?: Promise<{
+    error?: string;
+    statement_saved?: string;
+    payment_recorded?: string;
+  }>;
 }) {
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-3 break-words text-xl font-bold tracking-tight sm:text-2xl">
-        {amount}
-      </p>
-      <p className="mt-2 text-xs leading-5 text-slate-500">{note}</p>
-    </section>
-  );
-}
-
-async function DashboardContent() {
   // All personal financial information must load at request time.
   await connection();
+  const params = searchParams ? await searchParams : {};
 
   const supabase = await createClient();
 
-  const { data: authData, error: authError } =
-    await supabase.auth.getClaims();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
 
-  const userId = authData?.claims?.sub;
-
-  if (authError || typeof userId !== "string") {
+  if (userError || !user) {
     redirect("/login");
   }
+
+  const userId = user.id;
 
   const [
     accountsResult,
     cardsResult,
     debtsResult,
     paymentsResult,
+    statementRows,
     transactionResult,
   ] = await Promise.all([
     supabase
@@ -330,7 +313,7 @@ async function DashboardContent() {
       )
       .eq("user_id", userId)
       .eq("is_archived", false)
-      .order("created_at", { ascending: false }),
+      .order("name", { ascending: true }),
 
     supabase
       .from("credit_cards")
@@ -339,22 +322,40 @@ async function DashboardContent() {
       )
       .eq("user_id", userId)
       .eq("is_archived", false)
-      .order("created_at", { ascending: false }),
+      .order("name", { ascending: true }),
 
     supabase
       .from("emi_debts")
       .select(
-        "id, name, lender_name, debt_type, status, emi_amount_paise, current_outstanding_principal_paise, outstanding_as_of_date, next_due_date"
+        "id, name, lender_name, debt_type, linked_credit_card_id, status, emi_amount_paise, current_outstanding_principal_paise, original_principal_paise, annual_interest_rate_basis_points, total_tenure_months, installments_paid_before_tracking, first_emi_due_date, outstanding_as_of_date, next_due_date"
       )
       .eq("user_id", userId)
       .eq("status", "active")
-      .order("created_at", { ascending: false }),
+      .order("next_due_date", { ascending: true, nullsFirst: false }),
 
     supabase
       .from("emi_payments")
-      .select("debt_id, payment_date, principal_component_paise")
+      .select(
+        "debt_id, payment_date, installment_number, amount_paise, principal_component_paise, interest_component_paise, payment_kind"
+      )
       .eq("user_id", userId)
       .order("payment_date", { ascending: true }),
+
+    (async (): Promise<StatementRow[]> => {
+      try {
+        const { data, error } = await supabase
+          .from("credit_card_statements")
+          .select(
+            "id, user_id, credit_card_id, statement_date, payment_due_date, statement_balance_paise, minimum_due_paise, is_settled, settled_at, notes"
+          )
+          .eq("user_id", userId)
+          .order("payment_due_date", { ascending: true });
+        if (error) return [];
+        return (data ?? []) as unknown as StatementRow[];
+      } catch {
+        return [];
+      }
+    })(),
 
     loadTransactions(supabase, userId),
   ]);
@@ -397,10 +398,13 @@ async function DashboardContent() {
   const canCalculateEmiBalances =
     !debtsResult.error && !paymentsResult.error;
 
-  const totalBankCashPaise = accountBalances.reduce(
-    (total, item) => total + item.balancePaise,
-    0
-  );
+  const {
+    bankAccounts: bankAccountBalances,
+    cashAccounts: cashAccountBalances,
+    totalBankBalancesPaise,
+    totalCashInHandPaise,
+    totalLiquidPaise: totalBankCashPaise,
+  } = separateAccountBalances(accountBalances);
 
   const cardBalances = cardRows.map((card) => ({
     card,
@@ -417,12 +421,6 @@ async function DashboardContent() {
 
   const indiaToday = indiaDate();
   const monthStart = `${indiaToday.slice(0, 7)}-01`;
-
-  const monthLabel = new Intl.DateTimeFormat("en-IN", {
-    month: "long",
-    year: "numeric",
-    timeZone: "Asia/Kolkata",
-  }).format(new Date(`${indiaToday}T12:00:00+05:30`));
 
   const monthTransactions = transactionRows.filter(
     (transaction) => transaction.transaction_date >= monthStart
@@ -449,33 +447,98 @@ async function DashboardContent() {
 
   const activeEmis = debtRows.map((debt) => ({
     debt,
+    debtType: debt.debt_type,
+    linkedCreditCardId: debt.linked_credit_card_id,
     outstandingPaise: calculateEmiPrincipal(debt, emiPaymentRows),
   }));
 
-  const totalEmiPrincipalPaise = activeEmis.reduce(
-    (total, item) => total + item.outstandingPaise,
-    0
-  );
+  // Separate standalone term loans from credit-card linked EMIs.
+  // Card-linked EMIs are already represented within the card's revolving debt liability.
+  // Only standalone term loans constitute independent loan liabilities to prevent double counting.
+  const {
+    standaloneLoans,
+    totalStandaloneLoanPaise: totalStandaloneLoanPrincipalPaise,
+  } = partitionDebtsForLiabilities(activeEmis);
 
-  const monthlyEmiCommitmentPaise = debtRows.reduce(
-    (total, debt) => total + Number(debt.emi_amount_paise),
-    0
-  );
+  const { totalLiabilitiesPaise, netWorthPaise } = calculateNetWorth({
+    liquidAssetsPaise: totalBankCashPaise,
+    cardOutstandingPaise: totalCardOutstandingPaise,
+    standaloneLoanPrincipalPaise: totalStandaloneLoanPrincipalPaise,
+  });
 
-  const nextEmi = debtRows
-    .filter(
-      (debt) =>
-        debt.next_due_date && debt.next_due_date >= indiaToday
-    )
-    .sort((a, b) =>
-      (a.next_due_date ?? "").localeCompare(b.next_due_date ?? "")
-    )[0];
+  const upcomingCardOptions = cardRows.map((c) => {
+    const cb = cardBalances.find((b) => b.card.id === c.id);
+    return {
+      id: c.id,
+      label: `${c.bank_name} ${c.name}${c.last_four_digits ? ` (••${c.last_four_digits})` : ""}`,
+      paymentDueDay: c.payment_due_day,
+      statementDay: c.statement_day,
+      outstandingPaise: cb ? cb.outstandingPaise : 0,
+    };
+  });
 
-  const recentTransactions = [...transactionRows]
-    .sort((a, b) =>
-      b.transaction_date.localeCompare(a.transaction_date)
-    )
-    .slice(0, 5);
+  const upcomingAccountOptions = accountBalances.map(({ account, balancePaise }) => ({
+    id: account.id,
+    label: `${account.name}${account.institution ? ` · ${account.institution}` : ""}`,
+    balancePaise,
+  }));
+
+  const { activePayments, settledPayments } = buildUpcomingPaymentsList({
+    today: indiaToday,
+    cards: cardRows.map((c) => ({
+      id: c.id,
+      name: c.name,
+      bank_name: c.bank_name,
+      last_four_digits: c.last_four_digits,
+      payment_due_day: c.payment_due_day,
+      statement_day: c.statement_day,
+      opening_outstanding_paise: c.opening_outstanding_paise,
+      opening_outstanding_date: c.opening_outstanding_date,
+    })),
+    statements: (statementRows ?? []).map((s) => ({
+      id: s.id,
+      userId: s.user_id,
+      creditCardId: s.credit_card_id,
+      statementDate: s.statement_date,
+      paymentDueDate: s.payment_due_date,
+      statementBalancePaise: Number(s.statement_balance_paise),
+      minimumDuePaise: s.minimum_due_paise ? Number(s.minimum_due_paise) : null,
+      isSettled: Boolean(s.is_settled),
+      settledAt: s.settled_at,
+      notes: s.notes,
+    })),
+    cardPaymentTransactions: transactionRows
+      .filter((t) => t.transaction_type === "card_payment" && t.credit_card_id)
+      .map((t) => ({
+        amountPaise: Number(t.amount_paise),
+        date: t.transaction_date,
+        creditCardId: t.credit_card_id!,
+      })),
+    debts: debtRows.map((d) => ({
+      ...d,
+      original_principal_paise: d.original_principal_paise ?? d.current_outstanding_principal_paise,
+      annual_interest_rate_basis_points: d.annual_interest_rate_basis_points ?? null,
+      total_tenure_months: d.total_tenure_months ?? 12,
+      installments_paid_before_tracking: d.installments_paid_before_tracking ?? 0,
+      first_emi_due_date: d.first_emi_due_date ?? indiaToday,
+    })),
+    debtPayments: emiPaymentRows.map((p) => ({
+      debt_id: p.debt_id,
+      payment_date: p.payment_date,
+      installment_number: p.installment_number ?? null,
+      amount_paise: p.amount_paise ?? 0,
+      principal_component_paise: p.principal_component_paise,
+      interest_component_paise: p.interest_component_paise ?? null,
+      payment_kind: p.payment_kind ?? "scheduled_emi",
+    })),
+    allTransactions: transactionRows.map((t) => ({
+      id: t.id,
+      date: t.transaction_date,
+      amountPaise: t.amount_paise,
+      type: t.transaction_type,
+      creditCardId: t.credit_card_id,
+    })),
+  });
 
   const hasQueryError =
     Boolean(accountsResult.error) ||
@@ -484,404 +547,451 @@ async function DashboardContent() {
     Boolean(paymentsResult.error) ||
     transactionResult.failed;
 
+  const userEmail = user.email || "Private Client";
+  const displayName = resolveDisplayName(user);
+
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto max-w-5xl px-4 pb-10 sm:px-6">
-        <header className="flex items-center justify-between gap-3 py-5">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-violet-600">
-              Your personal finance
-            </p>
-            <h1 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">
-              My Finance OS
-            </h1>
-          </div>
+    <main className="min-h-screen bg-[#10141a] text-[#dfe2eb] pt-20 pb-36 relative overflow-hidden selection:bg-[#4edea3]/30 selection:text-[#4edea3]">
+      {/* Obsidian Wealth ambient atmospheric light orbs */}
+      <div className="pointer-events-none absolute -top-40 left-1/4 h-[500px] w-[500px] rounded-full bg-[#10b981]/10 blur-[130px] animate-pulse-glow" />
+      <div
+        className="pointer-events-none absolute top-1/3 -right-40 h-[600px] w-[600px] rounded-full bg-[#3b82f6]/10 blur-[150px] animate-pulse-glow"
+        style={{ animationDelay: "2s" }}
+      />
+      <div
+        className="pointer-events-none absolute bottom-1/4 -left-40 h-[500px] w-[500px] rounded-full bg-[#8b5cf6]/10 blur-[140px] animate-pulse-glow"
+        style={{ animationDelay: "4s" }}
+      />
 
-          <div className="flex items-center gap-2">
-            <Link
-              href="/accounts"
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100"
-            >
-              Accounts
-            </Link>
+      {/* 1. Compact Top Navigation & Brand Header */}
+      <AuraHeader
+        sectionTitle="Vault Overview"
+        userEmail={userEmail}
+        displayName={displayName}
+        signOutAction={logout}
+      />
 
-            <form action={logout}>
-              <button
-                type="submit"
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100"
-              >
-                Sign out
-              </button>
-            </form>
+      <div className="relative z-10 mx-auto max-w-5xl px-3 sm:px-6 space-y-6">
+        {/* Banner Feedback Notifications */}
+        {params.statement_saved === "1" && (
+          <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-950/40 px-5 py-4 text-xs sm:text-sm font-semibold text-emerald-300 shadow-xl backdrop-blur-xl animate-float-slow">
+            <Zap className="h-4 w-4 text-emerald-400 shrink-0" />
+            <p>Credit card statement saved successfully. Your upcoming payment schedule has been updated.</p>
           </div>
-        </header>
+        )}
+
+        {params.payment_recorded === "1" && (
+          <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-950/40 px-5 py-4 text-xs sm:text-sm font-semibold text-emerald-300 shadow-xl backdrop-blur-xl animate-float-slow">
+            <Zap className="h-4 w-4 text-emerald-400 shrink-0" />
+            <p>Credit card payment recorded successfully. Bank and credit card ledgers have been updated.</p>
+          </div>
+        )}
+
+        {params.error && (
+          <div className="rounded-2xl border border-rose-500/30 bg-rose-950/40 p-4 text-xs sm:text-sm font-semibold text-rose-300 backdrop-blur-xl">
+            {params.error}
+          </div>
+        )}
 
         {hasQueryError && (
           <section
             role="alert"
-            className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900"
+            className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs font-medium text-amber-200 shadow-xl"
           >
-            Some financial records could not be loaded. Totals depending
-            on those records may be unavailable. Check the database
-            connection and access policies before relying on these figures.
+            Some financial records could not be loaded. Totals depending on those records may be unavailable.
           </section>
         )}
 
-        <section className="relative overflow-hidden rounded-3xl bg-slate-900 p-5 text-white sm:p-8">
-          <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-violet-500/20 blur-3xl" />
-
-          <div className="relative">
-            <p className="text-sm text-slate-300">
-              Total bank &amp; cash balances
-            </p>
-
-            <h2 className="mt-3 break-words text-3xl font-bold tracking-tight sm:text-4xl">
-              {canCalculateBankBalances
-                ? formatRupees(totalBankCashPaise)
-                : "Unavailable"}
-            </h2>
-
-            <p className="mt-2 text-sm leading-5 text-slate-400">
-              {accountRows.length} active{" "}
-              {accountRows.length === 1 ? "account" : "accounts"} ·{" "}
-              Calculated from opening balances and recorded transactions
-            </p>
-
-            <div className="mt-6 grid grid-cols-2 gap-3 border-t border-white/10 pt-5">
-              <div className="rounded-2xl bg-white/10 p-4">
-                <p className="text-sm text-slate-300">Income this month</p>
-                <p className="mt-2 break-words text-lg font-bold sm:text-xl">
-                  {canCalculateMonthlyActivity
-                    ? formatRupees(monthlyIncomePaise)
-                    : "Unavailable"}
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-white/10 p-4">
-                <p className="text-sm text-slate-300">Spent this month</p>
-                <p className="mt-2 break-words text-lg font-bold sm:text-xl">
-                  {canCalculateMonthlyActivity
-                    ? formatRupees(monthlyExpensesPaise)
-                    : "Unavailable"}
-                </p>
-              </div>
-            </div>
-          </div>
+        {/* 2. High-Level Net Worth & Financial Summary */}
+        <section>
+          <DashboardNetWorth
+            netWorthPaise={netWorthPaise}
+            totalAssetsPaise={totalBankCashPaise}
+            totalLiabilitiesPaise={totalLiabilitiesPaise}
+            canCalculate={
+              canCalculateBankBalances &&
+              canCalculateCardBalances &&
+              canCalculateEmiBalances
+            }
+            accountsCount={accountRows.length}
+            cardsCount={cardRows.length}
+            debtsCount={standaloneLoans.length}
+            userEmail={userEmail}
+            displayName={displayName}
+          />
         </section>
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <AmountCard
-            label="Credit-card outstanding"
-            amount={
-              canCalculateCardBalances
-                ? formatRupees(totalCardOutstandingPaise)
-                : "Unavailable"
-            }
-            note={
-              canCalculateCardBalances
-                ? `${cardRows.length} active ${cardRows.length === 1 ? "card" : "cards"} tracked`
-                : "Card data could not be loaded"
-            }
-          />
-
-          <AmountCard
-            label="Active EMI principal"
-            amount={
-              canCalculateEmiBalances
-                ? formatRupees(totalEmiPrincipalPaise)
-                : "Unavailable"
-            }
-            note={
-              canCalculateEmiBalances
-                ? `${activeEmis.length} active ${activeEmis.length === 1 ? "EMI plan" : "EMI plans"}`
-                : "EMI data could not be loaded"
-            }
-          />
-        </div>
-
-        <section className="mt-7">
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-bold">Your accounts</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Bank balances and cash wallets
-              </p>
+        {/* Tactical 4-Column Quick Actions */}
+        <section className="grid grid-cols-4 gap-2 sm:gap-4">
+          <Link
+            href="/transactions/new?type=income"
+            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl bg-[#181c22]/90 border border-white/[0.08] backdrop-blur-xl hover:border-[#4edea3]/40 hover:bg-[#1c2026] hover:-translate-y-0.5 transition-all shadow-lg text-center"
+          >
+            <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-[#10b981]/15 text-[#4edea3] border border-[#10b981]/30 group-hover:scale-105 transition-transform">
+              <ArrowDownLeft className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
+            <span className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-white tracking-wide">Deposit</span>
+            <span className="text-[10px] text-slate-400 hidden sm:block">Add Capital</span>
+          </Link>
 
+          <Link
+            href="/transactions/new?type=expense"
+            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl bg-[#181c22]/90 border border-white/[0.08] backdrop-blur-xl hover:border-[#8b5cf6]/40 hover:bg-[#1c2026] hover:-translate-y-0.5 transition-all shadow-lg text-center"
+          >
+            <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-[#8b5cf6]/15 text-[#d0bcff] border border-[#8b5cf6]/30 group-hover:scale-105 transition-transform">
+              <ArrowUpRight className="h-4 w-4 sm:h-5 sm:w-5" />
+            </div>
+            <span className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-white tracking-wide">Send</span>
+            <span className="text-[10px] text-slate-400 hidden sm:block">Expense</span>
+          </Link>
+
+          <Link
+            href="/cards"
+            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl bg-[#181c22]/90 border border-white/[0.08] backdrop-blur-xl hover:border-amber-400/40 hover:bg-[#1c2026] hover:-translate-y-0.5 transition-all shadow-lg text-center"
+          >
+            <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-[#d4af37]/15 text-[#f3e5ab] border border-[#d4af37]/30 group-hover:scale-105 transition-transform">
+              <CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />
+            </div>
+            <span className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-white tracking-wide">Cards</span>
+            <span className="text-[10px] text-slate-400 hidden sm:block">Revolving</span>
+          </Link>
+
+          <Link
+            href="/emi"
+            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl bg-[#181c22]/90 border border-white/[0.08] backdrop-blur-xl hover:border-cyan-400/40 hover:bg-[#1c2026] hover:-translate-y-0.5 transition-all shadow-lg text-center"
+          >
+            <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 group-hover:scale-105 transition-transform">
+              <Percent className="h-4 w-4 sm:h-5 sm:w-5" />
+            </div>
+            <span className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-white tracking-wide">Loans</span>
+            <span className="text-[10px] text-slate-400 hidden sm:block">Amortize</span>
+          </Link>
+        </section>
+
+        {/* 3. Separate Cash in Hand & Bank Balances Metrics */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-[#4edea3] shadow-[0_0_8px_rgba(78,222,163,0.8)]" />
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                Liquid Reserves
+              </h2>
+            </div>
             <Link
               href="/accounts"
-              className="text-sm font-semibold text-violet-700 hover:text-violet-900"
+              className="text-xs font-semibold text-[#4edea3] hover:text-emerald-300 transition-colors flex items-center gap-1"
             >
-              Manage
+              <span>Manage Accounts</span>
+              <ChevronRight className="h-3 w-3" />
             </Link>
           </div>
 
-          <div className="mt-4 space-y-3">
-            {accountsResult.error ? (
-              <div className="rounded-2xl border border-rose-200 bg-white p-4 text-sm text-rose-700">
-                Accounts couldn't be loaded.
-              </div>
-            ) : accountBalances.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5">
-                <p className="font-semibold">No accounts added yet</p>
-                <p className="mt-1 text-sm leading-5 text-slate-500">
-                  Add your first bank account or cash wallet to begin.
-                </p>
-                <Link
-                  href="/accounts"
-                  className="mt-3 inline-block text-sm font-semibold text-violet-700"
-                >
-                  Add an account →
-                </Link>
-              </div>
-            ) : (
-              accountBalances.map(({ account, balancePaise }) => (
-                <article
-                  key={account.id}
-                  className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-                >
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-700">
-                    {account.type === "bank" ? "▤" : "₹"}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+            {/* Cash in Hand */}
+            <div className="aura-panel p-4 sm:p-5 flex flex-col justify-between hover:border-emerald-400/40 transition-all rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    <Wallet className="h-5 w-5" />
                   </div>
-
-                  <div className="min-w-0 flex-1">
-                    <h3 className="truncate font-semibold">
-                      {account.name}
-                    </h3>
-                    <p className="mt-1 truncate text-xs text-slate-500">
-                      {account.institution || "Personal account"} ·{" "}
-                      {account.type === "bank" ? "Bank" : "Cash"}
-                    </p>
-                  </div>
-
-                  <p className="shrink-0 text-right text-sm font-bold">
-                    {canCalculateBankBalances
-                      ? formatRupees(balancePaise)
-                      : "Unavailable"}
-                  </p>
-                </article>
-              ))
-            )}
-          </div>
-        </section>
-
-        <section className="mt-7">
-          <div>
-            <h2 className="text-lg font-bold">Credit cards</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Outstanding balances and limits
-            </p>
-          </div>
-
-          <div className="mt-4 space-y-3">
-            {cardsResult.error || transactionResult.failed ? (
-              <div className="rounded-2xl border border-rose-200 bg-white p-4 text-sm text-rose-700">
-                Credit-card balances couldn't be calculated.
-              </div>
-            ) : cardBalances.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5">
-                <p className="font-semibold">No credit cards tracked yet</p>
-                <p className="mt-1 text-sm leading-5 text-slate-500">
-                  We'll add card registration, credit limits, statement
-                  dates and due-date tracking next.
-                </p>
-              </div>
-            ) : (
-              cardBalances.map(({ card, outstandingPaise }) => (
-                <article
-                  key={card.id}
-                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h3 className="font-semibold">{card.name}</h3>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {card.bank_name}
-                        {card.last_four_digits
-                          ? ` · •••• ${card.last_four_digits}`
-                          : ""}
-                      </p>
-                    </div>
-                    <p className="shrink-0 text-sm font-bold">
-                      {formatRupees(outstandingPaise)}
-                    </p>
-                  </div>
-
-                  <div className="mt-3 flex justify-between gap-3 text-xs text-slate-500">
-                    <span>Credit limit</span>
-                    <span>{formatRupees(card.credit_limit_paise)}</span>
-                  </div>
-
-                  {card.payment_due_day && (
-                    <p className="mt-2 text-xs text-slate-500">
-                      Usual payment due day: {card.payment_due_day}
-                    </p>
-                  )}
-                </article>
-              ))
-            )}
-          </div>
-        </section>
-
-        <section className="mt-7">
-          <div>
-            <h2 className="text-lg font-bold">EMI commitments</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Active loans and repayments
-            </p>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <AmountCard
-              label="Monthly EMI total"
-              amount={
-                canCalculateEmiBalances
-                  ? formatRupees(monthlyEmiCommitmentPaise)
-                  : "Unavailable"
-              }
-              note="Scheduled payments for active plans"
-            />
-
-            <AmountCard
-              label="Next EMI due"
-              amount={
-                canCalculateEmiBalances
-                  ? nextEmi?.next_due_date
-                    ? formatDate(nextEmi.next_due_date)
-                    : "Not set"
-                  : "Unavailable"
-              }
-              note={nextEmi?.name ?? "No upcoming EMI date recorded"}
-            />
-          </div>
-
-          <div className="mt-3 space-y-3">
-            {debtsResult.error || paymentsResult.error ? (
-              <div className="rounded-2xl border border-rose-200 bg-white p-4 text-sm text-rose-700">
-                EMI information couldn't be loaded.
-              </div>
-            ) : activeEmis.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5">
-                <p className="font-semibold">No EMI plans recorded yet</p>
-                <p className="mt-1 text-sm leading-5 text-slate-500">
-                  Your EMI manager will include tenure, instalments paid,
-                  interest, outstanding principal and foreclosure details.
-                </p>
-              </div>
-            ) : (
-              activeEmis.map(({ debt, outstandingPaise }) => (
-                <article
-                  key={debt.id}
-                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h3 className="font-semibold">{debt.name}</h3>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {debt.lender_name}
-                      </p>
-                    </div>
-                    <p className="shrink-0 text-sm font-bold">
-                      {formatRupees(outstandingPaise)}
-                    </p>
-                  </div>
-
-                  <div className="mt-3 flex justify-between gap-3 text-sm">
-                    <span className="text-slate-500">Monthly EMI</span>
-                    <span className="font-medium">
-                      {formatRupees(debt.emi_amount_paise)}
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                      Physical Currency
                     </span>
+                    <h3 className="text-sm sm:text-base font-bold text-white">Cash in Hand</h3>
                   </div>
-                </article>
-              ))
-            )}
+                </div>
+                <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
+                  {cashAccountBalances.length} {cashAccountBalances.length === 1 ? "wallet" : "wallets"}
+                </span>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-white/5 flex items-baseline justify-between">
+                <span className="text-2xl sm:text-3xl font-black text-white tabular-nums drop-shadow-sm truncate">
+                  {canCalculateBankBalances
+                    ? formatRupees(totalCashInHandPaise)
+                    : "Unavailable"}
+                </span>
+                <span className="text-xs text-slate-400 shrink-0 ml-2">Total cash</span>
+              </div>
+            </div>
+
+            {/* Bank Balances */}
+            <div className="aura-panel p-4 sm:p-5 flex flex-col justify-between hover:border-[#4edea3]/40 transition-all rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#10b981]/15 text-[#4edea3] border border-[#10b981]/30">
+                    <Landmark className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                      Institutional Deposits
+                    </span>
+                    <h3 className="text-sm sm:text-base font-bold text-white">Bank Balances</h3>
+                  </div>
+                </div>
+                <span className="rounded-full bg-[#10b981]/15 border border-[#10b981]/30 px-2.5 py-0.5 text-[11px] font-bold text-[#4edea3]">
+                  {bankAccountBalances.length} {bankAccountBalances.length === 1 ? "account" : "accounts"}
+                </span>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-white/5 flex items-baseline justify-between">
+                <span className="text-2xl sm:text-3xl font-black text-white tabular-nums drop-shadow-sm truncate">
+                  {canCalculateBankBalances
+                    ? formatRupees(totalBankBalancesPaise)
+                    : "Unavailable"}
+                </span>
+                <span className="text-xs text-slate-400 shrink-0 ml-2">Bank reserves</span>
+              </div>
+            </div>
           </div>
         </section>
 
-        <section className="mt-7">
-          <div>
-            <h2 className="text-lg font-bold">Recent transactions</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Income, spending, transfers and card activity
-            </p>
+        {/* 4. Liabilities & Monthly Financial Flow Matrix */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                Liabilities & Monthly Flow
+              </h2>
+            </div>
+            <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">
+              AUDITED TELEMETRY
+            </span>
           </div>
 
-          <div className="mt-4 space-y-3">
-            {transactionResult.failed ? (
-              <div className="rounded-2xl border border-rose-200 bg-white p-4 text-sm text-rose-700">
-                Transactions couldn't be loaded.
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
+            {/* Credit Card Outstanding */}
+            <div className="aura-panel p-4 sm:p-5 flex flex-col justify-between hover:border-amber-400/40 transition-all rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-xl bg-amber-500/15 text-amber-300 flex items-center justify-center border border-amber-500/30">
+                    <CreditCard className="h-4 w-4" />
+                  </div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-300">
+                    Card Liabilities
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono uppercase text-slate-400">
+                  {cardRows.length} {cardRows.length === 1 ? "card" : "cards"}
+                </span>
               </div>
-            ) : recentTransactions.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5">
-                <p className="font-semibold">No transactions recorded yet</p>
-                <p className="mt-1 text-sm leading-5 text-slate-500">
-                  Your dashboard will calculate income and spending when
-                  you start recording transactions.
+              <div className="mt-3">
+                <span className="text-xl sm:text-2xl font-black text-amber-300 tabular-nums block truncate">
+                  {canCalculateCardBalances
+                    ? formatRupees(totalCardOutstandingPaise)
+                    : "Unavailable"}
+                </span>
+                <p className="mt-1 text-[11px] text-slate-400">
+                  Revolving dues (excludes double-counted EMI)
                 </p>
               </div>
-            ) : (
-              recentTransactions.map((transaction) => {
-                const isIncome =
-                  transaction.transaction_type === "income";
-                const isTransfer =
-                  transaction.transaction_type === "transfer";
+            </div>
 
-                return (
-                  <article
-                    key={transaction.id}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-                  >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-lg">
-                      {isIncome ? "↙" : isTransfer ? "⇄" : "↗"}
-                    </div>
+            {/* Standalone Loan Principal */}
+            <div className="aura-panel p-4 sm:p-5 flex flex-col justify-between hover:border-cyan-400/40 transition-all rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-xl bg-cyan-500/15 text-cyan-400 flex items-center justify-center border border-cyan-500/30">
+                    <Percent className="h-4 w-4" />
+                  </div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-cyan-400">
+                    Loan Principal
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono uppercase text-slate-400">
+                  {standaloneLoans.length} {standaloneLoans.length === 1 ? "loan" : "loans"}
+                </span>
+              </div>
+              <div className="mt-3">
+                <span className="text-xl sm:text-2xl font-black text-cyan-300 tabular-nums block truncate">
+                  {canCalculateEmiBalances
+                    ? formatRupees(totalStandaloneLoanPrincipalPaise)
+                    : "Unavailable"}
+                </span>
+                <p className="mt-1 text-[11px] text-slate-400">
+                  Standalone loan principal liability
+                </p>
+              </div>
+            </div>
 
-                    <div className="min-w-0 flex-1">
-                      <h3 className="truncate text-sm font-semibold">
-                        {transaction.description}
-                      </h3>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {transactionLabel(transaction.transaction_type)}{" "}
-                        · {formatDate(transaction.transaction_date)}
-                      </p>
-                    </div>
-
-                    <p
-                      className={`shrink-0 text-right text-sm font-bold ${
-                        isIncome ? "text-emerald-600" : "text-slate-900"
-                      }`}
-                    >
-                      {transactionSign(transaction.transaction_type)}
-                      {formatRupees(transaction.amount_paise)}
-                    </p>
-                  </article>
-                );
-              })
-            )}
+            {/* Monthly Net Flow */}
+            <div className="aura-panel p-4 sm:p-5 flex flex-col justify-between hover:border-[#d0bcff]/40 transition-all rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-xl bg-[#8b5cf6]/15 text-[#d0bcff] flex items-center justify-center border border-[#8b5cf6]/30">
+                    <TrendingUp className="h-4 w-4" />
+                  </div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#d0bcff]">
+                    Monthly Net Flow
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono uppercase text-slate-400">
+                  THIS MONTH
+                </span>
+              </div>
+              <div className="mt-3">
+                <span
+                  className={`text-xl sm:text-2xl font-black tabular-nums block truncate ${
+                    !canCalculateMonthlyActivity
+                      ? "text-slate-400"
+                      : monthlyIncomePaise >= monthlyExpensesPaise
+                      ? "text-emerald-400"
+                      : "text-rose-400"
+                  }`}
+                >
+                  {canCalculateMonthlyActivity
+                    ? formatRupees(monthlyIncomePaise - monthlyExpensesPaise)
+                    : "Unavailable"}
+                </span>
+                <div className="mt-1 flex items-center justify-between text-[11px] text-slate-400">
+                  <span className="text-emerald-400">+{formatRupees(monthlyIncomePaise)}</span>
+                  <span className="text-rose-400">−{formatRupees(monthlyExpensesPaise)}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
-        <p className="mt-8 text-center text-xs leading-5 text-slate-400">
-          My Finance OS · Figures are calculated from saved records.
-          Card-linked EMI balances are displayed separately until their
-          relationship is reconciled for net-worth calculations.
+        {/* 5. Compact Upcoming Payments Queue */}
+        <UpcomingPaymentsCenter
+          activePayments={activePayments}
+          settledPayments={settledPayments}
+          cards={upcomingCardOptions}
+          accounts={upcomingAccountOptions}
+          today={indiaToday}
+        />
+
+        {/* 6. Minimal Shortcuts to Dedicated Management Areas */}
+        <section className="space-y-3 pt-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-slate-400" />
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                Management Modules
+              </h2>
+            </div>
+            <span className="text-[10px] text-slate-500">
+              Dedicated workspaces
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <Link
+              href="/accounts"
+              className="aura-panel group p-4 sm:p-5 rounded-2xl border border-white/10 hover:border-emerald-500/40 bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 transition-all flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 group-hover:scale-105 transition-transform">
+                  <Landmark className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors truncate">
+                    Accounts & Reserves
+                  </h3>
+                  <p className="text-[11px] text-slate-400 truncate">
+                    {accountRows.length} {accountRows.length === 1 ? "account" : "accounts"} & wallets
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-emerald-300 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+            </Link>
+
+            <Link
+              href="/cards"
+              className="aura-panel group p-4 sm:p-5 rounded-2xl border border-white/10 hover:border-amber-500/40 bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 transition-all flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 group-hover:scale-105 transition-transform">
+                  <CreditCard className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors truncate">
+                    Cards & Billing
+                  </h3>
+                  <p className="text-[11px] text-slate-400 truncate">
+                    {cardRows.length} credit lines
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-amber-300 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+            </Link>
+
+            <Link
+              href="/emi"
+              className="aura-panel group p-4 sm:p-5 rounded-2xl border border-white/10 hover:border-cyan-500/40 bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 transition-all flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 group-hover:scale-105 transition-transform">
+                  <Percent className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate">
+                    Loans & Amortization
+                  </h3>
+                  <p className="text-[11px] text-slate-400 truncate">
+                    {standaloneLoans.length} active term loans
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+            </Link>
+
+            <Link
+              href="/transactions"
+              className="aura-panel group p-4 sm:p-5 rounded-2xl border border-white/10 hover:border-indigo-500/40 bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 transition-all flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 group-hover:scale-105 transition-transform">
+                  <ArrowLeftRight className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-white group-hover:text-indigo-300 transition-colors truncate">
+                    Transactions & Ledger
+                  </h3>
+                  <p className="text-[11px] text-slate-400 truncate">
+                    Analysis & full history
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-indigo-300 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+            </Link>
+          </div>
+        </section>
+
+        <p className="pt-6 text-center text-xs leading-5 text-slate-500">
+          AURA Wealth · Private financial telemetry. Calculations computed from verified database records.
         </p>
       </div>
+
+      {/* Floating Bottom Navigation */}
+      <AuraBottomNav />
     </main>
   );
 }
 
-export default function Home() {
+export default function Home(props: {
+  searchParams?: Promise<{
+    error?: string;
+    statement_saved?: string;
+    payment_recorded?: string;
+  }>;
+}) {
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen bg-slate-50 p-6">
-          <p className="text-sm text-slate-500">
-            Loading your financial overview...
-          </p>
+        <main className="min-h-screen bg-[#10141a] flex items-center justify-center p-6 text-slate-400">
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#4edea3] border-t-transparent" />
+            <p className="text-xs font-mono tracking-widest text-[#bbcabf] uppercase">
+              Initializing Aura Vault...
+            </p>
+          </div>
         </main>
       }
     >
-      <DashboardContent />
+      <DashboardContent searchParams={props.searchParams} />
     </Suspense>
   );
 }

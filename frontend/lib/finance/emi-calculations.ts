@@ -1,4 +1,3 @@
-
 import type {
     EmiDebt,
     EmiPaymentRecord,
@@ -67,10 +66,15 @@ export function calculateRecordedInterestPaise(
 }
 
 // Adjust a principal snapshot using later recorded principal payments.
+// If the debt is foreclosed or closed, the outstanding principal is strictly zero.
 export function calculateEstimatedOutstandingPrincipalPaise(
     debt: EmiDebt,
     payments: EmiPaymentRecord[]
 ): number {
+    if (debt.status === "foreclosed" || debt.status === "closed") {
+        return 0;
+    }
+
     const principalRepaidSinceSnapshot = paymentsForDebt(
         debt,
         payments

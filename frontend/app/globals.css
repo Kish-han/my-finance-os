@@ -1,26 +1,178 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #10141a;
+  --foreground: #dfe2eb;
+  --surface: #10141a;
+  --surface-dim: #10141a;
+  --surface-bright: #353940;
+  --surface-container-lowest: #0a0e14;
+  --surface-container-low: #181c22;
+  --surface-container: #1c2026;
+  --surface-container-high: #262a31;
+  --surface-container-highest: #31353c;
+  --on-surface: #dfe2eb;
+  --on-surface-variant: #bbcabf;
+  --primary: #4edea3;
+  --primary-container: #10b981;
+  --on-primary: #003824;
+  --secondary: #d0bcff;
+  --secondary-container: #571bc1;
+  --tertiary: #ffb2b7;
+  --tertiary-container: #ff7886;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-plus-jakarta-sans), "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-plus-jakarta-sans), "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  font-feature-settings: "cv01" 1;
+}
+
+.tabular-nums {
+  font-feature-settings: "tnum" 1;
+}
+
+/* -------------------------------------------------------------
+   Stitch Aura Wealth Keyframe Animations & Micro-physics
+------------------------------------------------------------- */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(0.4deg);
+  }
+}
+
+@keyframes float-reverse {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(6px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.05);
+  }
+}
+
+.animate-float {
+  animation: float 4.5s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float 5.5s ease-in-out 1.2s infinite;
+}
+
+.animate-float-slow {
+  animation: float-slow 7s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: float-reverse 5s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 4.5s ease-in-out infinite;
+}
+
+/* -------------------------------------------------------------
+   Stitch "Obsidian Wealth" Glassmorphic Substrates
+------------------------------------------------------------- */
+.aura-card-obsidian {
+  background: linear-gradient(135deg, #171c24 0%, #0b0e14 60%, #141922 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.25), 0 20px 40px -12px rgba(0, 0, 0, 0.7);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.aura-card-gold {
+  background: linear-gradient(135deg, #d4af37 0%, #f3e5ab 50%, #aa771c 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 12px 28px -6px rgba(212, 175, 55, 0.25);
+}
+
+.aura-card-amethyst {
+  background: linear-gradient(135deg, #571bc1 0%, #31353c 50%, #d0bcff 100%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 28px -6px rgba(139, 92, 246, 0.25);
+}
+
+.aura-card-iridescent {
+  background: linear-gradient(135deg, rgba(87, 27, 193, 0.9) 0%, rgba(255, 120, 134, 0.85) 50%, rgba(78, 222, 163, 0.75) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.4), 0 20px 40px -10px rgba(0, 0, 0, 0.7);
+}
+
+.aura-panel {
+  background: rgba(24, 28, 34, 0.75);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08), 0 8px 32px -4px rgba(0, 0, 0, 0.45);
+}
+
+.aura-panel-high {
+  background: rgba(38, 42, 49, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.12), 0 12px 36px -6px rgba(0, 0, 0, 0.55);
+}
+
+.aura-panel-low {
+  background: rgba(16, 20, 26, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Floating Bottom Dock from Stitch */
+.aura-dock {
+  background: rgba(28, 32, 38, 0.75);
+  backdrop-filter: blur(32px) saturate(190%);
+  -webkit-backdrop-filter: blur(32px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.65), inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
+}
+
+/* Specular glows */
+.aura-glow-emerald {
+  box-shadow: 0 0 40px -10px rgba(78, 222, 163, 0.35);
+}
+
+.aura-glow-violet {
+  box-shadow: 0 0 40px -10px rgba(208, 188, 255, 0.3);
+}
+
+.aura-glow-gold {
+  box-shadow: 0 0 40px -10px rgba(212, 175, 55, 0.35);
 }

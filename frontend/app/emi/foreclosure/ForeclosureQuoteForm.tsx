@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { saveForeclosureQuote } from "./actions";
+import { Scale } from "lucide-react";
 
 type LoanOption = {
   id: string;
@@ -34,6 +35,9 @@ function formatMoney(paise: number): string {
   }).format(paise / 100);
 }
 
+const inputClass =
+  "w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition-all focus:border-cyan-400 focus:bg-white/10 focus:ring-4 focus:ring-cyan-400/20";
+
 export default function ForeclosureQuoteForm({ loans, today }: Props) {
   const [debtId, setDebtId] = useState("");
   const [principal, setPrincipal] = useState("");
@@ -58,25 +62,21 @@ export default function ForeclosureQuoteForm({ loans, today }: Props) {
     ? rupeesToPaise(selectedLoan.estimatedRemainingPaymentsRupees)
     : 0;
 
-  // Positive means scheduled EMI outflow is greater than the payoff estimate.
   const difference = remainingScheduledPayments - totalPayoff;
 
   function handleLoanChange(id: string) {
     setDebtId(id);
-
     const loan = loans.find((item) => item.id === id);
-
     setPrincipal(loan?.outstandingPrincipalRupees ?? "");
   }
 
-  const inputClass =
-    "mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-base text-slate-900";
-
   return (
-    <form action={saveForeclosureQuote} className="mt-5 space-y-5">
+    <form action={saveForeclosureQuote} className="space-y-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
-          Which loan do you want to close?
+        <div className="sm:col-span-2">
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300">
+            Which loan do you want to close?
+          </label>
           <select
             name="debt_id"
             required
@@ -84,20 +84,22 @@ export default function ForeclosureQuoteForm({ loans, today }: Props) {
             onChange={(event) => handleLoanChange(event.target.value)}
             className={inputClass}
           >
-            <option value="">Select an active loan</option>
+            <option value="" className="bg-slate-900 text-slate-400">Select an active loan</option>
             {loans.map((loan) => (
-              <option key={loan.id} value={loan.id}>
+              <option key={loan.id} value={loan.id} className="bg-slate-900 text-white">
                 {loan.label}
               </option>
             ))}
           </select>
-          <span className="mt-1 block text-xs font-normal text-slate-500">
-            Selecting a loan fills in its estimated remaining principal.
+          <span className="mt-1 block text-[11px] text-slate-500">
+            Selecting a loan auto-fills its estimated remaining principal.
           </span>
-        </label>
+        </div>
 
-        <label className="block text-sm font-medium text-slate-700">
-          Date you received the quote
+        <div>
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300">
+            Quote date
+          </label>
           <input
             name="quote_date"
             type="date"
@@ -105,14 +107,12 @@ export default function ForeclosureQuoteForm({ loans, today }: Props) {
             defaultValue={today}
             className={inputClass}
           />
-          <span className="mt-1 block text-xs font-normal text-slate-500">
-            Use the date printed on the lender&apos;s quote. For your own
-            estimate, use today.
-          </span>
-        </label>
+        </div>
 
-        <label className="block text-sm font-medium text-slate-700">
-          Quote valid until / review by
+        <div>
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300">
+            Valid until / review by
+          </label>
           <input
             name="valid_until"
             type="date"
@@ -121,14 +121,12 @@ export default function ForeclosureQuoteForm({ loans, today }: Props) {
             defaultValue={today}
             className={inputClass}
           />
-          <span className="mt-1 block text-xs font-normal text-slate-500">
-            For an official quote, enter its expiry date. For an estimate,
-            choose a date to review it again.
-          </span>
-        </label>
+        </div>
 
-        <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
-          Outstanding principal (₹)
+        <div className="sm:col-span-2">
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300">
+            Outstanding principal (₹)
+          </label>
           <input
             name="outstanding_principal_rupees"
             type="number"
@@ -137,18 +135,15 @@ export default function ForeclosureQuoteForm({ loans, today }: Props) {
             required
             value={principal}
             onChange={(event) => setPrincipal(event.target.value)}
-            placeholder="Automatically filled when you select a loan"
-            className={inputClass}
+            placeholder="Automatically populated upon loan selection"
+            className={`${inputClass} font-semibold tabular-nums`}
           />
-          <span className="mt-1 block text-xs font-normal text-slate-500">
-            This is the estimated principal remaining, not the original loan
-            amount or the sum of all future EMIs. Replace it with the lender&apos;s
-            latest figure when available.
-          </span>
-        </label>
+        </div>
 
-        <label className="block text-sm font-medium text-slate-700">
-          Foreclosure charges (₹)
+        <div>
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300">
+            Foreclosure fee (₹)
+          </label>
           <input
             name="foreclosure_charges_rupees"
             type="number"
@@ -157,12 +152,14 @@ export default function ForeclosureQuoteForm({ loans, today }: Props) {
             required
             value={foreclosureCharges}
             onChange={(event) => setForeclosureCharges(event.target.value)}
-            className={inputClass}
+            className={`${inputClass} font-semibold tabular-nums`}
           />
-        </label>
+        </div>
 
-        <label className="block text-sm font-medium text-slate-700">
-          Taxes / GST (₹)
+        <div>
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300">
+            Taxes / GST (₹)
+          </label>
           <input
             name="tax_rupees"
             type="number"
@@ -171,12 +168,14 @@ export default function ForeclosureQuoteForm({ loans, today }: Props) {
             required
             value={tax}
             onChange={(event) => setTax(event.target.value)}
-            className={inputClass}
+            className={`${inputClass} font-semibold tabular-nums`}
           />
-        </label>
+        </div>
 
-        <label className="block text-sm font-medium text-slate-700">
-          Other charges (₹)
+        <div>
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300">
+            Other charges (₹)
+          </label>
           <input
             name="other_charges_rupees"
             type="number"
@@ -185,12 +184,14 @@ export default function ForeclosureQuoteForm({ loans, today }: Props) {
             required
             value={otherCharges}
             onChange={(event) => setOtherCharges(event.target.value)}
-            className={inputClass}
+            className={`${inputClass} font-semibold tabular-nums`}
           />
-        </label>
+        </div>
 
-        <label className="block text-sm font-medium text-slate-700">
-          Waiver / discount (₹)
+        <div>
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300">
+            Waivers / discount (₹)
+          </label>
           <input
             name="waivers_rupees"
             type="number"
@@ -199,12 +200,14 @@ export default function ForeclosureQuoteForm({ loans, today }: Props) {
             required
             value={waivers}
             onChange={(event) => setWaivers(event.target.value)}
-            className={inputClass}
+            className={`${inputClass} font-semibold tabular-nums text-emerald-400`}
           />
-        </label>
+        </div>
 
-        <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
-          Where did this amount come from?
+        <div className="sm:col-span-2">
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300">
+            Source of this quote
+          </label>
           <select
             name="source"
             required
@@ -212,138 +215,111 @@ export default function ForeclosureQuoteForm({ loans, today }: Props) {
             onChange={(event) => setSource(event.target.value)}
             className={inputClass}
           >
-            <option value="lender_quote">Official quote from my lender</option>
-            <option value="estimate">My own estimate</option>
+            <option value="lender_quote" className="bg-slate-900 text-white">Official quote from lender</option>
+            <option value="estimate" className="bg-slate-900 text-white">My own estimate</option>
           </select>
-        </label>
+        </div>
       </div>
 
-      <label className="block text-sm font-medium text-slate-700">
-        Notes (optional)
+      <div>
+        <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300">
+          Notes (optional)
+        </label>
         <textarea
           name="notes"
-          rows={3}
+          rows={2}
           maxLength={1000}
-          placeholder="Quote reference number or details from the lender"
+          placeholder="Quote reference number, banker email or prepayment details"
           className={inputClass}
         />
-      </label>
+      </div>
 
-      <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-        <p className="text-sm font-medium text-slate-600">
-          Estimated total needed to close the loan
+      {/* Payoff Calculation Box */}
+      <section className="rounded-2xl border border-cyan-500/25 bg-cyan-950/20 p-5 space-y-3">
+        <p className="text-xs font-bold uppercase tracking-wider text-cyan-300">
+          Estimated Payoff Required to Close Loan
         </p>
-        <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
+        <div className="text-3xl sm:text-4xl font-black text-white tabular-nums">
           {formatMoney(totalPayoff)}
-        </p>
+        </div>
 
-        <div className="mt-3 space-y-1 text-sm text-slate-600">
-          <p>Principal: {formatMoney(rupeesToPaise(principal))}</p>
-          <p>
-            Foreclosure charges: {formatMoney(rupeesToPaise(foreclosureCharges))}
-          </p>
-          <p>Taxes: {formatMoney(rupeesToPaise(tax))}</p>
-          <p>Other charges: {formatMoney(rupeesToPaise(otherCharges))}</p>
-          <p>Waiver: −{formatMoney(rupeesToPaise(waivers))}</p>
+        <div className="grid grid-cols-2 gap-2 text-xs text-slate-400 sm:grid-cols-4 border-t border-white/10 pt-3">
+          <div>Principal: <strong className="text-white">{formatMoney(rupeesToPaise(principal))}</strong></div>
+          <div>Fee: <strong className="text-white">{formatMoney(rupeesToPaise(foreclosureCharges))}</strong></div>
+          <div>Taxes: <strong className="text-white">{formatMoney(rupeesToPaise(tax))}</strong></div>
+          <div>Waiver: <strong className="text-emerald-400">−{formatMoney(rupeesToPaise(waivers))}</strong></div>
         </div>
       </section>
 
+      {/* Interactive Foreclosure Comparison Strategy */}
       {selectedLoan && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h3 className="font-semibold text-slate-950">
-            Foreclose now or continue paying?
-          </h3>
+        <section className="apple-panel p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <Scale className="h-4 w-4 text-cyan-400" />
+            <h3 className="text-sm font-bold text-white">
+              Foreclose Now vs Continue Scheduled EMIs
+            </h3>
+          </div>
 
-          <p className="mt-1 text-sm text-slate-500">
-            A rough comparison based on your saved EMI schedule and the
-            foreclosure amount currently entered above.
-          </p>
-
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-sm text-slate-500">
-                Continue scheduled EMIs
-              </p>
-              <p className="mt-2 text-xl font-bold text-slate-950">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs text-slate-400">Continue Scheduled EMIs</p>
+              <p className="mt-1 text-xl font-black text-white tabular-nums">
                 {formatMoney(remainingScheduledPayments)}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
-                {selectedLoan.remainingInstallments} instalments ×{" "}
-                {formatMoney(rupeesToPaise(selectedLoan.emiRupees))}
+              <p className="mt-1 text-[11px] text-slate-500">
+                {selectedLoan.remainingInstallments} instalments × {formatMoney(rupeesToPaise(selectedLoan.emiRupees))}
               </p>
             </div>
 
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-sm text-slate-500">
-                Estimated foreclosure payoff
-              </p>
-              <p className="mt-2 text-xl font-bold text-slate-950">
+            <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-4">
+              <p className="text-xs text-cyan-300">Foreclosure Payoff</p>
+              <p className="mt-1 text-xl font-black text-white tabular-nums">
                 {formatMoney(totalPayoff)}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
-                Includes the charges and waiver entered above.
+              <p className="mt-1 text-[11px] text-cyan-400/80">
+                Includes all charges & fee adjustments
               </p>
             </div>
           </div>
 
           {selectedLoan.remainingInstallments > 0 ? (
-            <div className="mt-4 rounded-xl border border-slate-200 p-4">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
               {difference > 0 ? (
-                <>
-                  <p className="font-semibold text-slate-950">
-                    {formatMoney(difference)} lower than the remaining EMI total
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-emerald-400">
+                    {formatMoney(difference)} lower cash outflow than remaining EMI sum
                   </p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    The entered payoff is less than the total of your scheduled
-                    future EMI payments. This is a cash-outflow comparison, not
-                    a guarantee of savings.
+                  <p className="text-xs text-slate-400">
+                    The lump-sum payoff amount is lower than the total future scheduled EMI cash obligations.
                   </p>
-                </>
+                </div>
               ) : difference < 0 ? (
-                <>
-                  <p className="font-semibold text-slate-950">
-                    {formatMoney(Math.abs(difference))} higher than the
-                    remaining EMI total
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-rose-400">
+                    {formatMoney(Math.abs(difference))} higher than remaining EMI sum
                   </p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    The entered payoff is higher than the total of your
-                    scheduled future EMI payments. Verify the principal,
-                    charges, remaining tenure and quote before drawing a
-                    conclusion.
+                  <p className="text-xs text-slate-400">
+                    Payoff exceeds remaining scheduled instalments. Check charges and fees before proceeding.
                   </p>
-                </>
+                </div>
               ) : (
-                <p className="font-semibold text-slate-950">
-                  Both amounts are currently equal.
+                <p className="text-sm font-bold text-slate-300">
+                  Both totals are exactly equal.
                 </p>
               )}
             </div>
           ) : (
-            <p className="mt-4 text-sm text-slate-600">
-              No scheduled instalments remain according to the loan details
-              currently recorded. Verify the loan status and the lender&apos;s
-              actual payoff quote.
+            <p className="text-xs text-slate-400">
+              No future scheduled instalments remain for this loan.
             </p>
           )}
-
-          <p className="mt-3 text-xs leading-5 text-slate-500">
-            This comparison does not account for the time value of money,
-            changes in interest, prepayment conditions or your ability to use
-            the money elsewhere. It relies on the accuracy of your stored loan
-            schedule and the payoff amount entered.
-          </p>
         </section>
-      )}
-
-      {source === "estimate" && (
-        <p className="text-sm text-slate-500">
-          This is your own estimate, not a confirmed lender settlement amount.
-        </p>
       )}
 
       <button
         type="submit"
-        className="w-full rounded-xl bg-slate-950 px-4 py-3 font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
+        className="w-full sm:w-auto rounded-2xl bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-600 px-8 py-3.5 text-sm font-bold text-slate-950 shadow-xl shadow-cyan-500/20 transition-all hover:brightness-110 active:scale-[0.99] cursor-pointer"
       >
         Calculate and Save Quote
       </button>

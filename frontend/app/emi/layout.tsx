@@ -1,5 +1,7 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
+import { AuraHeader, AuraBottomNav } from "@/components/AuraNav";
+import { logout } from "../login/actions";
+import { EmiSubNav } from "./EmiSubNav";
 
 export default function EmiLayout({
   children,
@@ -7,40 +9,33 @@ export default function EmiLayout({
   children: ReactNode;
 }) {
   return (
-    <div>
-      <nav className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-2 px-4 py-3 sm:px-6">
-          <Link
-            href="/emi"
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            EMI Overview
-          </Link>
+    <div className="relative min-h-screen bg-[#10141a] text-[#dfe2eb] pt-20 pb-36 selection:bg-cyan-500/30 selection:text-cyan-200 overflow-hidden">
+      {/* Dynamic ambient atmospheric lighting */}
+      <div className="pointer-events-none fixed -left-32 top-10 h-96 w-96 rounded-full bg-cyan-500/10 blur-[150px] animate-pulse-glow" />
+      <div
+        className="pointer-events-none fixed -right-32 top-1/4 h-[30rem] w-[30rem] rounded-full bg-[#10b981]/10 blur-[160px] animate-pulse-glow"
+        style={{ animationDelay: "2s" }}
+      />
+      <div
+        className="pointer-events-none fixed bottom-10 left-1/3 h-80 w-80 rounded-full bg-[#8b5cf6]/10 blur-[140px] animate-pulse-glow"
+        style={{ animationDelay: "4s" }}
+      />
 
-          <Link
-            href="/emi/payments"
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Record Payment
-          </Link>
+      {/* Stitch Executive Header */}
+      <AuraHeader
+        sectionTitle="Debt & Loans"
+        signOutAction={logout}
+      />
 
-          <Link
-            href="/emi/foreclosure"
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Foreclosure Calculator
-          </Link>
+      {/* Dynamic Path-Aware Sub-navigation */}
+      <EmiSubNav />
 
-          <Link
-            href="/emi/foreclosure/settle"
-            className="rounded-lg bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-          >
-            Record Actual Foreclosure
-          </Link>
-        </div>
-      </nav>
+      <div>
+        {children}
+      </div>
 
-      {children}
+      {/* Stitch Floating Dock */}
+      <AuraBottomNav />
     </div>
   );
 }

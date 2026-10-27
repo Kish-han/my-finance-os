@@ -115,6 +115,8 @@ export interface EmiDebt {
     nextDueDate?: string;
 
     status: DebtStatus;
+    additionalChargesPaise?: number;
+    chargeDescription?: string | null;
     notes?: string;
 }
 

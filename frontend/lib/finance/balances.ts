@@ -1,4 +1,3 @@
-
 import type { CreditCard, FinancialAccount, Transaction } from "./types";
 
 // Dates must use YYYY-MM-DD format.
@@ -102,4 +101,117 @@ export function calculateAvailableCredit(
     card.creditLimitPaise -
     calculateCardOutstanding(card, transactions)
   );
+}
+
+export interface SeparatedAccountBalances<
+  T extends { account: FinancialAccount; balancePaise: number }
+> {
+  bankAccounts: T[];
+  cashAccounts: T[];
+  totalBankBalancesPaise: number;
+  totalCashInHandPaise: number;
+  totalLiquidPaise: number;
+}
+
+/**
+ * Categorizes accounts into physical cash accounts and institutional bank accounts,
+ * ensuring each account is assigned to exactly one category without overlap.
+ */
+export function separateAccountBalances<
+  T extends { account: FinancialAccount; balancePaise: number }
+>(accountBalances: T[]): SeparatedAccountBalances<T> {
+  const bankAccounts = accountBalances.filter(
+    (item) => item.account.type === "bank"
+  );
+  const cashAccounts = accountBalances.filter(
+    (item) => item.account.type === "cash"
+  );
+
+  const totalBankBalancesPaise = bankAccounts.reduce(
+    (sum, item) => sum + item.balancePaise,
+    0
+  );
+  const totalCashInHandPaise = cashAccounts.reduce(
+    (sum, item) => sum + item.balancePaise,
+    0
+  );
+
+  return {
+    bankAccounts,
+    cashAccounts,
+    totalBankBalancesPaise,
+    totalCashInHandPaise,
+    totalLiquidPaise: totalBankBalancesPaise + totalCashInHandPaise,
+  };
+}
+
+export interface DebtLiabilityItem {
+  debtType: string;
+  linkedCreditCardId: string | null;
+  outstandingPaise: number;
+}
+
+/**
+ * Separates standalone term loans from credit-card-linked EMIs.
+ * Card-linked EMIs are already represented within the credit card's revolving debt / outstanding.
+ * Only standalone term loans constitute independent liabilities to prevent double counting.
+ */
+export function partitionDebtsForLiabilities<T extends DebtLiabilityItem>(
+  debts: T[]
+): {
+  standaloneLoans: T[];
+  cardLinkedEmis: T[];
+  totalStandaloneLoanPaise: number;
+  totalCardLinkedEmiPaise: number;
+} {
+  const standaloneLoans: T[] = [];
+  const cardLinkedEmis: T[] = [];
+
+  for (const debt of debts) {
+    if (
+      debt.debtType === "credit_card_emi" ||
+      Boolean(debt.linkedCreditCardId)
+    ) {
+      cardLinkedEmis.push(debt);
+    } else {
+      standaloneLoans.push(debt);
+    }
+  }
+
+  const totalStandaloneLoanPaise = standaloneLoans.reduce(
+    (sum, d) => sum + d.outstandingPaise,
+    0
+  );
+  const totalCardLinkedEmiPaise = cardLinkedEmis.reduce(
+    (sum, d) => sum + d.outstandingPaise,
+    0
+  );
+
+  return {
+    standaloneLoans,
+    cardLinkedEmis,
+    totalStandaloneLoanPaise,
+    totalCardLinkedEmiPaise,
+  };
+}
+
+/**
+ * Computes net worth and total liabilities without double-counting card EMIs.
+ */
+export function calculateNetWorth(params: {
+  liquidAssetsPaise: number;
+  cardOutstandingPaise: number;
+  standaloneLoanPrincipalPaise: number;
+}): {
+  totalLiabilitiesPaise: number;
+  netWorthPaise: number;
+} {
+  const totalLiabilitiesPaise =
+    params.cardOutstandingPaise + params.standaloneLoanPrincipalPaise;
+  const netWorthPaise = params.liquidAssetsPaise - totalLiabilitiesPaise;
+
+  return {
+    totalLiabilitiesPaise,
+    netWorthPaise,
+  };
 }

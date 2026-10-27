@@ -46,11 +46,18 @@ export async function signup(formData: FormData) {
     const origin =
         requestHeaders.get("origin") ?? "http://localhost:3000";
 
-    const { data, error } = await supabase.auth.signUp({
+    const rawDisplayName = String(formData.get("displayName") ?? "").trim();
+    const data: Record<string, string> = {};
+    if (rawDisplayName) {
+        data.display_name = rawDisplayName;
+    }
+
+    const { data: authData, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
             emailRedirectTo: `${origin}/auth/callback`,
+            ...(rawDisplayName ? { data } : {}),
         },
     });
 
@@ -58,7 +65,7 @@ export async function signup(formData: FormData) {
         redirect("/login?error=sign-up-failed");
     }
 
-    if (data.session) {
+    if (authData.session) {
         revalidatePath("/", "layout");
         redirect("/");
     }
