@@ -16,6 +16,9 @@ type NewTransactionPageProps = {
     error?: string;
     created?: string;
     type?: string;
+    account_id?: string;
+    card_id?: string;
+    source?: string;
   }>;
 };
 
@@ -25,6 +28,14 @@ type AccountRow = {
   account_type: "bank" | "cash";
   institution: string | null;
   opening_balance_date: string;
+};
+
+type CreditCardRow = {
+  id: string;
+  name: string;
+  bank_name: string;
+  last_four_digits: string | null;
+  opening_outstanding_date: string;
 };
 
 type CategoryRow = {
@@ -53,11 +64,18 @@ async function NewTransactionContent({
   const userEmail = user.email || "Private Client";
   const displayName = resolveDisplayName(user);
 
-  // Fetch accounts and categories
-  const [accountsResult, categoriesResult] = await Promise.all([
+  // Fetch accounts, credit cards and categories in parallel
+  const [accountsResult, cardsResult, categoriesResult] = await Promise.all([
     supabase
       .from("accounts")
       .select("id, name, account_type, institution, opening_balance_date")
+      .eq("user_id", userId)
+      .eq("is_archived", false)
+      .order("name"),
+
+    supabase
+      .from("credit_cards")
+      .select("id, name, bank_name, last_four_digits, opening_outstanding_date")
       .eq("user_id", userId)
       .eq("is_archived", false)
       .order("name"),
@@ -70,6 +88,7 @@ async function NewTransactionContent({
   ]);
 
   const accounts = (accountsResult.data ?? []) as unknown as AccountRow[];
+  const creditCards = (cardsResult.data ?? []) as unknown as CreditCardRow[];
   const categories = (categoriesResult.data ?? []) as unknown as CategoryRow[];
 
   const defaultCategories = [
@@ -100,9 +119,11 @@ async function NewTransactionContent({
 
   const errorMessages: Record<string, string> = {
     "invalid-input":
-      "Check the amount, date, description and category. Amounts must be positive, and future dates aren't allowed.",
+      "Check the amount, date, description, category and source. Amounts must be positive, and future dates aren't allowed.",
     "invalid-account-or-date":
       "Select one of your active accounts and a date on or after its opening-balance date.",
+    "invalid-card-or-date":
+      "Select an active credit card and a date on or after its opening outstanding date.",
     "save-failed":
       "We couldn't save the transaction. Please try again.",
   };
@@ -119,7 +140,19 @@ async function NewTransactionContent({
       : undefined;
 
   const today = getIndiaToday();
-  const initialType = params.type === "income" ? "income" : "expense";
+
+  const initialSourceId = params.card_id
+    ? `card:${params.card_id}`
+    : params.account_id
+    ? `account:${params.account_id}`
+    : params.source || undefined;
+
+  const initialType: "income" | "expense" =
+    params.card_id || (params.source && params.source.startsWith("card:"))
+      ? "expense"
+      : params.type === "income"
+      ? "income"
+      : "expense";
 
   return (
     <main className="min-h-screen bg-[#10141a] text-[#dfe2eb] pt-20 pb-36 relative overflow-hidden selection:bg-[#4edea3]/30 selection:text-[#4edea3]">
@@ -222,16 +255,16 @@ async function NewTransactionContent({
           </div>
         )}
 
-        {/* Account Requirement Warning */}
-        {accounts.length === 0 ? (
+        {/* Account/Card Requirement Warning */}
+        {accounts.length === 0 && creditCards.length === 0 ? (
           <div className="aura-panel p-8 text-center space-y-4">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
               <ArrowDownLeft className="h-7 w-7" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">No active accounts detected</h3>
+              <h3 className="text-base font-bold text-white">No active accounts or cards detected</h3>
               <p className="mt-1 text-xs text-slate-400 max-w-sm mx-auto">
-                Add a bank account or cash wallet first to establish an opening balance before recording transactions.
+                Add a bank account, cash wallet or credit card first to establish an opening balance before recording transactions.
               </p>
             </div>
             <Link
@@ -252,15 +285,17 @@ async function NewTransactionContent({
                 </span>
               </div>
               <Badge variant="outline" className="text-[10px] border-white/10 text-slate-400">
-                INR · LIQUID LEDGER
+                INR · UNIFIED LEDGER
               </Badge>
             </div>
 
             <TransactionForm
               accounts={accounts}
+              creditCards={creditCards}
               availableCategories={availableCategories}
               earliestDate={earliestDate}
               initialType={initialType}
+              initialSourceId={initialSourceId}
               today={today}
               returnTo="/transactions/new"
             />

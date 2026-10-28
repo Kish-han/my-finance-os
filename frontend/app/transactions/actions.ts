@@ -49,12 +49,17 @@ export async function createTransaction(formData: FormData) {
   const returnTo =
     String(formData.get("returnTo") ?? "").trim() || "/transactions/new";
 
-  const description = String(
-    formData.get("description") ?? ""
-  ).trim();
+  const rawDescription = String(formData.get("description") ?? "").trim();
+  const notes = String(formData.get("notes") ?? "").trim();
+  const description = notes ? `${rawDescription} · ${notes}`.slice(0, 160) : rawDescription;
 
-  const transactionType = formData.get("transactionType");
-  const accountId = String(formData.get("accountId") ?? "");
+  const flowType = String(formData.get("transactionType") ?? "").trim();
+  const sourceId = String(
+    formData.get("sourceId") ??
+      formData.get("accountId") ??
+      formData.get("creditCardId") ??
+      ""
+  ).trim();
   const categoryName = String(formData.get("category") ?? "").trim();
   const amountInput = String(formData.get("amount") ?? "").trim();
   const transactionDate = String(
@@ -64,8 +69,8 @@ export async function createTransaction(formData: FormData) {
   if (
     !description ||
     description.length > 160 ||
-    !["income", "expense"].includes(String(transactionType)) ||
-    !accountId ||
+    !["income", "expense"].includes(flowType) ||
+    !sourceId ||
     !categoryName ||
     categoryName.length > 60 ||
     !/^\d{1,12}(\.\d{1,2})?$/.test(amountInput) ||
@@ -97,31 +102,72 @@ export async function createTransaction(formData: FormData) {
     redirect("/login");
   }
 
-  // Verify that the selected account belongs to this user.
-  const { data: account, error: accountError } = await supabase
-    .from("accounts")
-    .select("id, opening_balance_date")
-    .eq("id", accountId)
-    .eq("user_id", userId)
-    .eq("is_archived", false)
-    .maybeSingle();
+  // Parse source identifier (supports "card:<id>", "account:<id>", or raw IDs)
+  const isCard =
+    sourceId.startsWith("card:") ||
+    (Boolean(formData.get("creditCardId")) && !sourceId.startsWith("account:"));
+  const cleanId = sourceId.replace(/^(card|account):/, "");
 
-  if (
-    accountError ||
-    !account ||
-    transactionDate < account.opening_balance_date
-  ) {
-    redirect(`${returnTo}?error=invalid-account-or-date`);
+  let resolvedType: "income" | "expense" | "card_purchase";
+  let targetAccountId: string | null = null;
+  let targetCreditCardId: string | null = null;
+
+  if (isCard) {
+    // Credit cards cannot receive income
+    if (flowType === "income") {
+      redirect(`${returnTo}?error=invalid-input`);
+    }
+
+    // Verify credit card belongs to user
+    const { data: card, error: cardError } = await supabase
+      .from("credit_cards")
+      .select("id, opening_outstanding_date")
+      .eq("id", cleanId)
+      .eq("user_id", userId)
+      .eq("is_archived", false)
+      .maybeSingle();
+
+    if (
+      cardError ||
+      !card ||
+      transactionDate < card.opening_outstanding_date
+    ) {
+      redirect(`${returnTo}?error=invalid-card-or-date`);
+    }
+
+    resolvedType = "card_purchase";
+    targetCreditCardId = card.id;
+  } else {
+    // Verify bank/cash account belongs to user
+    const { data: account, error: accountError } = await supabase
+      .from("accounts")
+      .select("id, opening_balance_date")
+      .eq("id", cleanId)
+      .eq("user_id", userId)
+      .eq("is_archived", false)
+      .maybeSingle();
+
+    if (
+      accountError ||
+      !account ||
+      transactionDate < account.opening_balance_date
+    ) {
+      redirect(`${returnTo}?error=invalid-account-or-date`);
+    }
+
+    resolvedType = flowType as "income" | "expense";
+    targetAccountId = account.id;
   }
 
-  // Find or create a category belonging to this user and transaction type.
+  // Find or create category
+  const categoryType = resolvedType === "income" ? "income" : "expense";
   const { data: category, error: categoryError } = await supabase
     .from("categories")
     .upsert(
       {
         user_id: userId,
         name: categoryName,
-        category_type: transactionType,
+        category_type: categoryType,
         is_archived: false,
       },
       {
@@ -135,7 +181,7 @@ export async function createTransaction(formData: FormData) {
     redirect(`${returnTo}?error=save-failed`);
   }
 
-  // Only income and expense transactions are supported in this first form.
+  // Insert the unified transaction
   const { error: transactionError } = await supabase
     .from("transactions")
     .insert({
@@ -143,8 +189,9 @@ export async function createTransaction(formData: FormData) {
       transaction_date: transactionDate,
       description,
       amount_paise: amountPaise,
-      transaction_type: transactionType,
-      account_id: account.id,
+      transaction_type: resolvedType,
+      account_id: targetAccountId,
+      credit_card_id: targetCreditCardId,
       category_id: category.id,
     });
 

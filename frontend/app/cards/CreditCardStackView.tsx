@@ -934,7 +934,7 @@ export function CreditCardStackView({
 
                       {isPrimary ? (
                         <Link
-                          href={`/cards/activity?card_id=${card.id}`}
+                          href={card.outstandingPaise === 0 ? `/transactions/new?type=expense&card_id=${card.id}` : `/cards/activity?card_id=${card.id}`}
                           onClick={(e) => e.stopPropagation()}
                           className={`rounded-full px-3 py-1 text-[11px] font-bold transition-all shadow-sm flex items-center gap-1 active:scale-95 ${
                             isLightCard
@@ -1055,13 +1055,22 @@ export function CreditCardStackView({
                     </p>
                   </div>
 
-                  <Link
-                    href={`/cards/activity?card_id=${selectedCard.id}`}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 text-xs font-bold transition-all shadow-sm"
-                  >
-                    <span>Record Spend / Payment</span>
-                    <ArrowUpRight className="h-3.5 w-3.5" />
-                  </Link>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      href={`/transactions/new?type=expense&card_id=${selectedCard.id}`}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 text-xs font-bold transition-all shadow-sm active:scale-95"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>Spend</span>
+                    </Link>
+                    <Link
+                      href={`/cards/activity?card_id=${selectedCard.id}`}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 text-xs font-semibold transition-all shadow-sm active:scale-95"
+                    >
+                      <span>Repay</span>
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </div>
                 </div>
 
                 {/* 3 Metric Cards */}
@@ -1228,13 +1237,21 @@ export function CreditCardStackView({
                     <p className="mt-1 text-xs text-slate-500 max-w-sm mx-auto">
                       Log your card spends and bill repayments to track utilization in real time.
                     </p>
-                    <Link
-                      href={`/cards/activity?card_id=${selectedCard.id}`}
-                      className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 text-xs font-bold transition-all"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      <span>Record First Spend / Payment</span>
-                    </Link>
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5">
+                      <Link
+                        href={`/transactions/new?type=expense&card_id=${selectedCard.id}`}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 text-xs font-bold transition-all active:scale-95"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>Record Spend</span>
+                      </Link>
+                      <Link
+                        href={`/cards/activity?card_id=${selectedCard.id}`}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 text-xs font-medium transition-all active:scale-95"
+                      >
+                        <span>Card Repayment</span>
+                      </Link>
+                    </div>
                   </div>
                 ) : (
                   <div className="divide-y divide-white/5 rounded-2xl border border-white/5 bg-white/[0.02] overflow-hidden">

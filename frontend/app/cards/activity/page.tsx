@@ -374,10 +374,19 @@ async function ActivityContent({
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500/15 text-rose-400 ring-1 ring-rose-500/30">
                 <ShoppingBag className="h-4 w-4" />
               </div>
-              <div>
-                <h2 className="text-base font-bold tracking-tight text-white">
-                  Record Card Purchase
-                </h2>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-base font-bold tracking-tight text-white">
+                    Record Card Purchase
+                  </h2>
+                  <Link
+                    href={params.card_id ? `/transactions/new?type=expense&card_id=${params.card_id}` : "/transactions/new?type=expense"}
+                    className="text-[11px] font-semibold text-rose-300 hover:text-rose-200 transition-colors inline-flex items-center gap-1 shrink-0"
+                  >
+                    <span>Use central composer</span>
+                    <ArrowUpRight className="h-3 w-3" />
+                  </Link>
+                </div>
                 <p className="text-xs text-slate-400">
                   Increases revolving debt. Doesn&apos;t deduct bank cash.
                 </p>
