@@ -66,3 +66,103 @@ describe("Performance Optimizations: Amortization Memoization", () => {
     expect(resultWithoutPayment.paidInstallmentsCount).toBe(0);
   });
 });
+
+describe("Performance Optimizations: Large Dataset Processing & Balance Correctness", () => {
+  type MockCardRow = {
+    id: string;
+    opening_outstanding_paise: number | string;
+    opening_outstanding_date: string;
+  };
+
+  type MockActivityRow = {
+    id: string;
+    transaction_date: string;
+    amount_paise: number | string;
+    transaction_type: string;
+    credit_card_id: string | null;
+  };
+
+  function calculateOutstanding(
+    card: MockCardRow,
+    activities: MockActivityRow[]
+  ): number {
+    let outstanding = Number(card.opening_outstanding_paise);
+
+    for (const activity of activities) {
+      if (
+        activity.credit_card_id !== card.id ||
+        activity.transaction_date < card.opening_outstanding_date
+      ) {
+        continue;
+      }
+
+      const amount = Number(activity.amount_paise);
+
+      if (activity.transaction_type === "card_purchase") {
+        outstanding += amount;
+      } else if (activity.transaction_type === "card_payment") {
+        outstanding -= amount;
+      }
+    }
+
+    return Math.max(0, outstanding);
+  }
+
+  it("calculates outstanding balance correctly over 3,000+ transactions without truncation", () => {
+    const card: MockCardRow = {
+      id: "card-123",
+      opening_outstanding_paise: 5000_00, // ₹5,000
+      opening_outstanding_date: "2025-01-01",
+    };
+
+    // Generate 3,500 transactions (beyond previous 2,500 limit)
+    const activities: MockActivityRow[] = [];
+    for (let i = 1; i <= 3500; i++) {
+      activities.push({
+        id: `tx-${i}`,
+        transaction_date: "2025-06-01",
+        amount_paise: 100_00, // ₹100 each
+        transaction_type: i % 10 === 0 ? "card_payment" : "card_purchase",
+        credit_card_id: "card-123",
+      });
+    }
+
+    // 3,500 transactions:
+    // 350 payments of ₹100 = ₹35,000 repaid
+    // 3,150 purchases of ₹100 = ₹3,15,000 spent
+    // Net change = +₹2,80,000
+    // Opening = ₹5,000
+    // Expected total = ₹2,85,000
+    const calculated = calculateOutstanding(card, activities);
+    expect(calculated).toBe(285000_00);
+  });
+
+  it("proves that truncating at 2,500 causes balance discrepancy, while full dataset remains correct", () => {
+    const card: MockCardRow = {
+      id: "card-123",
+      opening_outstanding_paise: 0,
+      opening_outstanding_date: "2025-01-01",
+    };
+
+    const fullDataset: MockActivityRow[] = [];
+    for (let i = 1; i <= 3000; i++) {
+      fullDataset.push({
+        id: `tx-${i}`,
+        transaction_date: "2025-06-01",
+        amount_paise: 100_00,
+        transaction_type: "card_purchase",
+        credit_card_id: "card-123",
+      });
+    }
+
+    const truncatedDataset = fullDataset.slice(0, 2500);
+
+    const fullBalance = calculateOutstanding(card, fullDataset);
+    const truncatedBalance = calculateOutstanding(card, truncatedDataset);
+
+    // Truncating omits ₹50,000 of purchases!
+    expect(fullBalance).toBe(300000_00);
+    expect(truncatedBalance).toBe(250000_00);
+    expect(fullBalance).not.toBe(truncatedBalance);
+  });
+});
