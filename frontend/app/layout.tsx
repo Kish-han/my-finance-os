@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -13,9 +13,22 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#10141a",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   title: "AURA Wealth — Private Financial Operating System",
   description: "Private personal finance, card debt, and loan payoff intelligence",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "AURA Wealth",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

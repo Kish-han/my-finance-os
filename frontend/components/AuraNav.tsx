@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   CreditCard,
   ArrowLeftRight,
+  CalendarClock,
   TrendingUp,
   Landmark,
   LogOut,
@@ -20,6 +21,25 @@ interface AuraHeaderProps {
   signOutAction?: () => Promise<void>;
 }
 
+export function getAuraNavActiveState(pathname: string | null) {
+  const isDashboard = pathname === "/";
+  const isRecurring = Boolean(pathname?.startsWith("/transactions/recurring"));
+  const isTransactions = Boolean(pathname?.startsWith("/transactions")) && !isRecurring;
+  const isCards = Boolean(pathname?.startsWith("/cards"));
+  const isLoans = Boolean(pathname?.startsWith("/emi"));
+  const isAccounts = Boolean(pathname?.startsWith("/accounts"));
+
+  return {
+    isDashboard,
+    isVault: isDashboard,
+    isRecurring,
+    isTransactions,
+    isCards,
+    isLoans,
+    isAccounts,
+  };
+}
+
 export function AuraHeader({
   sectionTitle = "Vault",
   userEmail,
@@ -27,12 +47,8 @@ export function AuraHeader({
   signOutAction,
 }: AuraHeaderProps) {
   const pathname = usePathname();
-
-  const isDashboard = pathname === "/";
-  const isTransactions = pathname?.startsWith("/transactions");
-  const isCards = pathname?.startsWith("/cards");
-  const isLoans = pathname?.startsWith("/emi");
-  const isAccounts = pathname?.startsWith("/accounts");
+  const { isDashboard, isRecurring, isTransactions, isCards, isLoans, isAccounts } =
+    getAuraNavActiveState(pathname);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-[#10141a]/80 backdrop-blur-xl border-b border-white/[0.08] shadow-[0_1px_8px_rgba(0,0,0,0.25)]">
@@ -76,6 +92,17 @@ export function AuraHeader({
             }`}
           >
             Transactions
+          </Link>
+          <Link
+            href="/transactions/recurring"
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs transition-all ${
+              isRecurring
+                ? "bg-[#4edea3] text-slate-950 font-black shadow-sm"
+                : "text-slate-300 hover:text-white hover:bg-white/10 font-medium"
+            }`}
+          >
+            <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+            <span>Recurring</span>
           </Link>
           <Link
             href="/cards"
@@ -168,82 +195,98 @@ export function AuraHeader({
 
 export function AuraBottomNav() {
   const pathname = usePathname();
+  const { isVault, isRecurring, isTransactions, isCards, isLoans, isAccounts } =
+    getAuraNavActiveState(pathname);
 
-  const isVault = pathname === "/";
-  const isCards = pathname?.startsWith("/cards");
-  const isTransfers = pathname?.startsWith("/transactions");
-  const isGrowth = pathname?.startsWith("/emi");
-  const isAccounts = pathname?.startsWith("/accounts");
+  const navItems = [
+    {
+      href: "/",
+      label: "Vault",
+      icon: LayoutDashboard,
+      active: isVault,
+      title: "Vault",
+    },
+    {
+      href: "/transactions",
+      label: "Transactions",
+      shortLabel: "Txns",
+      icon: ArrowLeftRight,
+      active: isTransactions,
+      title: "Transactions",
+    },
+    {
+      href: "/transactions/recurring",
+      label: "Recurring",
+      shortLabel: "Recur",
+      icon: CalendarClock,
+      active: isRecurring,
+      title: "Recurring",
+    },
+    {
+      href: "/cards",
+      label: "Cards",
+      icon: CreditCard,
+      active: isCards,
+      title: "Cards",
+    },
+    {
+      href: "/emi",
+      label: "Loans",
+      icon: TrendingUp,
+      active: isLoans,
+      title: "Loans",
+    },
+    {
+      href: "/accounts",
+      label: "Accounts",
+      icon: Landmark,
+      active: isAccounts,
+      title: "Accounts",
+    },
+  ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none pb-4 sm:pb-5">
-      <div className="max-w-md mx-auto px-4">
-        <div className="pointer-events-auto h-16 w-full rounded-full aura-dock flex items-center justify-around px-2 relative">
-          {/* Item 1: Vault (Dashboard) */}
-          <Link
-            href="/"
-            className={`flex flex-col items-center justify-center shrink-0 min-w-[48px] min-h-[44px] px-2 transition-colors ${
-              isVault ? "text-[#4edea3] font-bold" : "text-[#bbcabf] hover:text-[#dfe2eb]"
-            }`}
-          >
-            <LayoutDashboard className="h-5 w-5 shrink-0" />
-            <span className="text-[10px] mt-0.5 tracking-wide">Vault</span>
-          </Link>
-
-          {/* Item 2: Cards */}
-          <Link
-            href="/cards"
-            className={`flex flex-col items-center justify-center shrink-0 min-w-[48px] min-h-[44px] px-2 transition-colors ${
-              isCards ? "text-[#4edea3] font-bold" : "text-[#bbcabf] hover:text-[#dfe2eb]"
-            }`}
-          >
-            <CreditCard className="h-5 w-5 shrink-0" />
-            <span className="text-[10px] mt-0.5 tracking-wide">Cards</span>
-          </Link>
-
-          {/* Item 3: Center Elevated Action Button (Transactions & Ledger) */}
-          <div className="relative -top-2 shrink-0 flex flex-col items-center">
-            <Link
-              href="/transactions"
-              className={`flex items-center justify-center w-11 h-11 shrink-0 rounded-full transition-transform active:scale-95 hover:scale-105 ${
-                isTransfers
-                  ? "bg-white text-[#003824] ring-2 ring-[#4edea3] shadow-[0_8px_24px_-4px_rgba(255,255,255,0.6)]"
-                  : "bg-[#4edea3] text-[#003824] shadow-[0_8px_24px_-4px_rgba(78,222,163,0.5)]"
-              }`}
-              title="Transactions & Ledger"
-            >
-              <ArrowLeftRight className="h-5 w-5 stroke-[2.5] shrink-0" />
-            </Link>
-            <span
-              className={`text-[9px] mt-0.5 tracking-tight font-semibold ${
-                isTransfers ? "text-[#4edea3] font-bold" : "text-[#bbcabf]"
-              }`}
-            >
-              Transactions
-            </span>
-          </div>
-
-          {/* Item 4: Growth & Loans */}
-          <Link
-            href="/emi"
-            className={`flex flex-col items-center justify-center shrink-0 min-w-[48px] min-h-[44px] px-2 transition-colors ${
-              isGrowth ? "text-[#4edea3] font-bold" : "text-[#bbcabf] hover:text-[#dfe2eb]"
-            }`}
-          >
-            <TrendingUp className="h-5 w-5 shrink-0" />
-            <span className="text-[10px] mt-0.5 tracking-wide">Loans</span>
-          </Link>
-
-          {/* Item 5: Accounts & Liquidity */}
-          <Link
-            href="/accounts"
-            className={`flex flex-col items-center justify-center shrink-0 min-w-[48px] min-h-[44px] px-2 transition-colors ${
-              isAccounts ? "text-[#4edea3] font-bold" : "text-[#bbcabf] hover:text-[#dfe2eb]"
-            }`}
-          >
-            <Landmark className="h-5 w-5 shrink-0" />
-            <span className="text-[10px] mt-0.5 tracking-wide">Accounts</span>
-          </Link>
+    <nav className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:pb-5">
+      <div className="max-w-md sm:max-w-lg mx-auto px-2 sm:px-4">
+        <div className="pointer-events-auto h-16 w-full rounded-full aura-dock flex items-center justify-between px-1 sm:px-2.5 relative shadow-2xl">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                title={item.title}
+                aria-label={item.title}
+                aria-current={item.active ? "page" : undefined}
+                className={`flex flex-col items-center justify-center flex-1 min-w-0 min-h-[44px] py-1 px-0.5 rounded-full transition-all group cursor-pointer active:scale-95 ${
+                  item.active
+                    ? "text-[#4edea3] font-bold"
+                    : "text-[#bbcabf] hover:text-[#dfe2eb]"
+                }`}
+              >
+                <Icon
+                  className={`h-5 w-5 shrink-0 transition-transform group-hover:scale-110 ${
+                    item.active ? "stroke-[2.5]" : "stroke-[1.75]"
+                  }`}
+                />
+                <span className="text-[9px] sm:text-[10px] mt-0.5 tracking-tight font-medium leading-none text-center truncate max-w-full">
+                  {item.shortLabel ? (
+                    <>
+                      <span className="hidden min-[380px]:inline">{item.label}</span>
+                      <span className="min-[380px]:hidden">{item.shortLabel}</span>
+                    </>
+                  ) : (
+                    item.label
+                  )}
+                </span>
+                {item.active ? (
+                  <span className="w-1 h-1 rounded-full bg-[#4edea3] shadow-[0_0_6px_#4edea3] mt-0.5" />
+                ) : (
+                  <span className="w-1 h-1 mt-0.5 opacity-0" />
+                )}
+              </Link>
+            );
+          })}
         </div>
       </div>
     </nav>

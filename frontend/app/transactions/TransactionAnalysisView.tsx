@@ -16,7 +16,7 @@ import {
   Zap,
   TrendingUp,
   Pencil,
-  Sparkles,
+  CalendarClock,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DashboardMonthlyChart } from "../DashboardMonthlyChart";
@@ -325,9 +325,10 @@ export function TransactionAnalysisView({
           <Link
             href="/transactions/recurring"
             className="inline-flex items-center gap-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 px-3.5 py-2.5 text-xs font-bold text-purple-300 hover:text-white transition-all active:scale-95 cursor-pointer shadow-sm"
+            title="Manage recurring schedules, reminders, and expected items"
           >
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Recurring Rules</span>
+            <CalendarClock className="h-4 w-4 shrink-0 text-purple-400" />
+            <span>Recurring Transactions</span>
           </Link>
           <Link
             href="/transactions/new"
@@ -477,11 +478,21 @@ export function TransactionAnalysisView({
             </span>
           </div>
 
-          <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
-            <span className="hidden sm:inline">Active Window:</span>
-            <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white font-semibold">
-              {formatDisplayDate(summary.startDate)} – {formatDisplayDate(summary.endDate)}
-            </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/transactions/recurring"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-[11px] font-sans font-bold text-purple-300 hover:text-white transition-all cursor-pointer"
+              title="View recurring obligations & schedules"
+            >
+              <CalendarClock className="h-3 w-3 text-purple-400" />
+              <span>Recurring Schedules</span>
+            </Link>
+            <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
+              <span className="hidden sm:inline">Active Window:</span>
+              <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white font-semibold">
+                {formatDisplayDate(summary.startDate)} – {formatDisplayDate(summary.endDate)}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -720,7 +731,16 @@ export function TransactionAnalysisView({
             </h2>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+            <Link
+              href="/transactions/recurring"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-xs font-bold text-purple-300 hover:text-white transition-all cursor-pointer"
+              title="Recurring transactions & reminders"
+            >
+              <CalendarClock className="h-3.5 w-3.5 text-purple-400" />
+              <span className="hidden sm:inline">Recurring Transactions</span>
+              <span className="sm:hidden">Recurring</span>
+            </Link>
             <Link
               href="/transactions/new"
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 hover:text-white transition-all cursor-pointer"

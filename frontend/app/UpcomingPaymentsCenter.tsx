@@ -13,6 +13,7 @@ import {
   Receipt,
   FileText,
   Sparkles,
+  CalendarClock,
   Clock,
   Wallet,
   TrendingUp,
@@ -240,9 +241,10 @@ export default function UpcomingPaymentsCenter({
           <Link
             href="/transactions/recurring"
             className="inline-flex items-center gap-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 px-3.5 py-1.5 text-xs font-bold text-purple-300 hover:text-white transition-all shadow-sm cursor-pointer"
+            title="Manage recurring schedules, reminders, and expected items"
           >
-            <Sparkles className="h-3 w-3" />
-            <span>Recurring Rules</span>
+            <CalendarClock className="h-3 w-3" />
+            <span>Recurring</span>
           </Link>
 
           {cards.length > 0 && (
