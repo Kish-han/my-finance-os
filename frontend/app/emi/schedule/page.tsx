@@ -123,7 +123,9 @@ async function RepaymentScheduleContent({
   const [debtResult, paymentResult, cardResult] = await Promise.all([
     supabase
       .from("emi_debts")
-      .select("*")
+      .select(
+        "id, name, debt_type, lender_name, linked_credit_card_id, payment_account_id, original_principal_paise, current_outstanding_principal_paise, outstanding_as_of_date, annual_interest_rate_basis_points, interest_method, total_tenure_months, installments_paid_before_tracking, emi_amount_paise, first_emi_due_date, next_due_date, status, additional_charges_paise, charge_description, notes"
+      )
       .eq("user_id", userId)
       .order("created_at", { ascending: false }),
 

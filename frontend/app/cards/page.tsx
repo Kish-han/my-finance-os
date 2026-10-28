@@ -18,6 +18,7 @@ import {
   type CreditCardItem,
   type CardTransactionItem,
 } from "./CreditCardStackView";
+import CardsLoading from "./loading";
 
 type CardsPageProps = {
   searchParams: Promise<{
@@ -529,16 +530,7 @@ async function CardsContent({ searchParams }: CardsPageProps) {
 
 export default function CardsPage({ searchParams }: CardsPageProps) {
   return (
-    <Suspense
-      fallback={
-        <main className="flex min-h-screen items-center justify-center bg-[#07090e] p-6 text-slate-400">
-          <div className="flex items-center gap-3">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
-            <p className="text-sm">Loading credit portfolio...</p>
-          </div>
-        </main>
-      }
-    >
+    <Suspense fallback={<CardsLoading />}>
       <CardsContent searchParams={searchParams} />
     </Suspense>
   );

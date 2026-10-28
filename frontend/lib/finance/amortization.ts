@@ -297,8 +297,22 @@ export function validateLoanAmortizationInput(
   return { isValid: true };
 }
 
+const AMORTIZATION_CACHE = new Map<string, AmortizationSchedule>();
+const MAX_CACHE_SIZE = 128;
+
+function buildAmortizationCacheKey(input: LoanAmortizationInput): string {
+  const actualPaymentsKey = (input.actualPayments ?? [])
+    .map(
+      (p) =>
+        `${p.date}:${p.installmentNumber ?? ""}:${p.amountPaise}:${p.principalComponentPaise ?? ""}:${p.interestComponentPaise ?? ""}:${p.paymentKind}`
+    )
+    .join("|");
+  return `${input.principalPaise}_${input.annualInterestRateBasisPoints}_${input.totalTenureMonths}_${input.firstEmiDate}_${input.emiAmountPaise ?? ""}_${input.installmentsPaidBeforeTracking ?? 0}_${input.asOfDate ?? ""}_${input.scheduleSource ?? ""}_${actualPaymentsKey}`;
+}
+
 /**
  * Generates full monthly reducing-balance amortization schedule.
+ * Memoized in-memory to prevent repeated month-by-month recalculation of identical parameters.
  */
 export function generateAmortizationSchedule(
   input: LoanAmortizationInput
@@ -328,6 +342,12 @@ export function generateAmortizationSchedule(
       nextDueInstallment: null,
       installments: [],
     };
+  }
+
+  const cacheKey = buildAmortizationCacheKey(input);
+  const cached = AMORTIZATION_CACHE.get(cacheKey);
+  if (cached) {
+    return cached;
   }
 
   const {
@@ -497,7 +517,7 @@ export function generateAmortizationSchedule(
   const nextDueInstallment =
     installments.find((inst) => !inst.isPaid) ?? null;
 
-  return {
+  const result: AmortizationSchedule = {
     isValid: true,
     scheduleSource,
     originalPrincipalPaise: principalPaise,
@@ -519,4 +539,12 @@ export function generateAmortizationSchedule(
     nextDueInstallment,
     installments,
   };
+
+  if (AMORTIZATION_CACHE.size >= MAX_CACHE_SIZE) {
+    const oldestKey = AMORTIZATION_CACHE.keys().next().value;
+    if (oldestKey) AMORTIZATION_CACHE.delete(oldestKey);
+  }
+  AMORTIZATION_CACHE.set(cacheKey, result);
+
+  return result;
 }

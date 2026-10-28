@@ -115,32 +115,22 @@ async function loadCardActivity(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string
 ): Promise<{ rows: CardActivityRow[]; failed: boolean }> {
-  const rows: CardActivityRow[] = [];
-  const pageSize = 500;
+  const { data, error } = await supabase
+    .from("transactions")
+    .select(
+      "id, transaction_date, description, amount_paise, transaction_type, credit_card_id, from_account_id"
+    )
+    .eq("user_id", userId)
+    .in("transaction_type", ["card_purchase", "card_payment"])
+    .order("transaction_date", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(2500);
 
-  for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase
-      .from("transactions")
-      .select(
-        "id, transaction_date, description, amount_paise, transaction_type, credit_card_id, from_account_id"
-      )
-      .eq("user_id", userId)
-      .in("transaction_type", ["card_purchase", "card_payment"])
-      .order("transaction_date", { ascending: true })
-      .order("id", { ascending: true })
-      .range(offset, offset + pageSize - 1);
-
-    if (error) {
-      return { rows: [], failed: true };
-    }
-
-    const batch = (data ?? []) as unknown as CardActivityRow[];
-    rows.push(...batch);
-
-    if (batch.length < pageSize) {
-      return { rows, failed: false };
-    }
+  if (error || !data) {
+    return { rows: [], failed: true };
   }
+
+  return { rows: data as unknown as CardActivityRow[], failed: false };
 }
 
 async function ActivityContent({

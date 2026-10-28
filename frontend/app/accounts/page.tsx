@@ -14,6 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AuraHeader, AuraBottomNav } from "@/components/AuraNav";
 import { resolveDisplayName } from "@/lib/auth/user-display";
+import AccountsLoading from "./loading";
 
 type AccountsPageProps = {
   searchParams: Promise<{
@@ -399,18 +400,7 @@ export default function AccountsPage({
   searchParams,
 }: AccountsPageProps) {
   return (
-    <Suspense
-      fallback={
-        <main className="flex min-h-screen items-center justify-center bg-[#10141a] p-6 text-slate-400">
-          <div className="flex items-center gap-3">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#4edea3] border-t-transparent" />
-            <p className="text-sm font-mono tracking-wider text-slate-300">
-              Loading your accounts...
-            </p>
-          </div>
-        </main>
-      }
-    >
+    <Suspense fallback={<AccountsLoading />}>
       <AccountsContent searchParams={searchParams} />
     </Suspense>
   );

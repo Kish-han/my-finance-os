@@ -31,6 +31,7 @@ import { resolveDisplayName } from "@/lib/auth/user-display";
 import { DashboardNetWorth } from "./DashboardNetWorth";
 import UpcomingPaymentsCenter from "./UpcomingPaymentsCenter";
 import { buildUpcomingPaymentsList } from "@/lib/finance/payment-schedule";
+import DashboardLoading from "./loading";
 
 type TransactionType =
   | "income"
@@ -52,7 +53,7 @@ type AccountRow = {
 type TransactionRow = {
   id: string;
   transaction_date: string;
-  description: string;
+  description?: string;
   amount_paise: number | string;
   transaction_type: TransactionType;
   account_id: string | null;
@@ -159,7 +160,7 @@ function toFinancialTransaction(row: TransactionRow): Transaction {
   const base = {
     id: row.id,
     date: row.transaction_date,
-    description: row.description,
+    description: row.description ?? "",
     amountPaise: Number(row.amount_paise),
   };
 
@@ -213,7 +214,7 @@ async function loadTransactions(
   const { data, error } = await supabase
     .from("transactions")
     .select(
-      "id, transaction_date, description, amount_paise, transaction_type, account_id, from_account_id, to_account_id, credit_card_id, category_id"
+      "id, transaction_date, amount_paise, transaction_type, account_id, from_account_id, to_account_id, credit_card_id, category_id"
     )
     .eq("user_id", userId)
     .order("transaction_date", { ascending: false });
@@ -979,18 +980,7 @@ export default function Home(props: {
   }>;
 }) {
   return (
-    <Suspense
-      fallback={
-        <main className="min-h-screen bg-[#10141a] flex items-center justify-center p-6 text-slate-400">
-          <div className="flex flex-col items-center gap-3">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#4edea3] border-t-transparent" />
-            <p className="text-xs font-mono tracking-widest text-[#bbcabf] uppercase">
-              Initializing Aura Vault...
-            </p>
-          </div>
-        </main>
-      }
-    >
+    <Suspense fallback={<DashboardLoading />}>
       <DashboardContent searchParams={props.searchParams} />
     </Suspense>
   );

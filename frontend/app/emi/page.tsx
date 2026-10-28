@@ -24,6 +24,7 @@ import {
   extractAdditionalCharges,
   stripChargesFromNotes,
 } from "@/lib/finance/emi-charges";
+import EmiLoading from "./loading";
 
 type AccountRow = {
   id: string;
@@ -205,18 +206,23 @@ async function EmiPageData({
     await Promise.all([
       supabase
         .from("emi_debts")
-        .select("*")
+        .select(
+          "id, name, debt_type, lender_name, linked_credit_card_id, payment_account_id, original_principal_paise, current_outstanding_principal_paise, outstanding_as_of_date, annual_interest_rate_basis_points, interest_method, total_tenure_months, installments_paid_before_tracking, emi_amount_paise, first_emi_due_date, next_due_date, status, additional_charges_paise, charge_description, notes"
+        )
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false }),
 
       supabase
         .from("accounts")
         .select("id,name,account_type,institution")
+        .eq("user_id", user.id)
         .eq("is_archived", false)
         .order("name"),
 
       supabase
         .from("credit_cards")
         .select("id,name,bank_name,last_four_digits")
+        .eq("user_id", user.id)
         .eq("is_archived", false)
         .order("name"),
 
@@ -225,6 +231,7 @@ async function EmiPageData({
         .select(
           "id,debt_id,payment_date,installment_number,payment_kind,amount_paise,principal_component_paise,interest_component_paise,payment_method",
         )
+        .eq("user_id", user.id)
         .order("payment_date", { ascending: false }),
     ]);
 
@@ -688,14 +695,7 @@ export default function EmiPage({
   searchParams: SearchParams;
 }) {
   return (
-    <Suspense
-      fallback={
-        <div className="mx-auto max-w-5xl px-4 py-16 text-center text-sm text-slate-400">
-          <div className="mx-auto h-5 w-5 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
-          <p className="mt-3">Loading loans...</p>
-        </div>
-      }
-    >
+    <Suspense fallback={<EmiLoading />}>
       <EmiPageData searchParams={searchParams} />
     </Suspense>
   );

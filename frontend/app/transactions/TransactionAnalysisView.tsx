@@ -133,6 +133,15 @@ export function TransactionAnalysisView({
   const [editingTx, setEditingTx] = useState<TransactionRecord | null>(null);
   const [localUpdatedSuccess, setLocalUpdatedSuccess] = useState<boolean>(false);
 
+  // 4. Progressive List Rendering (Avoids rendering hundreds of DOM cards at once)
+  const [visibleCount, setVisibleCount] = useState<number>(40);
+  const filterKey = `${rangePreset}_${typeFilter}_${categoryFilter}_${accountFilter}_${searchQuery}`;
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
+    setVisibleCount(40);
+  }
+
   // Quick Account & Card Lookup Maps
   const accountMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -740,7 +749,7 @@ export function TransactionAnalysisView({
           </div>
         ) : (
           <div className="space-y-2.5">
-            {filteredTransactions.map((tx) => {
+            {filteredTransactions.slice(0, visibleCount).map((tx) => {
               const isIncome = tx.transaction_type === "income";
               const isTransfer = tx.transaction_type === "transfer";
               const isCardRepayment = tx.transaction_type === "card_payment";
@@ -837,6 +846,22 @@ export function TransactionAnalysisView({
                 </article>
               );
             })}
+
+            {filteredTransactions.length > visibleCount && (
+              <div className="pt-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount((prev) => prev + 40)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-6 py-2.5 text-xs font-bold text-slate-300 hover:text-white hover:border-[#4edea3]/40 hover:bg-white/10 transition-all cursor-pointer active:scale-95 shadow-lg"
+                >
+                  <span>Show More Transactions</span>
+                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-mono text-[#4edea3]">
+                    +{Math.min(40, filteredTransactions.length - visibleCount)} of{" "}
+                    {filteredTransactions.length - visibleCount} remaining
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </section>
