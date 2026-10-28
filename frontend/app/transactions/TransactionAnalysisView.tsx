@@ -16,6 +16,7 @@ import {
   Zap,
   TrendingUp,
   Pencil,
+  Sparkles,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DashboardMonthlyChart } from "../DashboardMonthlyChart";
@@ -319,14 +320,23 @@ export function TransactionAnalysisView({
           </p>
         </div>
 
-        {/* Clear action shortcut to jump to new transaction */}
-        <Link
-          href="/transactions/new"
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all self-start sm:self-center cursor-pointer"
-        >
-          <Plus className="h-4 w-4 shrink-0" />
-          <span>Add Transaction</span>
-        </Link>
+        {/* Action shortcuts */}
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+          <Link
+            href="/transactions/recurring"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 px-3.5 py-2.5 text-xs font-bold text-purple-300 hover:text-white transition-all active:scale-95 cursor-pointer shadow-sm"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>Recurring Rules</span>
+          </Link>
+          <Link
+            href="/transactions/new"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+          >
+            <Plus className="h-4 w-4 shrink-0" />
+            <span>Add Transaction</span>
+          </Link>
+        </div>
       </div>
 
       {/* Notifications */}

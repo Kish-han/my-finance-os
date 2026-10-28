@@ -236,13 +236,41 @@ export interface StandaloneLoanPaymentItem extends BaseUpcomingPaymentItem {
   expectedInterestPaise?: number;
 }
 
+export interface RecurringTransactionPaymentItem {
+  id: string;
+  kind: "recurring_transaction";
+  scheduleId: string;
+  occurrenceId: string;
+  title: string;
+  subtitle: string;
+  transactionType: "income" | "expense";
+  dueDate: string;
+  originalDueDate: string;
+  dueStatus: DueStatusInfo;
+  amountPaise: number;
+  isAmountVariable: boolean;
+  isSnoozed: boolean;
+  snoozedUntilDate?: string | null;
+  accountId?: string | null;
+  creditCardId?: string | null;
+  accountOrCardLabel: string;
+  isCreditCard: boolean;
+  categoryName?: string | null;
+  isPaid: boolean;
+  confirmedTransactionId?: string | null;
+  confirmedAmountPaise?: number | null;
+  notes?: string | null;
+}
+
 export type UpcomingPaymentItem =
   | CreditCardStatementPaymentItem
   | CreditCardReminderPaymentItem
-  | StandaloneLoanPaymentItem;
+  | StandaloneLoanPaymentItem
+  | RecurringTransactionPaymentItem;
 
 export interface BuildUpcomingPaymentsParams {
   today: string;
+  recurringItems?: RecurringTransactionPaymentItem[];
   cards: Array<{
     id: string;
     name: string;
@@ -310,6 +338,7 @@ export function buildUpcomingPaymentsList({
   debts,
   debtPayments,
   allTransactions = [],
+  recurringItems = [],
 }: BuildUpcomingPaymentsParams): {
   activePayments: UpcomingPaymentItem[];
   settledPayments: UpcomingPaymentItem[];
@@ -597,6 +626,13 @@ export function buildUpcomingPaymentsList({
       amountPaise,
       isPaid: false,
     });
+  }
+
+  // 3. Process Recurring Transaction Items (if provided)
+  if (recurringItems && recurringItems.length > 0) {
+    for (const recItem of recurringItems) {
+      items.push(recItem);
+    }
   }
 
   // Sort comparator:

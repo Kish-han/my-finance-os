@@ -31,6 +31,7 @@ import { resolveDisplayName } from "@/lib/auth/user-display";
 import { DashboardNetWorth } from "./DashboardNetWorth";
 import UpcomingPaymentsCenter from "./UpcomingPaymentsCenter";
 import { buildUpcomingPaymentsList } from "@/lib/finance/payment-schedule";
+import { fetchUserPendingOccurrences } from "@/lib/finance/recurring-data";
 import DashboardLoading from "./loading";
 
 type TransactionType =
@@ -298,6 +299,7 @@ async function DashboardContent({
   }
 
   const userId = user.id;
+  const indiaToday = indiaDate();
 
   const [
     accountsResult,
@@ -306,6 +308,7 @@ async function DashboardContent({
     paymentsResult,
     statementRows,
     transactionResult,
+    pendingRecurringResult,
   ] = await Promise.all([
     supabase
       .from("accounts")
@@ -359,6 +362,7 @@ async function DashboardContent({
     })(),
 
     loadTransactions(supabase, userId),
+    fetchUserPendingOccurrences(supabase, userId, indiaToday),
   ]);
 
   const accountRows =
@@ -420,7 +424,6 @@ async function DashboardContent({
     0
   );
 
-  const indiaToday = indiaDate();
   const monthStart = `${indiaToday.slice(0, 7)}-01`;
 
   const monthTransactions = transactionRows.filter(
@@ -472,6 +475,9 @@ async function DashboardContent({
     return {
       id: c.id,
       label: `${c.bank_name} ${c.name}${c.last_four_digits ? ` (••${c.last_four_digits})` : ""}`,
+      name: c.name,
+      bank_name: c.bank_name,
+      last_four_digits: c.last_four_digits,
       paymentDueDay: c.payment_due_day,
       statementDay: c.statement_day,
       outstandingPaise: cb ? cb.outstandingPaise : 0,
@@ -481,11 +487,15 @@ async function DashboardContent({
   const upcomingAccountOptions = accountBalances.map(({ account, balancePaise }) => ({
     id: account.id,
     label: `${account.name}${account.institution ? ` · ${account.institution}` : ""}`,
+    name: account.name,
+    account_type: account.type,
+    institution: account.institution,
     balancePaise,
   }));
 
   const { activePayments, settledPayments } = buildUpcomingPaymentsList({
     today: indiaToday,
+    recurringItems: pendingRecurringResult.pendingItems,
     cards: cardRows.map((c) => ({
       id: c.id,
       name: c.name,

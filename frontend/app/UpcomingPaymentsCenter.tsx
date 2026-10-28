@@ -13,18 +13,32 @@ import {
   Receipt,
   FileText,
   Sparkles,
+  Clock,
+  Wallet,
+  TrendingUp,
+  Check,
 } from "lucide-react";
 import type {
   UpcomingPaymentItem,
   CreditCardStatementPaymentItem,
   CreditCardReminderPaymentItem,
   StandaloneLoanPaymentItem,
+  RecurringTransactionPaymentItem,
 } from "@/lib/finance/payment-schedule";
 import { calculateDueDateFromStatementDate } from "@/lib/finance/statement-engine";
 import {
   recordStatementPayment,
   saveCardStatement,
 } from "./cards/statements/actions";
+import {
+  ConfirmRecurringModal,
+  type ConfirmOccurrenceData,
+} from "./transactions/recurring/ConfirmRecurringModal";
+import {
+  SnoozeRecurringModal,
+  type SnoozeModalData,
+} from "./transactions/recurring/SnoozeRecurringModal";
+import { skipRecurringOccurrence } from "./transactions/recurring/actions";
 
 interface Props {
   activePayments: UpcomingPaymentItem[];
@@ -32,6 +46,9 @@ interface Props {
   cards: Array<{
     id: string;
     label: string;
+    bank_name?: string;
+    name?: string;
+    last_four_digits?: string | null;
     paymentDueDay: number | null;
     statementDay: number | null;
     outstandingPaise?: number;
@@ -39,8 +56,12 @@ interface Props {
   accounts: Array<{
     id: string;
     label: string;
+    name?: string;
+    account_type?: "bank" | "cash";
+    institution?: string | null;
     balancePaise: number;
   }>;
+  categories?: string[];
   today: string;
 }
 
@@ -82,11 +103,14 @@ export default function UpcomingPaymentsCenter({
   settledPayments,
   cards,
   accounts,
+  categories = [],
   today,
 }: Props) {
   const [paymentModalData, setPaymentModalData] = useState<PaymentModalData | null>(null);
   const [showAddStatementModal, setShowAddStatementModal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [confirmRecurringData, setConfirmRecurringData] = useState<ConfirmOccurrenceData | null>(null);
+  const [snoozeRecurringData, setSnoozeRecurringData] = useState<SnoozeModalData | null>(null);
 
   // Payment form state
   const [fromAccountId, setFromAccountId] = useState(accounts[0]?.id ?? "");
@@ -212,7 +236,15 @@ export default function UpcomingPaymentsCenter({
           </h2>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/transactions/recurring"
+            className="inline-flex items-center gap-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 px-3.5 py-1.5 text-xs font-bold text-purple-300 hover:text-white transition-all shadow-sm cursor-pointer"
+          >
+            <Sparkles className="h-3 w-3" />
+            <span>Recurring Rules</span>
+          </Link>
+
           {cards.length > 0 && (
             <button
               type="button"
@@ -541,6 +573,166 @@ export default function UpcomingPaymentsCenter({
                         <span>Record EMI</span>
                         <ArrowRight className="h-3.5 w-3.5" />
                       </Link>
+                    </div>
+                  </div>
+                </article>
+              );
+            }
+
+            if (item.kind === "recurring_transaction") {
+              const rec = item as RecurringTransactionPaymentItem;
+              const isIncome = rec.transactionType === "income";
+
+              return (
+                <article
+                  key={rec.id}
+                  className={`aura-panel relative p-4 sm:p-5 rounded-2xl border transition-all duration-300 hover:-translate-y-0.5 ${borderStyle}`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="flex items-start gap-3.5 min-w-0">
+                      <div
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border mt-0.5 ${
+                          rec.isCreditCard
+                            ? "bg-purple-500/15 text-purple-400 border-purple-500/30"
+                            : isIncome
+                            ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                            : "bg-slate-800 text-slate-300 border-white/10"
+                        }`}
+                      >
+                        {rec.isCreditCard ? (
+                          <CreditCard className="h-5 w-5" />
+                        ) : isIncome ? (
+                          <TrendingUp className="h-5 w-5" />
+                        ) : (
+                          <Wallet className="h-5 w-5" />
+                        )}
+                      </div>
+
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="truncate font-bold text-white text-sm sm:text-base">
+                            {rec.title}
+                          </h3>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold border ${statusBadgeColor}`}
+                          >
+                            {rec.dueStatus.label}
+                          </span>
+                          <span className="rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 px-2 py-0.5 text-[10px] font-bold flex items-center gap-1">
+                            <Sparkles className="h-2.5 w-2.5" />
+                            Recurring
+                          </span>
+                          {rec.isCreditCard && (
+                            <span className="rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 px-2 py-0.5 text-[10px] font-bold">
+                              Card Purchase
+                            </span>
+                          )}
+                          {rec.isSnoozed && (
+                            <span className="rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold flex items-center gap-1">
+                              <Clock className="h-2.5 w-2.5" /> Snoozed
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                          <span className="flex items-center gap-1 text-slate-300 font-medium">
+                            <Calendar className="h-3 w-3 text-cyan-400" />
+                            Due: {formatDate(rec.dueDate)}
+                          </span>
+                          <span>·</span>
+                          <span>{rec.subtitle}</span>
+                          {rec.categoryName && (
+                            <>
+                              <span>·</span>
+                              <span className="text-slate-400">{rec.categoryName}</span>
+                            </>
+                          )}
+                        </div>
+
+                        {rec.notes && (
+                          <p className="text-[11px] text-slate-400 italic">
+                            {rec.notes}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/10 shrink-0">
+                      <div className="text-left sm:text-right">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                          Expected {isIncome ? "Inflow" : "Outflow"}
+                        </span>
+                        <span
+                          className={`text-lg sm:text-2xl font-black tabular-nums drop-shadow-sm ${
+                            isIncome ? "text-emerald-400" : "text-white"
+                          }`}
+                        >
+                          {isIncome ? "+" : "-"}
+                          {formatRupees(rec.amountPaise)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSnoozeRecurringData({
+                              occurrenceId: rec.occurrenceId,
+                              title: rec.title,
+                              dueDate: rec.dueDate,
+                            })
+                          }
+                          className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-300 hover:text-white transition-all flex items-center gap-1 cursor-pointer"
+                        >
+                          <Clock className="h-3.5 w-3.5 text-amber-400" />
+                          <span>Snooze</span>
+                        </button>
+
+                        <form action={skipRecurringOccurrence}>
+                          <input type="hidden" name="returnTo" value="/" />
+                          <input type="hidden" name="occurrenceId" value={rec.occurrenceId} />
+                          <input type="hidden" name="scheduleId" value={rec.scheduleId} />
+                          <button
+                            type="submit"
+                            title="Skip this cycle while preserving schedule"
+                            className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-400 hover:text-rose-400 transition-all cursor-pointer"
+                          >
+                            <span>Skip</span>
+                          </button>
+                        </form>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const defaultSourceId = rec.creditCardId
+                              ? `card:${rec.creditCardId}`
+                              : rec.accountId
+                              ? `account:${rec.accountId}`
+                              : "";
+
+                            setConfirmRecurringData({
+                              occurrenceId: rec.occurrenceId,
+                              scheduleId: rec.scheduleId,
+                              title: rec.title,
+                              amountPaise: rec.amountPaise,
+                              transactionType: rec.transactionType,
+                              dueDate: rec.dueDate,
+                              sourceId: defaultSourceId,
+                              categoryName: rec.categoryName || "General",
+                              notes: rec.notes,
+                              isAmountVariable: rec.isAmountVariable,
+                            });
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black shadow-md transition-all active:scale-95 cursor-pointer ${
+                            isIncome
+                              ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20"
+                              : "bg-white hover:bg-slate-100 text-slate-950 shadow-white/10"
+                          }`}
+                        >
+                          <Check className="h-3.5 w-3.5 stroke-[3]" />
+                          <span>{isIncome ? "Confirm Deposit" : "Confirm Paid"}</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </article>
@@ -944,6 +1136,37 @@ export default function UpcomingPaymentsCenter({
           </div>
         </div>
       )}
+
+      {/* Modal 3: Confirm Recurring Occurrence Modal */}
+      <ConfirmRecurringModal
+        isOpen={Boolean(confirmRecurringData)}
+        onClose={() => setConfirmRecurringData(null)}
+        data={confirmRecurringData}
+        accounts={accounts.map((a) => ({
+          id: a.id,
+          name: a.name || a.label,
+          account_type: a.account_type || "bank",
+          institution: a.institution || null,
+        }))}
+        creditCards={cards.map((c) => ({
+          id: c.id,
+          name: c.name || c.label,
+          bank_name: c.bank_name || "Credit Card",
+          last_four_digits: c.last_four_digits || null,
+        }))}
+        categories={categories}
+        today={today}
+        returnTo="/"
+      />
+
+      {/* Modal 4: Snooze Recurring Occurrence Modal */}
+      <SnoozeRecurringModal
+        isOpen={Boolean(snoozeRecurringData)}
+        onClose={() => setSnoozeRecurringData(null)}
+        data={snoozeRecurringData}
+        today={today}
+        returnTo="/"
+      />
     </section>
   );
 }
