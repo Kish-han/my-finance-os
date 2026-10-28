@@ -9,6 +9,10 @@ import { logout } from "../../login/actions";
 import { AuraHeader, AuraBottomNav } from "@/components/AuraNav";
 import { resolveDisplayName } from "@/lib/auth/user-display";
 import { getIndiaToday } from "@/lib/finance/date-ranges";
+import {
+  calculateCardCreditUtilization,
+  buildLimitExceededMessage,
+} from "@/lib/finance/card-limit-engine";
 import TransactionForm from "../TransactionForm";
 
 type NewTransactionPageProps = {
@@ -19,6 +23,10 @@ type NewTransactionPageProps = {
     account_id?: string;
     card_id?: string;
     source?: string;
+    limit?: string;
+    available?: string;
+    exceeded?: string;
+    amount?: string;
   }>;
 };
 
@@ -36,6 +44,10 @@ type CreditCardRow = {
   bank_name: string;
   last_four_digits: string | null;
   opening_outstanding_date: string;
+  credit_limit_paise?: number | string;
+  opening_outstanding_paise?: number | string;
+  current_utilized_paise?: number;
+  current_available_paise?: number;
 };
 
 type CategoryRow = {
@@ -64,8 +76,14 @@ async function NewTransactionContent({
   const userEmail = user.email || "Private Client";
   const displayName = resolveDisplayName(user);
 
-  // Fetch accounts, credit cards and categories in parallel
-  const [accountsResult, cardsResult, categoriesResult] = await Promise.all([
+  // Fetch accounts, credit cards, categories, transactions and active EMIs in parallel
+  const [
+    accountsResult,
+    cardsResult,
+    categoriesResult,
+    transactionsResult,
+    emisResult,
+  ] = await Promise.all([
     supabase
       .from("accounts")
       .select("id, name, account_type, institution, opening_balance_date")
@@ -75,7 +93,7 @@ async function NewTransactionContent({
 
     supabase
       .from("credit_cards")
-      .select("id, name, bank_name, last_four_digits, opening_outstanding_date")
+      .select("id, name, bank_name, last_four_digits, opening_outstanding_date, credit_limit_paise, opening_outstanding_paise")
       .eq("user_id", userId)
       .eq("is_archived", false)
       .order("name"),
@@ -85,10 +103,48 @@ async function NewTransactionContent({
       .select("id, name")
       .eq("user_id", userId)
       .eq("is_archived", false),
+
+    supabase
+      .from("transactions")
+      .select("id, transaction_date, amount_paise, transaction_type, credit_card_id")
+      .eq("user_id", userId)
+      .in("transaction_type", ["card_purchase", "card_payment", "card_credit"]),
+
+    supabase
+      .from("emi_debts")
+      .select("id, linked_credit_card_id, current_outstanding_principal_paise, status")
+      .eq("user_id", userId)
+      .eq("status", "active"),
   ]);
 
+  const rawCards = (cardsResult.data ?? []) as Array<{
+    id: string;
+    name: string;
+    bank_name: string;
+    last_four_digits: string | null;
+    opening_outstanding_date: string;
+    credit_limit_paise: number | string;
+    opening_outstanding_paise: number | string;
+  }>;
+  const rawTx = (transactionsResult.data ?? []) as unknown as Array<{
+    id: string;
+    transaction_date: string;
+    amount_paise: number | string;
+    transaction_type: string;
+    credit_card_id: string | null;
+  }>;
+  const rawEmis = emisResult.data ?? [];
+
   const accounts = (accountsResult.data ?? []) as unknown as AccountRow[];
-  const creditCards = (cardsResult.data ?? []) as unknown as CreditCardRow[];
+  const creditCards: CreditCardRow[] = rawCards.map((c) => {
+    const util = calculateCardCreditUtilization(c, rawTx, rawEmis);
+    return {
+      ...c,
+      credit_limit_paise: util.creditLimitPaise,
+      current_utilized_paise: util.totalUtilizedCreditPaise,
+      current_available_paise: util.availableCreditPaise,
+    };
+  });
   const categories = (categoriesResult.data ?? []) as unknown as CategoryRow[];
 
   const defaultCategories = [
@@ -124,6 +180,13 @@ async function NewTransactionContent({
       "Select one of your active accounts and a date on or after its opening-balance date.",
     "invalid-card-or-date":
       "Select an active credit card and a date on or after its opening outstanding date.",
+    "credit-limit-exceeded": params.exceeded
+      ? buildLimitExceededMessage(
+          Number(params.exceeded),
+          Number(params.available || 0),
+          Number(params.amount || 0)
+        )
+      : "This transaction exceeds your available credit limit.",
     "save-failed":
       "We couldn't save the transaction. Please try again.",
   };

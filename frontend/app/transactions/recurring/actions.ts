@@ -9,6 +9,7 @@ import {
   isScheduleExpired,
   type RecurrenceFrequency,
 } from "@/lib/finance/recurring-engine";
+import { validateCreditCardChargeLimit } from "@/lib/finance/card-limit-engine";
 
 function isValidDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -495,7 +496,7 @@ export async function confirmRecurringOccurrence(formData: FormData) {
 
     const { data: card, error: cardError } = await supabase
       .from("credit_cards")
-      .select("id, opening_outstanding_date")
+      .select("id, opening_outstanding_date, credit_limit_paise, opening_outstanding_paise")
       .eq("id", cleanSourceId)
       .eq("user_id", userId)
       .eq("is_archived", false)
@@ -503,6 +504,39 @@ export async function confirmRecurringOccurrence(formData: FormData) {
 
     if (cardError || !card || transactionDate < card.opening_outstanding_date) {
       redirect(`${returnTo}?error=invalid-card-or-date`);
+    }
+
+    // Enforce credit card limit invariant
+    const [txResult, emiResult] = await Promise.all([
+      supabase
+        .from("transactions")
+        .select("id, transaction_date, amount_paise, transaction_type, credit_card_id")
+        .eq("user_id", userId)
+        .eq("credit_card_id", card.id),
+      supabase
+        .from("emi_debts")
+        .select("id, linked_credit_card_id, current_outstanding_principal_paise, status")
+        .eq("user_id", userId)
+        .eq("linked_credit_card_id", card.id)
+        .eq("status", "active"),
+    ]);
+
+    const limitValidation = validateCreditCardChargeLimit({
+      card,
+      transactions: txResult.data ?? [],
+      cardLinkedEmis: emiResult.data ?? [],
+      chargeAmountPaise: amountPaise,
+    });
+
+    if (!limitValidation.allowed) {
+      const errParams = new URLSearchParams({
+        error: "credit-limit-exceeded",
+        limit: String(limitValidation.creditLimitPaise),
+        available: String(limitValidation.currentAvailablePaise),
+        exceeded: String(limitValidation.exceededByPaise),
+        amount: String(amountPaise),
+      });
+      redirect(`${returnTo}?${errParams.toString()}`);
     }
 
     resolvedType = "card_purchase";

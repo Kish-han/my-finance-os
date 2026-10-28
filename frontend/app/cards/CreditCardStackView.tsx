@@ -147,11 +147,15 @@ const CARD_THEMES = [
 ];
 
 function formatRupees(paise: number | string): string {
-  return new Intl.NumberFormat("en-IN", {
+  const num = Number(paise);
+  const isNegative = num < 0;
+  const absFormatted = new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 2,
-  }).format(Number(paise) / 100);
+  }).format(Math.abs(num) / 100);
+
+  return isNegative ? `-${absFormatted}` : absFormatted;
 }
 
 function ordinalDay(day: number | null): string {
@@ -1089,15 +1093,34 @@ export function CreditCardStackView({
                     </span>
                   </div>
 
-                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 backdrop-blur-md">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-                      Available Limit
-                    </span>
-                    <div className="mt-1 text-2xl font-black text-emerald-300 tabular-nums">
+                  <div className={`rounded-2xl border p-4 backdrop-blur-md ${
+                    selectedCard.availablePaise < 0
+                      ? "border-rose-500/40 bg-rose-500/10"
+                      : "border-emerald-500/20 bg-emerald-500/10"
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                        selectedCard.availablePaise < 0 ? "text-rose-400" : "text-emerald-400"
+                      }`}>
+                        Available Limit
+                      </span>
+                      {selectedCard.availablePaise < 0 && (
+                        <Badge className="bg-rose-500/20 text-rose-300 text-[9px] font-bold border-rose-500/30 px-1.5 py-0.5">
+                          OVER LIMIT
+                        </Badge>
+                      )}
+                    </div>
+                    <div className={`mt-1 text-2xl font-black tabular-nums ${
+                      selectedCard.availablePaise < 0 ? "text-rose-300" : "text-emerald-300"
+                    }`}>
                       {formatRupees(selectedCard.availablePaise)}
                     </div>
-                    <span className="text-[11px] text-emerald-400/70">
-                      Remaining institutional line
+                    <span className={`text-[11px] ${
+                      selectedCard.availablePaise < 0 ? "text-rose-400/90 font-medium" : "text-emerald-400/70"
+                    }`}>
+                      {selectedCard.availablePaise < 0
+                        ? `Exceeded by ${formatRupees(Math.abs(selectedCard.availablePaise))}`
+                        : "Remaining institutional line"}
                     </span>
                   </div>
 

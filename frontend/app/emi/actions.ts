@@ -335,8 +335,28 @@ export async function createEmiDebt(formData: FormData) {
     }
   }
 
+  // If converting revolving card dues to EMI, record card conversion adjustment to release revolving dues
+  if (
+    formData.get("convert_existing_dues") === "true" &&
+    debtType === "credit_card_emi" &&
+    linkedCreditCardId
+  ) {
+    await supabase.from("transactions").insert({
+      user_id: userId,
+      transaction_date: outstandingAsOfDate,
+      description: `EMI Conversion Adjustment · ${name}`,
+      amount_paise: originalPrincipalPaise,
+      transaction_type: "card_payment",
+      from_account_id: null, // No bank debit
+      credit_card_id: linkedCreditCardId,
+    });
+  }
+
   revalidatePath("/");
   revalidatePath("/emi");
+  revalidatePath("/cards");
+  revalidatePath("/cards/activity");
+  revalidatePath("/transactions");
 
   redirect("/emi?created=1");
 }

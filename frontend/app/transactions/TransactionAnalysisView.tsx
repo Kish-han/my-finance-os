@@ -43,6 +43,9 @@ export interface CreditCardOption {
   bank_name: string;
   last_four_digits: string | null;
   opening_outstanding_date?: string;
+  credit_limit_paise?: number | string;
+  current_utilized_paise?: number;
+  current_available_paise?: number;
 }
 
 export interface CategoryOption {

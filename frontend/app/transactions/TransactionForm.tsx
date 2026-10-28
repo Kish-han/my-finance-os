@@ -12,7 +12,12 @@ import {
   Calendar,
   Tag,
   FileText,
+  AlertTriangle,
 } from "lucide-react";
+import {
+  formatRupees,
+  buildLimitExceededMessage,
+} from "@/lib/finance/card-limit-engine";
 
 export type AccountRow = {
   id: string;
@@ -28,6 +33,9 @@ export type CreditCardRow = {
   bank_name: string;
   last_four_digits: string | null;
   opening_outstanding_date: string;
+  credit_limit_paise?: number | string;
+  current_utilized_paise?: number;
+  current_available_paise?: number;
 };
 
 type TransactionFormProps = {
@@ -75,6 +83,7 @@ export default function TransactionForm({
   }, [initialSourceId, initialType, accounts, creditCards]);
 
   const [selectedSourceId, setSelectedSourceId] = useState<string>(defaultSourceId);
+  const [amountInput, setAmountInput] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>(
     initialType === "income" ? "Salary" : "Food & Dining"
   );
@@ -117,6 +126,48 @@ export default function TransactionForm({
       minDate: acc?.opening_balance_date,
     };
   }, [selectedSourceId, accounts, creditCards]);
+
+  const selectedCardInfo = useMemo(() => {
+    if (flowType !== "expense" || !selectedSourceId.startsWith("card:")) {
+      return null;
+    }
+    const cardId = selectedSourceId.replace("card:", "");
+    const card = creditCards.find((c) => c.id === cardId);
+    if (!card) return null;
+
+    const limitPaise = Number(card.credit_limit_paise || 0);
+    const utilizedPaise = Number(card.current_utilized_paise || 0);
+    const availablePaise =
+      card.current_available_paise !== undefined
+        ? Number(card.current_available_paise)
+        : limitPaise - utilizedPaise;
+
+    const parsedRupees = Number(amountInput);
+    const chargePaise =
+      Number.isFinite(parsedRupees) && parsedRupees > 0
+        ? Math.round(parsedRupees * 100)
+        : 0;
+
+    const projectedUtilizedPaise = utilizedPaise + chargePaise;
+    const projectedAvailablePaise = availablePaise - chargePaise;
+    const isExceeded = chargePaise > 0 && projectedAvailablePaise < 0;
+    const exceededByPaise = isExceeded ? Math.abs(projectedAvailablePaise) : 0;
+
+    return {
+      card,
+      limitPaise,
+      utilizedPaise,
+      availablePaise,
+      chargePaise,
+      projectedUtilizedPaise,
+      projectedAvailablePaise,
+      isExceeded,
+      exceededByPaise,
+      errorMessage: isExceeded
+        ? buildLimitExceededMessage(exceededByPaise, availablePaise, chargePaise)
+        : undefined,
+    };
+  }, [flowType, selectedSourceId, creditCards, amountInput]);
 
   // Contextual helper label based on selection and type
   const sourceLabel = useMemo(() => {
@@ -224,10 +275,48 @@ export default function TransactionForm({
             step="0.01"
             required
             autoFocus
+            value={amountInput}
+            onChange={(e) => setAmountInput(e.target.value)}
             placeholder="0.00"
             className="w-full bg-transparent text-2xl sm:text-4xl font-black text-white placeholder:text-slate-600 outline-none tabular-nums tracking-tight"
           />
         </div>
+
+        {/* Live Credit Card Limit Dynamics Preview */}
+        {selectedCardInfo && (
+          <div className="mt-3.5 pt-3 border-t border-white/10 space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="text-slate-400 font-medium">Card Limit Status</span>
+              <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
+                <span className="text-slate-400">
+                  Limit: <strong className="text-white">{formatRupees(selectedCardInfo.limitPaise)}</strong>
+                </span>
+                <span className="text-slate-600">·</span>
+                <span className={selectedCardInfo.availablePaise < 0 ? "text-rose-400 font-bold" : "text-emerald-400"}>
+                  Available: <strong>{formatRupees(selectedCardInfo.availablePaise)}</strong>
+                </span>
+                <span className="text-slate-600">·</span>
+                <span className={selectedCardInfo.isExceeded ? "text-rose-400 font-black animate-pulse" : "text-cyan-300 font-semibold"}>
+                  Projected: <strong>{formatRupees(selectedCardInfo.projectedAvailablePaise)}</strong>
+                </span>
+              </div>
+            </div>
+
+            {selectedCardInfo.isExceeded && (
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300 flex items-start gap-2.5 shadow-inner">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-semibold text-rose-200">
+                    {selectedCardInfo.errorMessage}
+                  </p>
+                  <p className="text-[11px] text-rose-300/80">
+                    This transaction exceeds the configured credit limit on this card. Please lower the transaction amount or record a card payment first.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 3. Smart Account / Payment Source Dropdown */}
@@ -447,17 +536,22 @@ export default function TransactionForm({
       {/* 6. Prominent Verified Settlement Action Button */}
       <button
         type="submit"
-        className={`w-full rounded-2xl py-4 text-sm sm:text-base font-bold shadow-xl transition-all hover:brightness-110 active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2.5 mt-3 ${
-          flowType === "income"
-            ? "bg-gradient-to-r from-[#4edea3] via-[#10b981] to-[#003824] text-[#003824] shadow-emerald-500/25"
+        disabled={selectedCardInfo?.isExceeded}
+        className={`w-full rounded-2xl py-4 text-sm sm:text-base font-bold shadow-xl transition-all flex items-center justify-center gap-2.5 mt-3 ${
+          selectedCardInfo?.isExceeded
+            ? "bg-slate-800 text-slate-500 border border-white/10 opacity-70 cursor-not-allowed shadow-none"
+            : flowType === "income"
+            ? "bg-gradient-to-r from-[#4edea3] via-[#10b981] to-[#003824] text-[#003824] shadow-emerald-500/25 hover:brightness-110 active:scale-[0.99] cursor-pointer"
             : selectedSourceDetails.type === "card"
-            ? "bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-slate-950 shadow-amber-500/25"
-            : "bg-gradient-to-r from-rose-500 via-rose-600 to-amber-600 text-white shadow-rose-500/25"
+            ? "bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-slate-950 shadow-amber-500/25 hover:brightness-110 active:scale-[0.99] cursor-pointer"
+            : "bg-gradient-to-r from-rose-500 via-rose-600 to-amber-600 text-white shadow-rose-500/25 hover:brightness-110 active:scale-[0.99] cursor-pointer"
         }`}
       >
         <ShieldCheck className="h-5 w-5" />
         <span>
-          {flowType === "income"
+          {selectedCardInfo?.isExceeded
+            ? `Limit Exceeded (by ${formatRupees(selectedCardInfo.exceededByPaise)})`
+            : flowType === "income"
             ? "Record Verified Deposit (+)"
             : selectedSourceDetails.type === "card"
             ? "Record Verified Card Purchase (−)"

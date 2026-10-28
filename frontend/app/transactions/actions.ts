@@ -7,6 +7,7 @@ import {
   validateTransactionEdit,
   type TransactionEditInput,
 } from "@/lib/finance/transaction-edits";
+import { validateCreditCardChargeLimit } from "@/lib/finance/card-limit-engine";
 
 function isValidDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -121,7 +122,7 @@ export async function createTransaction(formData: FormData) {
     // Verify credit card belongs to user
     const { data: card, error: cardError } = await supabase
       .from("credit_cards")
-      .select("id, opening_outstanding_date")
+      .select("id, opening_outstanding_date, credit_limit_paise, opening_outstanding_paise")
       .eq("id", cleanId)
       .eq("user_id", userId)
       .eq("is_archived", false)
@@ -133,6 +134,39 @@ export async function createTransaction(formData: FormData) {
       transactionDate < card.opening_outstanding_date
     ) {
       redirect(`${returnTo}?error=invalid-card-or-date`);
+    }
+
+    // Enforce credit card limit invariant
+    const [txResult, emiResult] = await Promise.all([
+      supabase
+        .from("transactions")
+        .select("id, transaction_date, amount_paise, transaction_type, credit_card_id")
+        .eq("user_id", userId)
+        .eq("credit_card_id", card.id),
+      supabase
+        .from("emi_debts")
+        .select("id, linked_credit_card_id, current_outstanding_principal_paise, status")
+        .eq("user_id", userId)
+        .eq("linked_credit_card_id", card.id)
+        .eq("status", "active"),
+    ]);
+
+    const limitValidation = validateCreditCardChargeLimit({
+      card,
+      transactions: txResult.data ?? [],
+      cardLinkedEmis: emiResult.data ?? [],
+      chargeAmountPaise: amountPaise,
+    });
+
+    if (!limitValidation.allowed) {
+      const errParams = new URLSearchParams({
+        error: "credit-limit-exceeded",
+        limit: String(limitValidation.creditLimitPaise),
+        available: String(limitValidation.currentAvailablePaise),
+        exceeded: String(limitValidation.exceededByPaise),
+        amount: String(amountPaise),
+      });
+      redirect(`${returnTo}?${errParams.toString()}`);
     }
 
     resolvedType = "card_purchase";
@@ -263,7 +297,7 @@ export async function updateTransaction(
       .eq("user_id", userId),
     supabase
       .from("credit_cards")
-      .select("id, name, opening_outstanding_date, is_archived")
+      .select("id, name, opening_outstanding_date, credit_limit_paise, opening_outstanding_paise, is_archived")
       .eq("user_id", userId),
   ]);
 
@@ -320,6 +354,52 @@ export async function updateTransaction(
   }
 
   const payload = validation.data;
+
+  // Enforce credit card limit invariant if transaction is a card purchase
+  if (payload.transactionType === "card_purchase" && payload.creditCardId) {
+    const card = cardsResult.data?.find((c) => c.id === payload.creditCardId);
+    if (card) {
+      const [txResult, emiResult] = await Promise.all([
+        supabase
+          .from("transactions")
+          .select("id, transaction_date, amount_paise, transaction_type, credit_card_id")
+          .eq("user_id", userId)
+          .eq("credit_card_id", card.id),
+        supabase
+          .from("emi_debts")
+          .select("id, linked_credit_card_id, current_outstanding_principal_paise, status")
+          .eq("user_id", userId)
+          .eq("linked_credit_card_id", card.id)
+          .eq("status", "active"),
+      ]);
+
+      const limitCheck = validateCreditCardChargeLimit({
+        card,
+        transactions: txResult.data ?? [],
+        cardLinkedEmis: emiResult.data ?? [],
+        chargeAmountPaise: payload.amountPaise,
+        excludeTransactionId: transactionId,
+      });
+
+      if (!limitCheck.allowed) {
+        if (returnTo) {
+          const errParams = new URLSearchParams({
+            error: "credit-limit-exceeded",
+            limit: String(limitCheck.creditLimitPaise),
+            available: String(limitCheck.currentAvailablePaise),
+            exceeded: String(limitCheck.exceededByPaise),
+            amount: String(payload.amountPaise),
+          });
+          redirect(`${returnTo}?${errParams.toString()}`);
+        }
+        return {
+          success: false,
+          error: limitCheck.errorMessage || "This transaction exceeds the card credit limit.",
+          code: "credit-limit-exceeded",
+        };
+      }
+    }
+  }
 
   // 3. Resolve category if provided
   let categoryId: string | null = null;

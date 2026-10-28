@@ -16,6 +16,10 @@ import {
   detectSignificantTransactionChange,
   type SignificantChangeItem,
 } from "@/lib/finance/transaction-edits";
+import {
+  formatRupees,
+  buildLimitExceededMessage,
+} from "@/lib/finance/card-limit-engine";
 import type { AccountOption, CreditCardOption, CategoryOption } from "./TransactionAnalysisView";
 import type { TransactionRecord } from "@/lib/finance/date-ranges";
 
@@ -125,9 +129,65 @@ function EditTransactionFormContent({
   const [confirmationExplanation, setConfirmationExplanation] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Live credit limit dynamics for card purchases
+  const cardLimitDynamics = useMemo(() => {
+    if (transactionType !== "card_purchase" || !creditCardId) return null;
+    const card = creditCards.find((c) => c.id === creditCardId);
+    if (!card) return null;
+
+    const limitPaise = Number(card.credit_limit_paise || 0);
+    const utilizedPaise = Number(card.current_utilized_paise || 0);
+    const availablePaise =
+      card.current_available_paise !== undefined
+        ? Number(card.current_available_paise)
+        : limitPaise - utilizedPaise;
+
+    // If this transaction was originally on this same card as a card_purchase,
+    // exclude the original amount from utilization to determine base available credit
+    const wasSameCardPurchase =
+      transaction.credit_card_id === card.id &&
+      transaction.transaction_type === "card_purchase";
+    const originalChargePaise = wasSameCardPurchase
+      ? Number(transaction.amount_paise)
+      : 0;
+
+    const baseAvailablePaise = availablePaise + originalChargePaise;
+    const baseUtilizedPaise = utilizedPaise - originalChargePaise;
+
+    const parsedRupees = Number(amountInput);
+    const chargePaise =
+      Number.isFinite(parsedRupees) && parsedRupees > 0
+        ? Math.round(parsedRupees * 100)
+        : 0;
+
+    const projectedUtilizedPaise = baseUtilizedPaise + chargePaise;
+    const projectedAvailablePaise = baseAvailablePaise - chargePaise;
+    const isExceeded = chargePaise > 0 && projectedAvailablePaise < 0;
+    const exceededByPaise = isExceeded ? Math.abs(projectedAvailablePaise) : 0;
+
+    return {
+      card,
+      limitPaise,
+      availablePaise: baseAvailablePaise,
+      chargePaise,
+      projectedUtilizedPaise,
+      projectedAvailablePaise,
+      isExceeded,
+      exceededByPaise,
+      errorMessage: isExceeded
+        ? buildLimitExceededMessage(exceededByPaise, baseAvailablePaise, chargePaise)
+        : undefined,
+    };
+  }, [transactionType, creditCardId, creditCards, amountInput, transaction]);
+
   // Validate form client-side before attempting save or confirmation
   function validateCurrentForm(): boolean {
     setFormError(null);
+
+    if (cardLimitDynamics?.isExceeded) {
+      setFormError(cardLimitDynamics.errorMessage || "This transaction exceeds the card credit limit.");
+      return false;
+    }
 
     const desc = description.trim();
     if (!desc) {
@@ -479,6 +539,31 @@ function EditTransactionFormContent({
               <p className="text-[10px] text-emerald-300/80 leading-normal">
                 If this purchase was attributed to the wrong credit card, select the correct card above. The ₹{amountInput || "0"} balance will cleanly transfer to the new card.
               </p>
+
+              {cardLimitDynamics && (
+                <div className="pt-2 border-t border-emerald-500/20 space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px] font-mono">
+                    <span className="text-slate-400">Limit: {formatRupees(cardLimitDynamics.limitPaise)}</span>
+                    <span className="text-slate-600">·</span>
+                    <span className="text-emerald-300">Available: {formatRupees(cardLimitDynamics.availablePaise)}</span>
+                    <span className="text-slate-600">·</span>
+                    <span className={cardLimitDynamics.isExceeded ? "text-rose-400 font-bold" : "text-cyan-300"}>
+                      Projected: {formatRupees(cardLimitDynamics.projectedAvailablePaise)}
+                    </span>
+                  </div>
+
+                  {cardLimitDynamics.isExceeded && (
+                    <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-2.5 text-xs text-rose-300 flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-rose-200">
+                          {cardLimitDynamics.errorMessage}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -612,8 +697,12 @@ function EditTransactionFormContent({
             </button>
             <button
               type="submit"
-              disabled={isPending}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-xs font-bold text-slate-950 shadow-md shadow-emerald-500/25 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+              disabled={isPending || cardLimitDynamics?.isExceeded}
+              className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                cardLimitDynamics?.isExceeded
+                  ? "bg-slate-800 text-slate-500 border border-white/10 opacity-70 cursor-not-allowed shadow-none"
+                  : "bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md shadow-emerald-500/25 hover:brightness-110 active:scale-95 cursor-pointer"
+              }`}
             >
               {isPending ? (
                 <>
@@ -621,7 +710,11 @@ function EditTransactionFormContent({
                   <span>Processing...</span>
                 </>
               ) : (
-                <span>Save Changes</span>
+                <span>
+                  {cardLimitDynamics?.isExceeded
+                    ? `Limit Exceeded (by ${formatRupees(cardLimitDynamics.exceededByPaise)})`
+                    : "Save Changes"}
+                </span>
               )}
             </button>
           </div>

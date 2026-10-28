@@ -7,6 +7,7 @@ import {
   generateAmortizationSchedule,
   isLoanEligibleForAmortization,
 } from "@/lib/finance/amortization";
+import { validateCreditCardChargeLimit } from "@/lib/finance/card-limit-engine";
 
 function readRupees(value: FormDataEntryValue | null): number | null {
   const text = String(value ?? "").trim();
@@ -152,8 +153,47 @@ export async function recordEmiPayment(formData: FormData) {
     fail("Select the bank or cash account used for payment.");
   }
 
-  if (paymentMethod === "billed_to_credit_card" && !selectedCard) {
-    fail("Select the credit card used for payment.");
+  if (paymentMethod === "billed_to_credit_card") {
+    if (!selectedCard) {
+      fail("Select the credit card used for payment.");
+    }
+
+    const { data: card, error: cardError } = await supabase
+      .from("credit_cards")
+      .select("id, opening_outstanding_date, credit_limit_paise, opening_outstanding_paise")
+      .eq("id", selectedCard)
+      .eq("user_id", userId)
+      .eq("is_archived", false)
+      .maybeSingle();
+
+    if (cardError || !card) {
+      fail("Selected credit card not found.");
+    }
+
+    const [txResult, emiResult] = await Promise.all([
+      supabase
+        .from("transactions")
+        .select("id, transaction_date, amount_paise, transaction_type, credit_card_id")
+        .eq("user_id", userId)
+        .eq("credit_card_id", card.id),
+      supabase
+        .from("emi_debts")
+        .select("id, linked_credit_card_id, current_outstanding_principal_paise, status")
+        .eq("user_id", userId)
+        .eq("linked_credit_card_id", card.id)
+        .eq("status", "active"),
+    ]);
+
+    const limitCheck = validateCreditCardChargeLimit({
+      card,
+      transactions: txResult.data ?? [],
+      cardLinkedEmis: emiResult.data ?? [],
+      chargeAmountPaise: amount,
+    });
+
+    if (!limitCheck.allowed) {
+      fail(limitCheck.errorMessage || "This EMI payment exceeds the card credit limit.");
+    }
   }
 
   let finalPrincipal = principal;

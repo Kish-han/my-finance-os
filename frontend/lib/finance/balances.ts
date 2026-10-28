@@ -86,6 +86,11 @@ export function calculateCardOutstanding(
       transaction.creditCardId === card.id
     ) {
       outstanding -= transaction.amountPaise;
+    } else if (
+      (transaction as { type: string; creditCardId?: string }).type === "card_credit" &&
+      (transaction as { type: string; creditCardId?: string }).creditCardId === card.id
+    ) {
+      outstanding -= transaction.amountPaise;
     }
   }
 
@@ -102,6 +107,9 @@ export function calculateAvailableCredit(
     calculateCardOutstanding(card, transactions)
   );
 }
+
+export * from "./card-limit-engine";
+
 
 export interface SeparatedAccountBalances<
   T extends { account: FinancialAccount; balancePaise: number }

@@ -16,12 +16,20 @@ import {
   Wallet,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  calculateCardCreditUtilization,
+  buildLimitExceededMessage,
+} from "@/lib/finance/card-limit-engine";
 
 type ActivityPageProps = {
   searchParams: Promise<{
     error?: string;
     created?: string;
     card_id?: string;
+    limit?: string;
+    available?: string;
+    exceeded?: string;
+    amount?: string;
   }>;
 };
 
@@ -54,11 +62,15 @@ type CardActivityRow = {
 };
 
 function formatRupees(paise: number | string): string {
-  return new Intl.NumberFormat("en-IN", {
+  const num = Number(paise);
+  const isNegative = num < 0;
+  const absFormatted = new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 2,
-  }).format(Number(paise) / 100);
+  }).format(Math.abs(num) / 100);
+
+  return isNegative ? `-${absFormatted}` : absFormatted;
 }
 
 function indiaToday(): string {
@@ -85,32 +97,6 @@ function displayDate(value: string): string {
   }).format(new Date(`${value}T12:00:00Z`));
 }
 
-function calculateOutstanding(
-  card: CreditCardRow,
-  activities: CardActivityRow[]
-): number {
-  let outstanding = Number(card.opening_outstanding_paise);
-
-  for (const activity of activities) {
-    if (
-      activity.credit_card_id !== card.id ||
-      activity.transaction_date < card.opening_outstanding_date
-    ) {
-      continue;
-    }
-
-    const amount = Number(activity.amount_paise);
-
-    if (activity.transaction_type === "card_purchase") {
-      outstanding += amount;
-    } else if (activity.transaction_type === "card_payment") {
-      outstanding -= amount;
-    }
-  }
-
-  return Math.max(0, outstanding);
-}
-
 async function loadCardActivity(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string
@@ -125,7 +111,7 @@ async function loadCardActivity(
         "id, transaction_date, description, amount_paise, transaction_type, credit_card_id, from_account_id"
       )
       .eq("user_id", userId)
-      .in("transaction_type", ["card_purchase", "card_payment"])
+      .in("transaction_type", ["card_purchase", "card_payment", "card_credit"])
       .order("transaction_date", { ascending: true })
       .order("id", { ascending: true })
       .range(offset, offset + pageSize - 1);
@@ -160,7 +146,7 @@ async function ActivityContent({
     redirect("/login");
   }
 
-  const [cardsResult, accountsResult, activityResult] =
+  const [cardsResult, accountsResult, activityResult, emisResult] =
     await Promise.all([
       supabase
         .from("credit_cards")
@@ -181,6 +167,12 @@ async function ActivityContent({
         .order("name"),
 
       loadCardActivity(supabase, userId),
+
+      supabase
+        .from("emi_debts")
+        .select("id, linked_credit_card_id, current_outstanding_principal_paise, status")
+        .eq("user_id", userId)
+        .eq("status", "active"),
     ]);
 
   const cards =
@@ -190,6 +182,7 @@ async function ActivityContent({
     (accountsResult.data ?? []) as unknown as AccountRow[];
 
   const activities = activityResult.rows;
+  const activeEmis = emisResult.data ?? [];
 
   const errorMessages: Record<string, string> = {
     "invalid-input":
@@ -198,6 +191,13 @@ async function ActivityContent({
       "The selected card or account is invalid, or the transaction date is before its recorded opening date.",
     "payment-exceeds-outstanding":
       "The repayment is greater than the recorded card outstanding balance.",
+    "credit-limit-exceeded": params.exceeded
+      ? buildLimitExceededMessage(
+          Number(params.exceeded),
+          Number(params.available || 0),
+          Number(params.amount || 0)
+        )
+      : "This purchase exceeds your available credit limit.",
     "save-failed":
       "We couldn't save the activity. Please check the database connection and try again.",
   };
@@ -205,10 +205,17 @@ async function ActivityContent({
   const canCalculate =
     !cardsResult.error && !activityResult.failed;
 
+  const cardCreditUtilByCard = new Map(
+    cards.map((card) => [
+      card.id,
+      calculateCardCreditUtilization(card, activities, activeEmis),
+    ])
+  );
+
   const outstandingByCard = new Map(
     cards.map((card) => [
       card.id,
-      calculateOutstanding(card, activities),
+      cardCreditUtilByCard.get(card.id)?.revolvingOutstandingPaise ?? 0,
     ])
   );
 
@@ -426,11 +433,15 @@ async function ActivityContent({
                     <option value="" disabled className="bg-slate-900 text-slate-400">
                       Choose a card
                     </option>
-                    {cards.map((card) => (
-                      <option key={card.id} value={card.id} className="bg-slate-900 text-white">
-                        {card.name} · {card.bank_name}
-                      </option>
-                    ))}
+                    {cards.map((card) => {
+                      const util = cardCreditUtilByCard.get(card.id);
+                      const avail = util ? util.availableCreditPaise : 0;
+                      return (
+                        <option key={card.id} value={card.id} className="bg-slate-900 text-white">
+                          {card.name} · {card.bank_name} (Avail: {formatRupees(avail)})
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 

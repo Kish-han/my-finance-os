@@ -13,6 +13,7 @@ import {
 import { AuraHeader, AuraBottomNav } from "@/components/AuraNav";
 import { resolveDisplayName, resolveCardholderName } from "@/lib/auth/user-display";
 import { CARD_NETWORKS } from "@/lib/finance/card-networks";
+import { calculateCardCreditUtilization } from "@/lib/finance/card-limit-engine";
 import {
   CreditCardStackView,
   type CreditCardItem,
@@ -65,32 +66,6 @@ function indiaToday(): string {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-function calculateOutstanding(
-  card: CreditCardRow,
-  transactions: CardTransactionRow[]
-): number {
-  let outstanding = Number(card.opening_outstanding_paise);
-
-  for (const transaction of transactions) {
-    if (
-      transaction.credit_card_id !== card.id ||
-      transaction.transaction_date < card.opening_outstanding_date
-    ) {
-      continue;
-    }
-
-    const amount = Number(transaction.amount_paise);
-
-    if (transaction.transaction_type === "card_purchase") {
-      outstanding += amount;
-    } else if (transaction.transaction_type === "card_payment") {
-      outstanding -= amount;
-    }
-  }
-
-  return Math.max(0, outstanding);
-}
-
 async function CardsContent({ searchParams }: CardsPageProps) {
   await connection();
 
@@ -108,7 +83,7 @@ async function CardsContent({ searchParams }: CardsPageProps) {
 
   const userId = user.id;
 
-  const [cardsResult, transactionsResult] = await Promise.all([
+  const [cardsResult, transactionsResult, emisResult] = await Promise.all([
     supabase
       .from("credit_cards")
       .select(
@@ -124,12 +99,19 @@ async function CardsContent({ searchParams }: CardsPageProps) {
         "id, transaction_date, description, amount_paise, transaction_type, credit_card_id"
       )
       .eq("user_id", userId)
-      .in("transaction_type", ["card_purchase", "card_payment"])
+      .in("transaction_type", ["card_purchase", "card_payment", "card_credit"])
       .order("transaction_date", { ascending: true }),
+
+    supabase
+      .from("emi_debts")
+      .select("id, linked_credit_card_id, current_outstanding_principal_paise, status")
+      .eq("user_id", userId)
+      .eq("status", "active"),
   ]);
 
   const cards = (cardsResult.data ?? []) as unknown as CreditCardRow[];
   const transactions = (transactionsResult.data ?? []) as unknown as CardTransactionRow[];
+  const activeEmis = emisResult.data ?? [];
 
   const errorMessages: Record<string, string> = {
     "invalid-input":
@@ -142,21 +124,22 @@ async function CardsContent({ searchParams }: CardsPageProps) {
     !cardsResult.error && !transactionsResult.error;
 
   const cardsWithBalances: CreditCardItem[] = cards.map((card) => {
-    const outstandingPaise = canCalculateBalances
-      ? calculateOutstanding(card, transactions)
-      : 0;
-    const limitPaise = Number(card.credit_limit_paise);
-    const availablePaise = Math.max(0, limitPaise - outstandingPaise);
-    const utilizationPct =
-      limitPaise > 0
-        ? Math.min(100, Math.round((outstandingPaise / limitPaise) * 100))
-        : 0;
+    if (!canCalculateBalances) {
+      return {
+        ...card,
+        outstandingPaise: 0,
+        availablePaise: Number(card.credit_limit_paise || 0),
+        utilizationPct: 0,
+      };
+    }
+
+    const util = calculateCardCreditUtilization(card, transactions, activeEmis);
 
     return {
       ...card,
-      outstandingPaise,
-      availablePaise,
-      utilizationPct,
+      outstandingPaise: util.totalUtilizedCreditPaise,
+      availablePaise: util.availableCreditPaise,
+      utilizationPct: util.utilizationPercent,
     };
   });
 

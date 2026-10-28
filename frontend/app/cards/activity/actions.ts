@@ -4,6 +4,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { validateCreditCardChargeLimit } from "@/lib/finance/card-limit-engine";
 
 function isValidDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -107,6 +108,7 @@ export async function createCardPurchase(formData: FormData) {
   ).trim();
 
   if (
+    amountPaise === null ||
     !validateCommonFields(description, amountPaise, transactionDate) ||
     !creditCardId ||
     categoryName.length < 1 ||
@@ -119,7 +121,7 @@ export async function createCardPurchase(formData: FormData) {
 
   const { data: card, error: cardError } = await supabase
     .from("credit_cards")
-    .select("id, opening_outstanding_date")
+    .select("id, opening_outstanding_date, credit_limit_paise, opening_outstanding_paise")
     .eq("id", creditCardId)
     .eq("user_id", userId)
     .eq("is_archived", false)
@@ -131,6 +133,39 @@ export async function createCardPurchase(formData: FormData) {
     transactionDate < card.opening_outstanding_date
   ) {
     redirect("/cards/activity?error=invalid-card-or-date");
+  }
+
+  // Enforce credit card limit invariant
+  const [txResult, emiResult] = await Promise.all([
+    supabase
+      .from("transactions")
+      .select("id, transaction_date, amount_paise, transaction_type, credit_card_id")
+      .eq("user_id", userId)
+      .eq("credit_card_id", card.id),
+    supabase
+      .from("emi_debts")
+      .select("id, linked_credit_card_id, current_outstanding_principal_paise, status")
+      .eq("user_id", userId)
+      .eq("linked_credit_card_id", card.id)
+      .eq("status", "active"),
+  ]);
+
+  const limitValidation = validateCreditCardChargeLimit({
+    card,
+    transactions: txResult.data ?? [],
+    cardLinkedEmis: emiResult.data ?? [],
+    chargeAmountPaise: amountPaise,
+  });
+
+  if (!limitValidation.allowed) {
+    const errParams = new URLSearchParams({
+      error: "credit-limit-exceeded",
+      limit: String(limitValidation.creditLimitPaise),
+      available: String(limitValidation.currentAvailablePaise),
+      exceeded: String(limitValidation.exceededByPaise),
+      amount: String(amountPaise),
+    });
+    redirect(`/cards/activity?${errParams.toString()}`);
   }
 
   const { data: category, error: categoryError } = await supabase

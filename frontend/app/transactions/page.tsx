@@ -7,6 +7,10 @@ import { AuraHeader, AuraBottomNav } from "@/components/AuraNav";
 import { resolveDisplayName } from "@/lib/auth/user-display";
 import { getIndiaToday, type TransactionRecord } from "@/lib/finance/date-ranges";
 import {
+  calculateCardCreditUtilization,
+  buildLimitExceededMessage,
+} from "@/lib/finance/card-limit-engine";
+import {
   TransactionAnalysisView,
   type AccountOption,
   type CreditCardOption,
@@ -20,6 +24,10 @@ type TransactionsPageProps = {
     created?: string;
     updated?: string;
     type?: string;
+    limit?: string;
+    available?: string;
+    exceeded?: string;
+    amount?: string;
   }>;
 };
 
@@ -44,12 +52,13 @@ async function TransactionsContent({
   const userEmail = user.email || "Private Client";
   const displayName = resolveDisplayName(user);
 
-  // Fetch accounts, credit cards, transactions, and categories in parallel
+  // Fetch accounts, credit cards, transactions, categories and active EMIs in parallel
   const [
     accountsResult,
     cardsResult,
     transactionsResult,
     categoriesResult,
+    emisResult,
   ] = await Promise.all([
     supabase
       .from("accounts")
@@ -60,7 +69,7 @@ async function TransactionsContent({
 
     supabase
       .from("credit_cards")
-      .select("id, name, bank_name, last_four_digits, opening_outstanding_date")
+      .select("id, name, bank_name, last_four_digits, opening_outstanding_date, credit_limit_paise, opening_outstanding_paise")
       .eq("user_id", userId)
       .eq("is_archived", false)
       .order("name"),
@@ -79,11 +88,37 @@ async function TransactionsContent({
       .select("id, name")
       .eq("user_id", userId)
       .eq("is_archived", false),
+
+    supabase
+      .from("emi_debts")
+      .select("id, linked_credit_card_id, current_outstanding_principal_paise, status")
+      .eq("user_id", userId)
+      .eq("status", "active"),
   ]);
 
+  const rawCards = (cardsResult.data ?? []) as Array<{
+    id: string;
+    name: string;
+    bank_name: string;
+    last_four_digits: string | null;
+    opening_outstanding_date: string;
+    credit_limit_paise: number | string;
+    opening_outstanding_paise: number | string;
+  }>;
+  const rawTx = (transactionsResult.data ?? []) as unknown as TransactionRecord[];
+  const rawEmis = emisResult.data ?? [];
+
   const accounts = (accountsResult.data ?? []) as unknown as AccountOption[];
-  const creditCards = (cardsResult.data ?? []) as unknown as CreditCardOption[];
-  const transactions = (transactionsResult.data ?? []) as unknown as TransactionRecord[];
+  const creditCards: CreditCardOption[] = rawCards.map((c) => {
+    const util = calculateCardCreditUtilization(c, rawTx, rawEmis);
+    return {
+      ...c,
+      credit_limit_paise: util.creditLimitPaise,
+      current_utilized_paise: util.totalUtilizedCreditPaise,
+      current_available_paise: util.availableCreditPaise,
+    };
+  });
+  const transactions = rawTx;
   const categories = (categoriesResult.data ?? []) as unknown as CategoryOption[];
 
   const defaultCategories = [
@@ -117,6 +152,13 @@ async function TransactionsContent({
       "Check the amount, date, description and category. Amounts must be positive, and future dates aren't allowed.",
     "invalid-account-or-date":
       "Select one of your active accounts and a date on or after its opening-balance date.",
+    "credit-limit-exceeded": params.exceeded
+      ? buildLimitExceededMessage(
+          Number(params.exceeded),
+          Number(params.available || 0),
+          Number(params.amount || 0)
+        )
+      : "This transaction exceeds your available credit limit.",
     "save-failed":
       "We couldn't save the transaction. Please try again.",
   };
