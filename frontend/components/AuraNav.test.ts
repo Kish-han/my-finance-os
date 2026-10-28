@@ -5,11 +5,26 @@ describe("AuraNav: Active Navigation State Routing", () => {
   it("activates Recurring when on /transactions/recurring and deactivates general Transactions", () => {
     const state = getAuraNavActiveState("/transactions/recurring");
     expect(state.isRecurring).toBe(true);
+    expect(state.isBudgets).toBe(false);
     expect(state.isTransactions).toBe(false);
     expect(state.isVault).toBe(false);
     expect(state.isCards).toBe(false);
     expect(state.isLoans).toBe(false);
     expect(state.isAccounts).toBe(false);
+  });
+
+  it("activates Budgets when on /budgets and deactivates other tabs", () => {
+    const state = getAuraNavActiveState("/budgets");
+    expect(state.isBudgets).toBe(true);
+    expect(state.isRecurring).toBe(false);
+    expect(state.isTransactions).toBe(false);
+    expect(state.isVault).toBe(false);
+  });
+
+  it("activates Budgets on nested queries such as /budgets?month=2026-11", () => {
+    const state = getAuraNavActiveState("/budgets?month=2026-11");
+    expect(state.isBudgets).toBe(true);
+    expect(state.isTransactions).toBe(false);
   });
 
   it("activates Recurring on nested query parameters and interactions", () => {

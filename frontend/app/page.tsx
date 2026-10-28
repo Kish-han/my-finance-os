@@ -13,6 +13,8 @@ import {
   Zap,
   ChevronRight,
   Percent,
+  PieChart,
+  AlertTriangle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -32,6 +34,12 @@ import { DashboardNetWorth } from "./DashboardNetWorth";
 import UpcomingPaymentsCenter from "./UpcomingPaymentsCenter";
 import { buildUpcomingPaymentsList } from "@/lib/finance/payment-schedule";
 import { fetchUserPendingOccurrences } from "@/lib/finance/recurring-data";
+import {
+  type CategoryBudget,
+  calculateMonthlyBudgets,
+  getCurrentMonthKey,
+} from "@/lib/finance/budget-engine";
+import { type TransactionRecord } from "@/lib/finance/date-ranges";
 import DashboardLoading from "./loading";
 
 type TransactionType =
@@ -309,6 +317,8 @@ async function DashboardContent({
     statementRows,
     transactionResult,
     pendingRecurringResult,
+    budgetRows,
+    categoryRows,
   ] = await Promise.all([
     supabase
       .from("accounts")
@@ -363,6 +373,34 @@ async function DashboardContent({
 
     loadTransactions(supabase, userId),
     fetchUserPendingOccurrences(supabase, userId, indiaToday),
+
+    (async (): Promise<CategoryBudget[]> => {
+      try {
+        const { data, error } = await supabase
+          .from("category_budgets")
+          .select("*")
+          .eq("user_id", userId)
+          .eq("is_active", true);
+        if (error) return [];
+        return (data ?? []) as unknown as CategoryBudget[];
+      } catch {
+        return [];
+      }
+    })(),
+
+    (async (): Promise<{ id: string; name: string }[]> => {
+      try {
+        const { data, error } = await supabase
+          .from("categories")
+          .select("id, name")
+          .eq("user_id", userId)
+          .eq("is_archived", false);
+        if (error) return [];
+        return (data ?? []) as unknown as { id: string; name: string }[];
+      } catch {
+        return [];
+      }
+    })(),
   ]);
 
   const accountRows =
@@ -378,6 +416,24 @@ async function DashboardContent({
     (paymentsResult.data ?? []) as unknown as EmiPaymentRow[];
 
   const transactionRows = transactionResult.rows;
+
+  const currentMonthKey = getCurrentMonthKey();
+  const categoryMap = new Map<string, string>();
+  for (const cat of categoryRows) {
+    categoryMap.set(cat.id, cat.name);
+  }
+
+  const budgetOverview = calculateMonthlyBudgets(
+    budgetRows,
+    transactionRows as unknown as TransactionRecord[],
+    categoryMap,
+    currentMonthKey
+  );
+
+  const urgentBudget =
+    budgetOverview.categorySummaries.find((c) => c.isOverspent) ||
+    budgetOverview.categorySummaries.find((c) => c.status === "warning_80") ||
+    budgetOverview.categorySummaries.find((c) => c.status === "warning_50");
 
   const financeTransactions: Transaction[] =
     transactionRows.map(toFinancialTransaction);
@@ -865,6 +921,112 @@ async function DashboardContent({
           </div>
         </section>
 
+        {/* Compact Monthly Budget Summary (if budgets configured) */}
+        {budgetOverview.categoriesCount > 0 && (
+          <section className="aura-card-obsidian rounded-3xl p-5 sm:p-6 border border-white/10 shadow-xl relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/10">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30">
+                  <PieChart className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-sm sm:text-base font-bold text-white">
+                      Monthly Budget Summary
+                    </h2>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300">
+                      {budgetOverview.monthLabel}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    {budgetOverview.categoriesCount} active {budgetOverview.categoriesCount === 1 ? "category" : "categories"} tracked
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                href="/budgets"
+                className="inline-flex items-center gap-1 text-xs font-bold text-[#4edea3] hover:text-white hover:underline transition-colors self-start sm:self-auto cursor-pointer"
+              >
+                <span>Manage Budgets</span>
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <span className="text-[11px] font-medium text-slate-400">Total Budget</span>
+                <p className="text-xl sm:text-2xl font-black text-white tabular-nums mt-0.5">
+                  {formatRupees(budgetOverview.totalBudgetPaise)}
+                </p>
+              </div>
+
+              <div>
+                <span className="text-[11px] font-medium text-slate-400">Actual Spending</span>
+                <p className="text-xl sm:text-2xl font-black text-slate-200 tabular-nums mt-0.5">
+                  {formatRupees(budgetOverview.totalActualSpendingPaise)}
+                </p>
+                <div className="mt-1.5 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      budgetOverview.overallPercentageUsed > 100
+                        ? "bg-rose-500"
+                        : budgetOverview.overallPercentageUsed >= 80
+                        ? "bg-amber-400"
+                        : "bg-[#4edea3]"
+                    }`}
+                    style={{ width: `${Math.min(100, budgetOverview.overallPercentageUsed)}%` }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <span className="text-[11px] font-medium text-slate-400">
+                  {budgetOverview.totalOverspentPaise > 0 ? "Total Overspent" : "Remaining Buffer"}
+                </span>
+                <p
+                  className={`text-xl sm:text-2xl font-black tabular-nums mt-0.5 ${
+                    budgetOverview.totalOverspentPaise > 0 ? "text-rose-400" : "text-[#4edea3]"
+                  }`}
+                >
+                  {budgetOverview.totalOverspentPaise > 0
+                    ? `−${formatRupees(budgetOverview.totalOverspentPaise)}`
+                    : `+${formatRupees(budgetOverview.totalRemainingPaise)}`}
+                </p>
+              </div>
+            </div>
+
+            {/* Most Urgent Alert Highlight (if any) */}
+            {urgentBudget && (
+              <div
+                className={`mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs rounded-2xl px-3.5 py-2.5 ${
+                  urgentBudget.isOverspent
+                    ? "bg-rose-500/10 text-rose-300 border border-rose-500/20"
+                    : urgentBudget.status === "warning_80"
+                    ? "bg-amber-500/10 text-amber-300 border border-amber-500/20"
+                    : "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>
+                    <strong>{urgentBudget.categoryName}:</strong>{" "}
+                    {urgentBudget.isOverspent
+                      ? `Exceeded by ${formatRupees(urgentBudget.overspentPaise)}`
+                      : `${Math.round(urgentBudget.percentageUsed)}% used (${formatRupees(urgentBudget.actualSpendingPaise)} / ${formatRupees(urgentBudget.budgetPaise)})`}
+                  </span>
+                </div>
+                <Link
+                  href="/budgets"
+                  className="font-bold underline hover:opacity-80 shrink-0 ml-2"
+                >
+                  View Details
+                </Link>
+              </div>
+            )}
+          </section>
+        )}
+
         {/* 5. Compact Upcoming Payments Queue */}
         <UpcomingPaymentsCenter
           activePayments={activePayments}
@@ -888,7 +1050,7 @@ async function DashboardContent({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
             <Link
               href="/accounts"
               className="aura-panel group p-4 sm:p-5 rounded-2xl border border-white/10 hover:border-emerald-500/40 bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 transition-all flex items-center justify-between"
@@ -907,6 +1069,26 @@ async function DashboardContent({
                 </div>
               </div>
               <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-emerald-300 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+            </Link>
+
+            <Link
+              href="/budgets"
+              className="aura-panel group p-4 sm:p-5 rounded-2xl border border-white/10 hover:border-purple-500/40 bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 transition-all flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-500/15 text-purple-300 border border-purple-500/30 group-hover:scale-105 transition-transform">
+                  <PieChart className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors truncate">
+                    Budgets & Limits
+                  </h3>
+                  <p className="text-[11px] text-slate-400 truncate">
+                    {budgetOverview.categoriesCount} {budgetOverview.categoriesCount === 1 ? "category" : "categories"} tracked
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-purple-300 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
             </Link>
 
             <Link

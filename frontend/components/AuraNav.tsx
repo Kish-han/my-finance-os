@@ -7,6 +7,7 @@ import {
   CreditCard,
   ArrowLeftRight,
   CalendarClock,
+  PieChart,
   TrendingUp,
   Landmark,
   LogOut,
@@ -23,6 +24,7 @@ interface AuraHeaderProps {
 
 export function getAuraNavActiveState(pathname: string | null) {
   const isDashboard = pathname === "/";
+  const isBudgets = Boolean(pathname?.startsWith("/budgets"));
   const isRecurring = Boolean(pathname?.startsWith("/transactions/recurring"));
   const isTransactions = Boolean(pathname?.startsWith("/transactions")) && !isRecurring;
   const isCards = Boolean(pathname?.startsWith("/cards"));
@@ -32,6 +34,7 @@ export function getAuraNavActiveState(pathname: string | null) {
   return {
     isDashboard,
     isVault: isDashboard,
+    isBudgets,
     isRecurring,
     isTransactions,
     isCards,
@@ -47,7 +50,7 @@ export function AuraHeader({
   signOutAction,
 }: AuraHeaderProps) {
   const pathname = usePathname();
-  const { isDashboard, isRecurring, isTransactions, isCards, isLoans, isAccounts } =
+  const { isDashboard, isBudgets, isRecurring, isTransactions, isCards, isLoans, isAccounts } =
     getAuraNavActiveState(pathname);
 
   return (
@@ -92,6 +95,17 @@ export function AuraHeader({
             }`}
           >
             Transactions
+          </Link>
+          <Link
+            href="/budgets"
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs transition-all ${
+              isBudgets
+                ? "bg-[#4edea3] text-slate-950 font-black shadow-sm"
+                : "text-slate-300 hover:text-white hover:bg-white/10 font-medium"
+            }`}
+          >
+            <PieChart className="h-3.5 w-3.5 shrink-0" />
+            <span>Budgets</span>
           </Link>
           <Link
             href="/transactions/recurring"
@@ -195,7 +209,7 @@ export function AuraHeader({
 
 export function AuraBottomNav() {
   const pathname = usePathname();
-  const { isVault, isRecurring, isTransactions, isCards, isLoans, isAccounts } =
+  const { isVault, isBudgets, isRecurring, isTransactions, isCards, isLoans, isAccounts } =
     getAuraNavActiveState(pathname);
 
   const navItems = [
@@ -215,12 +229,20 @@ export function AuraBottomNav() {
       title: "Transactions",
     },
     {
+      href: "/budgets",
+      label: "Budgets",
+      shortLabel: "Budget",
+      icon: PieChart,
+      active: isBudgets,
+      title: "Monthly Budgets & Alerts",
+    },
+    {
       href: "/transactions/recurring",
       label: "Recurring",
       shortLabel: "Recur",
       icon: CalendarClock,
       active: isRecurring,
-      title: "Recurring",
+      title: "Recurring Rules & Reminders",
     },
     {
       href: "/cards",
