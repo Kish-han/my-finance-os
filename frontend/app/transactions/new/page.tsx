@@ -13,6 +13,16 @@ import {
   calculateCardCreditUtilization,
   buildLimitExceededMessage,
 } from "@/lib/finance/card-limit-engine";
+import {
+  rankRecentCategories,
+  resolveRememberedSource,
+  getRecentRepeatableTransactions,
+  DEFAULT_EXPENSE_CATEGORIES,
+  DEFAULT_INCOME_CATEGORIES,
+  type RawTransactionRow,
+  type TransactionTemplate,
+  type UserTransactionPreferences,
+} from "@/lib/finance/quick-entry-engine";
 import TransactionForm from "../TransactionForm";
 
 type NewTransactionPageProps = {
@@ -75,14 +85,19 @@ async function NewTransactionContent({
   const userId = user.id;
   const userEmail = user.email || "Private Client";
   const displayName = resolveDisplayName(user);
+  const today = getIndiaToday();
 
-  // Fetch accounts, credit cards, categories, transactions and active EMIs in parallel
+  // Fetch accounts, credit cards, categories, card transactions, active EMIs,
+  // transaction templates, preferences, and recent transactions in parallel
   const [
     accountsResult,
     cardsResult,
     categoriesResult,
-    transactionsResult,
+    cardTransactionsResult,
     emisResult,
+    templatesResult,
+    preferencesResult,
+    recentTxsResult,
   ] = await Promise.all([
     supabase
       .from("accounts")
@@ -115,6 +130,27 @@ async function NewTransactionContent({
       .select("id, linked_credit_card_id, current_outstanding_principal_paise, status")
       .eq("user_id", userId)
       .eq("status", "active"),
+
+    supabase
+      .from("transaction_templates")
+      .select("*")
+      .eq("user_id", userId)
+      .order("is_favorite", { ascending: false })
+      .order("usage_count", { ascending: false })
+      .order("updated_at", { ascending: false }),
+
+    supabase
+      .from("user_transaction_preferences")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle(),
+
+    supabase
+      .from("transactions")
+      .select("id, transaction_date, amount_paise, transaction_type, credit_card_id, account_id, description, category_id, categories(name)")
+      .eq("user_id", userId)
+      .order("transaction_date", { ascending: false })
+      .limit(60),
   ]);
 
   const rawCards = (cardsResult.data ?? []) as Array<{
@@ -126,7 +162,7 @@ async function NewTransactionContent({
     credit_limit_paise: number | string;
     opening_outstanding_paise: number | string;
   }>;
-  const rawTx = (transactionsResult.data ?? []) as unknown as Array<{
+  const rawTx = (cardTransactionsResult.data ?? []) as unknown as Array<{
     id: string;
     transaction_date: string;
     amount_paise: number | string;
@@ -147,29 +183,127 @@ async function NewTransactionContent({
   });
   const categories = (categoriesResult.data ?? []) as unknown as CategoryRow[];
 
-  const defaultCategories = [
-    "Food & Dining",
-    "Groceries",
-    "Shopping & Lifestyle",
-    "Utilities & Bills",
-    "Housing & Rent",
-    "Transportation & Fuel",
-    "Entertainment",
-    "Healthcare & Medical",
-    "Travel & Transit",
-    "Personal Care",
-    "Investments & Savings",
-    "Salary",
-    "Freelance & Consulting",
-    "Gifts & Donations",
-    "Loan / EMI Payment",
-    "Other",
-  ];
+  // Safely map recent transactions
+  type RecentTxRow = {
+    id: string;
+    transaction_date: string;
+    amount_paise: number | string;
+    transaction_type: string;
+    credit_card_id: string | null;
+    account_id: string | null;
+    description: string;
+    category_id: string | null;
+    categories: { name: string } | null;
+  };
+  const rawRecent = (recentTxsResult.data ?? []) as unknown as RecentTxRow[];
+  const recentTransactions: RawTransactionRow[] = rawRecent.map((tx) => ({
+    id: tx.id,
+    transaction_date: tx.transaction_date,
+    amount_paise: tx.amount_paise,
+    transaction_type: tx.transaction_type,
+    credit_card_id: tx.credit_card_id,
+    account_id: tx.account_id,
+    description: tx.description,
+    category_id: tx.category_id,
+    category_name: tx.categories?.name,
+  }));
+
+  // Safely parse user preferences
+  type UserPrefRow = {
+    last_expense_source_id?: string | null;
+    last_income_source_id?: string | null;
+    pinned_category_names?: string[];
+  };
+  const prefData = preferencesResult.data as unknown as UserPrefRow | null;
+  const userPreferences: UserTransactionPreferences | null = prefData
+    ? {
+        lastExpenseSourceId: prefData.last_expense_source_id,
+        lastIncomeSourceId: prefData.last_income_source_id,
+        pinnedCategories: prefData.pinned_category_names || [],
+      }
+    : null;
+
+  // Safely map templates
+  type TemplateRow = {
+    id: string;
+    name: string;
+    transaction_type: "income" | "expense";
+    amount_paise: number | string;
+    category_name: string;
+    description?: string | null;
+    source_id: string;
+    account_id?: string | null;
+    credit_card_id?: string | null;
+    is_favorite?: boolean;
+    usage_count?: number;
+    last_used_at?: string | null;
+    memo?: string | null;
+  };
+  const rawTemplates = (templatesResult.data ?? []) as unknown as TemplateRow[];
+  const templates: TransactionTemplate[] = rawTemplates.map((t) => ({
+    id: t.id,
+    name: t.name,
+    transactionType: t.transaction_type,
+    amountPaise: Number(t.amount_paise),
+    categoryName: t.category_name,
+    description: t.description || t.name,
+    sourceId: t.source_id,
+    accountId: t.account_id,
+    creditCardId: t.credit_card_id,
+    isFavorite: Boolean(t.is_favorite),
+    useCount: t.usage_count,
+    lastUsedAt: t.last_used_at,
+    notes: t.memo,
+  }));
+
+  // Pure engine calculations
+  const activeCategoriesList = categories.map((c) => ({ id: c.id, name: c.name }));
+
+  const rankedExpenseCategories = rankRecentCategories({
+    transactionType: "expense",
+    transactions: recentTransactions,
+    categories: activeCategoriesList,
+    pinnedCategoryNames: userPreferences?.pinnedCategories || [],
+    limit: 8,
+  });
+
+  const rankedIncomeCategories = rankRecentCategories({
+    transactionType: "income",
+    transactions: recentTransactions,
+    categories: activeCategoriesList,
+    pinnedCategoryNames: userPreferences?.pinnedCategories || [],
+    limit: 6,
+  });
+
+  const rememberedExpenseSourceId = resolveRememberedSource({
+    transactionType: "expense",
+    preferences: userPreferences,
+    transactions: recentTransactions,
+    accounts,
+    creditCards,
+  });
+
+  const rememberedIncomeSourceId = resolveRememberedSource({
+    transactionType: "income",
+    preferences: userPreferences,
+    transactions: recentTransactions,
+    accounts,
+    creditCards,
+  });
+
+  const repeatableTransactions = getRecentRepeatableTransactions({
+    transactions: recentTransactions,
+    accounts,
+    creditCards,
+    limit: 6,
+    today,
+  });
 
   const availableCategories = Array.from(
     new Set([
       ...categories.map((c) => c.name),
-      ...defaultCategories,
+      ...DEFAULT_EXPENSE_CATEGORIES,
+      ...DEFAULT_INCOME_CATEGORIES,
     ])
   );
 
@@ -202,20 +336,22 @@ async function NewTransactionContent({
         )
       : undefined;
 
-  const today = getIndiaToday();
-
-  const initialSourceId = params.card_id
-    ? `card:${params.card_id}`
-    : params.account_id
-    ? `account:${params.account_id}`
-    : params.source || undefined;
-
   const initialType: "income" | "expense" =
     params.card_id || (params.source && params.source.startsWith("card:"))
       ? "expense"
       : params.type === "income"
       ? "income"
       : "expense";
+
+  const initialSourceId = params.card_id
+    ? `card:${params.card_id}`
+    : params.account_id
+    ? `account:${params.account_id}`
+    : params.source
+    ? params.source
+    : initialType === "income"
+    ? rememberedIncomeSourceId
+    : rememberedExpenseSourceId;
 
   return (
     <main className="min-h-screen bg-[#10141a] text-[#dfe2eb] pt-20 pb-36 relative overflow-hidden selection:bg-[#4edea3]/30 selection:text-[#4edea3]">
@@ -356,6 +492,13 @@ async function NewTransactionContent({
               accounts={accounts}
               creditCards={creditCards}
               availableCategories={availableCategories}
+              rankedExpenseCategories={rankedExpenseCategories}
+              rankedIncomeCategories={rankedIncomeCategories}
+              templates={templates}
+              repeatableTransactions={repeatableTransactions}
+              rememberedExpenseSourceId={rememberedExpenseSourceId}
+              rememberedIncomeSourceId={rememberedIncomeSourceId}
+              pinnedCategories={userPreferences?.pinnedCategories || []}
               earliestDate={earliestDate}
               initialType={initialType}
               initialSourceId={initialSourceId}

@@ -233,6 +233,81 @@ export async function createTransaction(formData: FormData) {
     redirect(`${returnTo}?error=save-failed`);
   }
 
+  // Update remembered payment source preference safely
+  try {
+    const prefUpdate: Record<string, unknown> = {
+      user_id: userId,
+      updated_at: new Date().toISOString(),
+    };
+    if (flowType === "income" && targetAccountId) {
+      prefUpdate.last_income_source_id = `account:${targetAccountId}`;
+    } else if (flowType === "expense") {
+      if (targetCreditCardId) {
+        prefUpdate.last_expense_source_id = `card:${targetCreditCardId}`;
+      } else if (targetAccountId) {
+        prefUpdate.last_expense_source_id = `account:${targetAccountId}`;
+      }
+    }
+    await supabase.from("user_transaction_preferences").upsert(prefUpdate, { onConflict: "user_id" });
+  } catch {
+    // Non-critical: Ignore if user_transaction_preferences table is not migrated yet
+  }
+
+  // Optional: Save as Favorite Template if requested by user
+  const saveAsTemplate =
+    formData.get("saveAsTemplate") === "true" ||
+    formData.get("saveAsTemplate") === "on" ||
+    formData.get("saveTemplate") === "true" ||
+    formData.get("saveTemplate") === "on";
+
+  if (saveAsTemplate) {
+    const customTemplateName = String(formData.get("templateName") ?? "").trim();
+    const finalTemplateName = (customTemplateName || rawDescription || "My Template").slice(0, 100);
+    const fullSourceId = targetCreditCardId ? `card:${targetCreditCardId}` : `account:${targetAccountId}`;
+
+    try {
+      await supabase.from("transaction_templates").upsert(
+        {
+          user_id: userId,
+          name: finalTemplateName,
+          transaction_type: flowType,
+          amount_paise: amountPaise,
+          category_name: categoryName,
+          category_id: category.id,
+          source_id: fullSourceId,
+          account_id: targetAccountId,
+          credit_card_id: targetCreditCardId,
+          description: rawDescription,
+          memo: notes || null,
+          is_favorite: formData.get("templateFavorite") === "true" || formData.get("templateFavorite") === "on",
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,name" }
+      );
+    } catch {
+      // Non-critical: Ignore if transaction_templates table is not migrated yet
+    }
+  }
+
+  // Optional: Track template usage count if launched from a template
+  const usedTemplateId = String(formData.get("usedTemplateId") ?? "").trim();
+  if (usedTemplateId) {
+    try {
+      await supabase.rpc("increment_template_usage", { t_id: usedTemplateId });
+    } catch {
+      // Fallback simple update if RPC does not exist
+      try {
+        await supabase
+          .from("transaction_templates")
+          .update({ last_used_at: new Date().toISOString() })
+          .eq("id", usedTemplateId)
+          .eq("user_id", userId);
+      } catch {
+        // Non-critical
+      }
+    }
+  }
+
   revalidateAllFinancialPaths();
 
   redirect(`${returnTo}?created=1`);
