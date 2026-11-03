@@ -460,7 +460,7 @@ function EditTransactionFormContent({
               <option value="income" className="bg-[#181c22]">Income (+)</option>
               <option value="card_purchase" className="bg-[#181c22]">Credit Card Purchase</option>
               <option value="card_payment" className="bg-[#181c22]">Credit Card Repayment</option>
-              <option value="transfer" className="bg-[#181c22]">Internal Transfer</option>
+              <option value="transfer" disabled className="bg-[#181c22] text-slate-500">Internal Transfer (Disabled in Edit)</option>
             </select>
           </div>
 
@@ -724,6 +724,74 @@ function EditTransactionFormContent({
   );
 }
 
+function TransferDisabledContent({
+  transaction,
+  onClose,
+}: {
+  transaction: TransactionRecord;
+  onClose: () => void;
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between pb-3 border-b border-white/10">
+        <h3 id="edit-tx-heading" className="text-base font-bold text-white flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber-400" />
+          <span>Internal Transfer</span>
+        </h3>
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="flex items-start gap-3.5 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-200">
+        <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+        <div className="space-y-1.5 text-xs leading-relaxed">
+          <p className="font-bold text-amber-300 text-sm">
+            Editing Transfers Disabled
+          </p>
+          <p className="text-slate-300">
+            Internal account transfers move funds between two accounts and may include an associated companion fee expense. To preserve double-entry balance and fee integrity, transfers cannot be edited directly.
+          </p>
+          <p className="text-slate-300">
+            <span className="font-semibold text-white">To modify this transfer:</span> Please delete it from the transaction ledger and record a new transfer with your updated details.
+          </p>
+        </div>
+      </div>
+
+      <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-2.5 text-xs text-slate-400">
+        <div className="flex justify-between items-center">
+          <span className="text-slate-400">Description</span>
+          <span className="font-medium text-white">{transaction.description}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-slate-400">Amount</span>
+          <span className="font-semibold text-cyan-400">
+            ₹{(Number(transaction.amount_paise) / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+          </span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-slate-400">Date</span>
+          <span className="font-medium text-white">{transaction.transaction_date}</span>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-end gap-3 pt-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-4 py-2.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-xs font-bold text-white transition-all cursor-pointer"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function EditTransactionModal({
   isOpen,
   onClose,
@@ -745,17 +813,21 @@ export function EditTransactionModal({
         aria-modal="true"
         aria-labelledby="edit-tx-heading"
       >
-        <EditTransactionFormContent
-          key={transaction.id}
-          transaction={transaction}
-          accounts={accounts}
-          creditCards={creditCards}
-          categories={categories}
-          availableCategories={availableCategories}
-          today={today}
-          onClose={onClose}
-          onSuccess={onSuccess}
-        />
+        {transaction.transaction_type === "transfer" ? (
+          <TransferDisabledContent transaction={transaction} onClose={onClose} />
+        ) : (
+          <EditTransactionFormContent
+            key={transaction.id}
+            transaction={transaction}
+            accounts={accounts}
+            creditCards={creditCards}
+            categories={categories}
+            availableCategories={availableCategories}
+            today={today}
+            onClose={onClose}
+            onSuccess={onSuccess}
+          />
+        )}
       </div>
     </div>
   );

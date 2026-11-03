@@ -161,6 +161,8 @@ async function TransactionsContent({
       : "This transaction exceeds your available credit limit.",
     "save-failed":
       "We couldn't save the transaction. Please try again.",
+    "transfer-editing-disabled":
+      "Internal transfers cannot be edited directly to preserve double-entry balance and fee integrity. Please delete the transfer and recreate it with the correct details.",
   };
 
   const today = getIndiaToday();

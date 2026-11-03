@@ -326,6 +326,14 @@ export function TransactionAnalysisView({
         {/* Action shortcuts */}
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
           <Link
+            href="/transactions/transfer"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 px-3.5 py-2.5 text-xs font-bold text-cyan-300 hover:text-white transition-all active:scale-95 cursor-pointer shadow-sm"
+            title="Transfer money between your bank and cash accounts"
+          >
+            <ArrowLeftRight className="h-4 w-4 shrink-0 text-cyan-400" />
+            <span>Transfer</span>
+          </Link>
+          <Link
             href="/transactions/recurring"
             className="inline-flex items-center gap-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 px-3.5 py-2.5 text-xs font-bold text-purple-300 hover:text-white transition-all active:scale-95 cursor-pointer shadow-sm"
             title="Manage recurring schedules, reminders, and expected items"
@@ -735,6 +743,14 @@ export function TransactionAnalysisView({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+            <Link
+              href="/transactions/transfer"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-xs font-bold text-cyan-300 hover:text-white transition-all cursor-pointer"
+              title="Transfer between accounts"
+            >
+              <ArrowLeftRight className="h-3.5 w-3.5 text-cyan-400" />
+              <span>Transfer</span>
+            </Link>
             <Link
               href="/transactions/recurring"
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-xs font-bold text-purple-300 hover:text-white transition-all cursor-pointer"

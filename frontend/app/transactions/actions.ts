@@ -8,6 +8,10 @@ import {
   type TransactionEditInput,
 } from "@/lib/finance/transaction-edits";
 import { validateCreditCardChargeLimit } from "@/lib/finance/card-limit-engine";
+import {
+  executeAtomicTransferWithClient,
+  isTransactionEditable,
+} from "@/lib/finance/transfer-engine";
 
 function isValidDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -313,10 +317,229 @@ export async function createTransaction(formData: FormData) {
   redirect(`${returnTo}?created=1`);
 }
 
+export type CreateTransferResult =
+  | { success: true; redirectTo: string }
+  | { success: false; error: string; code: string };
+
+/**
+ * Create an internal account-to-account transfer.
+ *
+ * PRODUCTION SAFETY & CONCURRENCY MODEL:
+ * - Every transfer is strictly executed via the PostgreSQL RPC `record_atomic_transfer`.
+ * - All non-atomic fallback insertion paths have been removed (FAIL-CLOSED POLICY).
+ * - If the database RPC is missing (pending migration), the request is rejected with
+ *   code "migration-required".
+ * - Concurrent transfers from the same source account are serialized by the source
+ *   account row-level lock (accounts FOR UPDATE) inside PostgreSQL.
+ * - CONCURRENCY LIMITATION: Ordinary income, expense, and card payment creations
+ *   currently do NOT acquire that lock; cross-operation balance races remain possible.
+ *
+ * A transfer is recorded as a single transaction row with:
+ *   transaction_type = 'transfer'
+ *   from_account_id  = source account
+ *   to_account_id    = destination account
+ *   account_id       = null
+ *   credit_card_id   = null
+ *   category_id      = null
+ *
+ * The balance engine in balances.ts already handles this shape:
+ *   – from_account_id → debit (balance decreases)
+ *   – to_account_id   → credit (balance increases)
+ *
+ * Transfers are excluded from income/expense analytics and budgets
+ * by the existing budget-engine.ts and TransactionAnalysisView.tsx.
+ */
+export async function createTransfer(formData: FormData): Promise<CreateTransferResult> {
+  const returnTo = String(formData.get("returnTo") ?? "").trim() || "/transactions/transfer";
+
+  const description = String(formData.get("description") ?? "").trim();
+  const amountInput = String(formData.get("amount") ?? "").trim();
+  const transactionDate = String(formData.get("transactionDate") ?? "").trim();
+  const fromAccountId = String(formData.get("fromAccountId") ?? "").trim();
+  const toAccountId = String(formData.get("toAccountId") ?? "").trim();
+  const notes = String(formData.get("notes") ?? "").trim();
+
+  // Basic format validation
+  if (
+    !description ||
+    description.length > 160 ||
+    !/^\d{1,12}(\.\d{1,2})?$/.test(amountInput) ||
+    !isValidDate(transactionDate) ||
+    transactionDate > indiaToday() ||
+    !fromAccountId ||
+    !toAccountId
+  ) {
+    return { success: false, error: "Invalid input. Check all fields.", code: "invalid-input" };
+  }
+
+  // Same-account guard
+  if (fromAccountId === toAccountId) {
+    return {
+      success: false,
+      error: "Source and destination accounts cannot be the same.",
+      code: "same-transfer-accounts",
+    };
+  }
+
+  const amountRupees = Number(amountInput);
+  const amountPaise = Math.round(amountRupees * 100);
+
+  if (
+    !Number.isFinite(amountRupees) ||
+    !Number.isSafeInteger(amountPaise) ||
+    amountPaise <= 0
+  ) {
+    return { success: false, error: "Invalid amount.", code: "invalid-amount" };
+  }
+
+  const supabase = await createClient();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  const user = authData?.user;
+
+  if (authError || !user) {
+    return { success: false, error: "Authentication required.", code: "unauthenticated" };
+  }
+
+  const userId = user.id;
+
+  // Verify both accounts belong to the authenticated user and are not archived
+  const { data: accounts, error: accountsError } = await supabase
+    .from("accounts")
+    .select("id, name, account_type, opening_balance_date, opening_balance_paise")
+    .eq("user_id", userId)
+    .eq("is_archived", false)
+    .in("id", [fromAccountId, toAccountId]);
+
+  if (accountsError || !accounts || accounts.length < 2) {
+    return {
+      success: false,
+      error: "One or both accounts are invalid or do not belong to your profile.",
+      code: "invalid-accounts",
+    };
+  }
+
+  const fromAccount = accounts.find((a) => a.id === fromAccountId);
+  const toAccount = accounts.find((a) => a.id === toAccountId);
+
+  if (!fromAccount || !toAccount) {
+    return {
+      success: false,
+      error: "One or both accounts are invalid or do not belong to your profile.",
+      code: "invalid-accounts",
+    };
+  }
+
+  // Date must be on or after both accounts' opening balance dates
+  if (
+    transactionDate < fromAccount.opening_balance_date ||
+    transactionDate < toAccount.opening_balance_date
+  ) {
+    return {
+      success: false,
+      error: "Transfer date cannot be earlier than an account's opening balance date.",
+      code: "date-before-opening",
+    };
+  }
+
+  // Compose description with optional notes
+  const fullDescription = notes
+    ? `${description} · ${notes}`.slice(0, 160)
+    : description;
+
+  // Optional transfer fee recorded as separate expense
+  const feeInput = String(formData.get("feeAmount") ?? "").trim();
+  let feePaise = 0;
+  if (feeInput && /^\d{1,12}(\.\d{1,2})?$/.test(feeInput)) {
+    const feeRupees = Number(feeInput);
+    if (Number.isFinite(feeRupees) && feeRupees > 0) {
+      feePaise = Math.round(feeRupees * 100);
+    }
+  }
+
+  const allowOverdraft =
+    formData.get("allowOverdraft") === "true" ||
+    formData.get("allowOverdraft") === "on";
+
+  // Execute transfer exclusively through PostgreSQL RPC record_atomic_transfer.
+  // Fail-closed policy: No fallback inserts are permitted.
+  const transferResult = await executeAtomicTransferWithClient(supabase, {
+    fromAccountId,
+    toAccountId,
+    amountPaise,
+    transactionDate,
+    description: fullDescription,
+    feePaise,
+    allowOverdraft,
+  });
+
+  if (!transferResult.success) {
+    return {
+      success: false,
+      error: transferResult.error,
+      code: transferResult.code,
+    };
+  }
+
+  revalidateAllFinancialPaths();
+  return { success: true, redirectTo: `${returnTo}?created=1` };
+}
+
+export type DeleteTransactionResult =
+  | { success: true }
+  | { success: false; error: string; code: string };
+
+/**
+ * Delete a transaction owned by the authenticated user.
+ *
+ * CASCADE INTEGRITY:
+ * - When deleting a transfer transaction, both the debit and credit legs are removed simultaneously.
+ * - In PostgreSQL, any companion fee expense referencing this transaction via `linked_transaction_id`
+ *   is automatically and atomically deleted via foreign key ON DELETE CASCADE.
+ * - Ordinary income, expense, and card payment deletions remain completely unaffected.
+ */
+export async function deleteTransaction(
+  transactionId: string
+): Promise<DeleteTransactionResult> {
+  if (!transactionId) {
+    return { success: false, error: "Transaction ID is required.", code: "invalid-id" };
+  }
+
+  const supabase = await createClient();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  const user = authData?.user;
+
+  if (authError || !user) {
+    redirect("/login");
+  }
+
+  const { error: deleteError } = await supabase
+    .from("transactions")
+    .delete()
+    .eq("id", transactionId)
+    .eq("user_id", user.id);
+
+  if (deleteError) {
+    return { success: false, error: "Failed to delete transaction.", code: "delete-failed" };
+  }
+
+  revalidateAllFinancialPaths();
+  return { success: true };
+}
+
 export type UpdateTransactionResult =
   | { success: true }
   | { success: false; error: string; code: string };
 
+/**
+ * Update an existing transaction owned by the authenticated user.
+ *
+ * DOCUMENTED CONCURRENCY & ISOLATION LIMITATION:
+ * Transfer updates here rely on application-level balance verification.
+ * They do NOT execute inside a database-level transaction lock (`accounts FOR UPDATE`).
+ * Consequently, concurrent transactions mutating balances during an edit are not
+ * serialized at the database level. Universal concurrency serialization would require
+ * an account-locking trigger on the `transactions` table.
+ */
 export async function updateTransaction(
   formData: FormData
 ): Promise<UpdateTransactionResult> {
@@ -361,6 +584,17 @@ export async function updateTransaction(
       success: false,
       error: "Transaction not found or you do not have permission to edit it.",
       code: "transaction-not-found",
+    };
+  }
+
+  // 1b. Disallow editing internal transfers to preserve double-entry ledger & fee integrity
+  const editableCheck = isTransactionEditable(existingTx.transaction_type, rawType);
+  if (!editableCheck.allowed) {
+    if (returnTo) redirect(`${returnTo}?error=${editableCheck.code}`);
+    return {
+      success: false,
+      error: editableCheck.error!,
+      code: editableCheck.code!,
     };
   }
 
