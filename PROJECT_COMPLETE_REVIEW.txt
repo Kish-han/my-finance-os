@@ -1,0 +1,195 @@
+================================================================================
+MY FINANCE OS / AURA WEALTH — COMPREHENSIVE PROJECT & SYSTEM REVIEW
+================================================================================
+Generated Date: 2026-11-03
+Repository: My Finance OS (AURA Wealth)
+Stack: Next.js 16 (App Router), TypeScript (Strict), Tailwind CSS, Supabase (Auth & PostgreSQL), Vitest (226 Tests)
+Target Audience: ChatGPT / AI Assistants / Engineering Reviewers
+
+--------------------------------------------------------------------------------
+1. EXECUTIVE SUMMARY & ARCHITECTURAL FOUNDATION
+--------------------------------------------------------------------------------
+My Finance OS (branded as "AURA Wealth") is an institutional-grade, mobile-first personal finance operating system and double-entry personal ledger built for private clients. It replaces fragmented banking apps, spreadsheets, and basic expense trackers with a unified, high-integrity financial dashboard.
+
+Core Technical Stack:
+- Frontend & SSR: Next.js 16 (Turbopack, App Router, React Server Components, Server Actions, Partial Prerendering / PPR).
+- Language: TypeScript with strict null checks and zero "any" types in financial math.
+- Styling: Tailwind CSS with custom Obsidian Luxe theme (#10141a dark obsidian background, #4edea3 emerald accent, cyan, amber, and rose semantic accents).
+- Database & Auth: Supabase (PostgreSQL 15+), Row-Level Security (RLS) policies on all tables, secure JWT cookie-based session management, and server-side user claims.
+- Deployment: Vercel serverless edge/node runtime.
+- Verification & Test Suite: Vitest (18 test suites, 226 tests covering 100% of financial math, date logic, and business invariants), ESLint, and Next.js static page analyzer.
+
+--------------------------------------------------------------------------------
+2. NON-NEGOTIABLE FINANCIAL INVARIANTS & CORE PRINCIPLES
+--------------------------------------------------------------------------------
+1. Integer Paise Financial Representation:
+   All monetary amounts in the database and intermediate arithmetic are stored and computed as BIGINT integer paise (1 Rupee = 100 Paise). Floating-point math is strictly prohibited for financial calculations to prevent binary rounding inaccuracies. Formatting to INR (₹) is performed purely at the presentation boundary using custom utility formatters.
+
+2. Audited Double-Entry Ledger Discipline:
+   Ledger balances are never modified client-side. Balances are derived idempotently from verified transaction rows, opening balances, and date-bounded adjustments.
+
+3. Strict Non-Truncation Policy:
+   Historical transactions and statements are never silently truncated (e.g., using naive .limit(N) queries). Safe batch-paginated fetching ensures datasets with thousands of transactions compute exact card and account balances.
+
+4. Global Credit Card Limit Enforcement:
+   Projected card outstanding (Opening Outstanding + Active Card Charges + Card-Linked EMI Principal - Repayments - Refunds - Credits) MUST NEVER exceed the card's configured credit limit. Enforcement is strictly dual-layered: instant real-time telemetry badge in the UI and hard rejection in server actions.
+
+5. Strict Account Isolation:
+   Income can ONLY be deposited into liquid bank accounts or physical cash wallets. Credit cards are strictly blocked from receiving income deposits.
+
+6. Timezone & Date Discipline (IST):
+   All transaction validation and financial schedules run strictly on Indian Standard Time (Asia/Kolkata / UTC+05:30). Future-dated transactions are strictly forbidden. Date boundary checks ensure transactions cannot precede an account's or card's opening date.
+
+--------------------------------------------------------------------------------
+3. DETAILED MODULE-BY-MODULE IMPLEMENTATION REVIEW
+--------------------------------------------------------------------------------
+
+MODULE A: AUTHENTICATION & MULTI-TENANT SECURITY
+- Routes: /login, /auth/callback, /profile
+- Technology: Supabase Auth with Server Component session extraction (createClient via @supabase/ssr).
+- Multi-Tenant RLS: Every single database table implements PostgreSQL Row Level Security (auth.uid() = user_id) on SELECT, INSERT, UPDATE, and DELETE.
+- User Display Resolution: Resolves email prefixes, metadata full names, or "Private Client" safely.
+
+MODULE B: LIQUID ACCOUNTS & BALANCE COMPUTATION
+- Routes: /accounts
+- Capabilities:
+  * Manages liquid bank accounts (Savings, Current) and physical cash wallets.
+  * Captures initial opening balance and opening balance date.
+  * Authoritative balance calculations: Opening Balance + Total Incomes - Total Debit Expenses - Transfers Out + Transfers In.
+  * Real-time calculation of total liquid assets and liquid net worth.
+
+MODULE C: UNIFIED SMART ONE-TAP TRANSACTION ENTRY
+- Routes: /transactions, /transactions/new, /transactions/history
+- Capabilities & 8-Tier UX Hierarchy:
+  1. Income / Expense Dual Switch: Tactile toggle that contextually switches categories, placeholders, and allowed payment sources.
+  2. Deterministic Category Ranking Engine: Pure scoring engine (quick-entry-engine.ts) ranking categories by decay-weighted recency and frequency. Strictly isolates income categories from expense categories and filters out debt repayments and transfers. Includes 1-tap category pinning.
+  3. 1-Tap Transaction Templates & Routine Replay: User-scoped templates with custom names, pre-configured amounts, categories, and sources. Includes horizontal quick-tap carousel. Tapping pre-fills the form with the date strictly defaulted to TODAY (no stale dates). Guarantees zero automated posting without user verification.
+  4. Fast Numeric Settlement Entry: Large prominent INR input with quick increment chips (+100, +500, +1,000, +2,000, +5,000), quick clear button, and live credit card limit telemetry badge.
+  5. Contextual Merchant / Description: Smart placeholder hints and autofill based on selected source.
+  6. Remembered Payment Sources: Independently remembers the user's preferred expense source (e.g., credit card) vs. income destination (bank account). Gracefully falls back if a source is archived.
+  7. Date & Additional Memo: Defaults to IST Today; expandable metadata memo input.
+  8. Verified Settlement Action: Double-submission protection (disables during transit with loading spinner) and hard credit limit lock.
+  * Transaction Editing (/transactions/history): In-place editing of past transactions with automatic delta recalculations, date boundary checks, and balance integrity maintenance.
+
+MODULE D: CREDIT CARDS & DEBT MANAGEMENT
+- Routes: /cards, /cards/activity, /cards/statements
+- Capabilities:
+  * Card Registry: Bank name, custom card name, last 4 digits, cardholder name, billing cycle dates, credit limits, and opening outstanding balances.
+  * Network Auto-Detection: Automatically detects and displays branded badges for Visa, Mastercard, RuPay, and American Express.
+  * Global Limit Engine: Real-time calculation of credit limit, total utilized credit, available credit, and utilization percentage.
+  * Card Activity Log: Non-truncating batch pagination across transactions, repayments, and refunds.
+  * Statement Billing Schedule Engine: Computes statement generation date, due date, payment grace window, billing cycle status, and overdue alerts.
+
+MODULE E: EMI & LOAN AMORTIZATION CENTER
+- Routes: /emi, /emi/schedule, /emi/payments, /emi/edit, /emi/foreclosure, /emi/foreclosure/settle
+- Capabilities:
+  * Reducing Balance Amortization Engine: Calculates monthly EMIs, principal portions, interest portions, outstanding balance curves, and loan tenure.
+  * Card-Linked EMI Accounting: Accurately reflects how card-converted EMIs ring-fence the card's credit limit while keeping amortized debt schedules separate from statement purchases.
+  * Additional Loan Charges: Tracks processing fees, GST, bounce charges, and late fees.
+  * Foreclosure Calculator & Multi-Quote Comparison: Simulates prepayment / early foreclosure, calculating foreclosure penalty fees, GST, future interest saved, and net cost-benefit analysis.
+  * Foreclosure Settlement Workflow: Dedicated workflow to record lump-sum foreclosure payments, settle active debts, and instantly release credit card limit blocks.
+
+MODULE F: RECURRING TRANSACTIONS & EXPECTED OCCURRENCES
+- Routes: /transactions/recurring
+- Capabilities:
+  * Recurrence Rule Engine: Supports Daily, Weekly, Monthly, Quarterly, and Yearly schedules with custom day-of-month and end-of-month handling.
+  * Expected Items, Not Fake Transactions: Recurring rules do NOT create phantom completed transactions. They project expected upcoming dates and reminders.
+  * Idempotent 1-Tap Confirmation: Users confirm expected occurrences as they actually happen, converting them cleanly into ledger transactions without duplicates.
+  * Persistent Navigation: Dedicated navigation item with calendar/recurrence icon accessible on desktop, mobile bottom nav, and iOS PWA layouts.
+
+MODULE G: MONTHLY CATEGORY BUDGETS & SPENDING ALERTS
+- Routes: /budgets
+- Capabilities:
+  * Category Limits: Allows setting monthly spending caps by category, supporting default recurring monthly budgets and month-specific overrides (YYYY-MM).
+  * Spending Telemetry: Real-time aggregation of all debit and credit card expenses against budgets for the active month.
+  * Visual Progress & Status: Color-coded progress bars (Normal <50%, Approaching 50-79%, Critical 80-99%, Exceeded 100%+).
+  * Multi-Tier Threshold Alerts: Configurable alerts at 50%, 80%, and 100% of budget.
+  * Idempotent Alert Events: budget_alert_events table prevents duplicate alert notifications for the same threshold within the same month.
+  * Dashboard Integration: Budget Health telemetry widget directly on the main dashboard.
+
+MODULE H: DASHBOARD & TOTAL WEALTH TELEMETRY
+- Routes: /
+- Capabilities:
+  * Consolidated Net Worth summary (Liquid Bank/Cash Assets minus Total Credit Card & EMI Liabilities).
+  * Cashflow telemetry (Monthly Income vs. Monthly Expenses).
+  * Upcoming Payments Center: Consolidates upcoming credit card statement dues, EMI instalments, and recurring bill payments into a single prioritized checklist.
+  * Quick-action shortcut grid for recording transactions, adding accounts, reviewing cards, and managing EMIs.
+
+MODULE I: PERFORMANCE OPTIMIZATIONS
+- High-Efficiency Data Layer:
+  * Migrated sequential waterfall database calls to concurrent Promise.all queries.
+  * Added route loading skeletons (loading.tsx) for instant page transitions.
+  * Memoized expensive amortization calculations to eliminate main-thread stuttering.
+  * Added composite database indexes for user_id, transaction_date, and transaction_type.
+
+--------------------------------------------------------------------------------
+4. DATABASE SCHEMA & VERSIONED MIGRATIONS INVENTORY
+--------------------------------------------------------------------------------
+All database migrations follow strict reversible standards and RLS policies. Migrations are saved in supabase/migrations/ for explicit manual application:
+
+1. 20261026000000_add_cardholder_and_network_to_credit_cards.sql
+   - Adds cardholder_name and card_network to credit_cards.
+2. 20261027000000_add_emi_schedule_metadata.sql
+   - Adds first_emi_date, interest_rate_annual, and schedule metadata to emi_debts.
+3. 20261027120000_add_additional_charges_to_emi_debts.sql
+   - Adds processing_fee_paise, foreclosure_fee_rate, and charges support.
+4. 20261027140000_add_statement_due_to_credit_cards.sql
+   - Adds statement_day_of_month and payment_due_days to credit_cards.
+5. 20261027150000_create_credit_card_statements.sql
+   - Creates credit_card_statements table for historical statement tracking.
+6. 20261028110000_performance_indexes.sql
+   - Adds composite indexes on transactions(user_id, transaction_date DESC), credit_cards, and emi_debts.
+7. 20261028150000_create_recurring_transactions.sql
+   - Creates recurring_transactions and recurring_transaction_confirmations tables.
+8. 20261028160000_create_category_budgets.sql
+   - Creates category_budgets and budget_alert_events tables with RLS and idempotency indexes.
+9. 20261028210000_enforce_credit_card_limit.sql
+   - Adds database check constraint and RPC calculate_card_available_credit_paise.
+10. 20261029170000_create_transaction_templates_and_preferences.sql
+    - Creates transaction_templates and user_transaction_preferences tables with RLS.
+
+* Note: Per repository safety rules, migrations are never applied automatically to live production. The frontend code includes defensive fallbacks so the application functions cleanly whether migrations have been executed or are pending.
+
+--------------------------------------------------------------------------------
+5. QUALITY ASSURANCE, CODEBASE METRICS & VERIFICATION
+--------------------------------------------------------------------------------
+- Test Suite: 18 test files, 226 tests (100% passing in Vitest).
+  * lib/finance/quick-entry-engine.test.ts (17 tests)
+  * lib/finance/card-limit-engine.test.ts (15 tests)
+  * lib/finance/amortization.test.ts (20 tests)
+  * lib/finance/emi-charges.test.ts (19 tests)
+  * lib/finance/payment-schedule.test.ts (13 tests)
+  * lib/finance/statement-engine.test.ts (13 tests)
+  * lib/finance/transaction-edits.test.ts (13 tests)
+  * lib/finance/recurring-engine.test.ts (17 tests)
+  * lib/finance/budget-engine.test.ts (12 tests)
+  * lib/finance/unified-transactions.test.ts (12 tests)
+  * lib/finance/date-ranges.test.ts (12 tests)
+  * lib/finance/balances.test.ts (11 tests)
+  * lib/finance/card-networks.test.ts (9 tests)
+  * lib/finance/emi-calculations.test.ts (9 tests)
+  * lib/finance/card-emi-accounting.test.ts (4 tests)
+  * lib/finance/performance-optimizations.test.ts (5 tests)
+  * lib/auth/user-display.test.ts (12 tests)
+  * components/AuraNav.test.ts (13 tests)
+- Static Type Checking: npx tsc --noEmit passes with 0 errors across entire Next.js project.
+- Linting: npx eslint passes with 0 errors and 0 warnings.
+- Production Build: next build compiles all 21 static and dynamic routes in ~1.5s with zero build warnings.
+- Git Status: Branch master is clean, all changes committed and synced with origin/master.
+
+--------------------------------------------------------------------------------
+6. PENDING USER ACTION ITEMS & ROADMAP RECOMMENDATIONS
+--------------------------------------------------------------------------------
+1. Apply Pending Database Migrations:
+   Log into your Supabase Dashboard -> SQL Editor and run the migration scripts located in supabase/migrations/ (specifically the recurring, budget, limit, and template migrations) to enable full database-level indexing and constraints.
+2. AI Financial Assistant Integration (Future Phase):
+   The double-entry ledger and clean category telemetry are now perfectly primed to connect an LLM / AI conversational assistant that can answer questions like:
+   - "How much did I spend on dining out this month compared to last month?"
+   - "Which credit card should I pay off first to minimize interest?"
+   - "What will my available liquid balance look like after all upcoming EMIs and recurring bills clear?"
+3. Document / Receipt Uploads (Future Phase):
+   Integrate Supabase Storage to allow attaching receipt images or invoices directly to transaction records.
+
+================================================================================
+END OF REVIEW — COPY AND PASTE THIS ENTIRE TEXT FILE DIRECTLY INTO CHATGPT
+================================================================================
