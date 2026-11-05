@@ -508,7 +508,7 @@ export function TransactionAnalysisView({
         </div>
 
         {/* Segmented Control Buttons */}
-        <div className="flex flex-wrap gap-1.5 p-1 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl">
+        <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1.5 p-1 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl">
           {(
             [
               "this_week",
@@ -525,7 +525,7 @@ export function TransactionAnalysisView({
                 key={preset}
                 type="button"
                 onClick={() => setRangePreset(preset)}
-                className={`flex-1 min-w-[100px] py-2 px-3 rounded-xl text-xs font-bold transition-all text-center cursor-pointer ${
+                className={`py-2 px-2.5 sm:px-3 sm:flex-1 sm:min-w-[100px] rounded-xl text-xs font-bold transition-all text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4edea3] active:scale-[0.98] ${
                   isActive
                     ? "bg-[#4edea3] text-slate-950 font-black shadow-md shadow-emerald-500/25"
                     : "text-slate-300 hover:text-white hover:bg-white/10"
@@ -846,14 +846,14 @@ export function TransactionAnalysisView({
                       <p className="truncate text-sm font-bold text-white group-hover:text-[#4edea3] transition-colors">
                         {tx.description}
                       </p>
-                      <p className="mt-0.5 text-xs text-slate-400 flex items-center gap-1.5 truncate">
+                      <p className="mt-0.5 text-xs text-slate-300 flex items-center gap-1.5 truncate">
                         <span>{categoryLabel}</span>
                         <span>·</span>
-                        <span className="font-mono text-[11px] text-slate-500">
+                        <span className="font-mono text-[11px] text-slate-400">
                           {formatDisplayDate(tx.transaction_date)}
                         </span>
                       </p>
-                      <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                      <p className="mt-0.5 truncate text-[11px] text-slate-400 font-medium">
                         {accountLabel}
                       </p>
                     </div>

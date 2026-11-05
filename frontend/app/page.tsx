@@ -692,46 +692,46 @@ async function DashboardContent({
         <section className="grid grid-cols-4 gap-2 sm:gap-4">
           <Link
             href="/transactions/new?type=income"
-            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl bg-[#181c22]/90 border border-white/[0.08] backdrop-blur-xl hover:border-[#4edea3]/40 hover:bg-[#1c2026] hover:-translate-y-0.5 transition-all shadow-lg text-center"
+            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl bg-[#181c22]/90 border border-white/[0.08] backdrop-blur-xl hover:border-[#4edea3]/40 hover:bg-[#1c2026] hover:-translate-y-0.5 active:scale-[0.97] transition-all shadow-lg text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4edea3]"
           >
             <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-[#10b981]/15 text-[#4edea3] border border-[#10b981]/30 group-hover:scale-105 transition-transform">
               <ArrowDownLeft className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
             <span className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-white tracking-wide">Deposit</span>
-            <span className="text-[10px] text-slate-400 hidden sm:block">Add Capital</span>
+            <span className="text-[10px] text-slate-300 hidden sm:block">Add Capital</span>
           </Link>
 
           <Link
             href="/transactions/new?type=expense"
-            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl bg-[#181c22]/90 border border-white/[0.08] backdrop-blur-xl hover:border-[#8b5cf6]/40 hover:bg-[#1c2026] hover:-translate-y-0.5 transition-all shadow-lg text-center"
+            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl bg-[#181c22]/90 border border-white/[0.08] backdrop-blur-xl hover:border-rose-500/40 hover:bg-[#1c2026] hover:-translate-y-0.5 active:scale-[0.97] transition-all shadow-lg text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
           >
-            <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-[#8b5cf6]/15 text-[#d0bcff] border border-[#8b5cf6]/30 group-hover:scale-105 transition-transform">
+            <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-rose-500/15 text-rose-300 border border-rose-500/30 group-hover:scale-105 transition-transform">
               <ArrowUpRight className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
-            <span className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-white tracking-wide">Send</span>
-            <span className="text-[10px] text-slate-400 hidden sm:block">Expense</span>
+            <span className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-white tracking-wide">Expense</span>
+            <span className="text-[10px] text-slate-300 hidden sm:block">Record Spend</span>
+          </Link>
+
+          <Link
+            href="/transactions/transfer"
+            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl bg-[#181c22]/90 border border-white/[0.08] backdrop-blur-xl hover:border-cyan-400/40 hover:bg-[#1c2026] hover:-translate-y-0.5 active:scale-[0.97] transition-all shadow-lg text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+          >
+            <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 group-hover:scale-105 transition-transform">
+              <ArrowLeftRight className="h-4 w-4 sm:h-5 sm:w-5" />
+            </div>
+            <span className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-white tracking-wide">Transfer</span>
+            <span className="text-[10px] text-slate-300 hidden sm:block">Move Funds</span>
           </Link>
 
           <Link
             href="/cards"
-            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl bg-[#181c22]/90 border border-white/[0.08] backdrop-blur-xl hover:border-amber-400/40 hover:bg-[#1c2026] hover:-translate-y-0.5 transition-all shadow-lg text-center"
+            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl bg-[#181c22]/90 border border-white/[0.08] backdrop-blur-xl hover:border-amber-400/40 hover:bg-[#1c2026] hover:-translate-y-0.5 active:scale-[0.97] transition-all shadow-lg text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
           >
             <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-[#d4af37]/15 text-[#f3e5ab] border border-[#d4af37]/30 group-hover:scale-105 transition-transform">
               <CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
             <span className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-white tracking-wide">Cards</span>
-            <span className="text-[10px] text-slate-400 hidden sm:block">Revolving</span>
-          </Link>
-
-          <Link
-            href="/emi"
-            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl bg-[#181c22]/90 border border-white/[0.08] backdrop-blur-xl hover:border-cyan-400/40 hover:bg-[#1c2026] hover:-translate-y-0.5 transition-all shadow-lg text-center"
-          >
-            <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 group-hover:scale-105 transition-transform">
-              <Percent className="h-4 w-4 sm:h-5 sm:w-5" />
-            </div>
-            <span className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-white tracking-wide">Loans</span>
-            <span className="text-[10px] text-slate-400 hidden sm:block">Amortize</span>
+            <span className="text-[10px] text-slate-300 hidden sm:block">Revolving</span>
           </Link>
         </section>
 

@@ -54,10 +54,13 @@ export function AuraHeader({
     getAuraNavActiveState(pathname);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-[#10141a]/80 backdrop-blur-xl border-b border-white/[0.08] shadow-[0_1px_8px_rgba(0,0,0,0.25)]">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-[#10141a]/85 backdrop-blur-xl border-b border-white/[0.08] shadow-[0_1px_8px_rgba(0,0,0,0.35)] pt-[env(safe-area-inset-top,0px)]">
       <div className="h-16 max-w-5xl mx-auto px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-4 min-w-0">
         {/* Brand Monogram & Section Identity */}
-        <Link href="/" className="flex items-center gap-2 sm:gap-3 group shrink min-w-0">
+        <Link
+          href="/"
+          className="flex items-center gap-2 sm:gap-3 group shrink min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4edea3] rounded-xl"
+        >
           <div className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#4edea3] via-[#10b981] to-[#003824] text-[#003824] font-black text-sm sm:text-base shadow-md shadow-emerald-500/25 ring-1 ring-white/40 group-hover:scale-105 transition-transform">
             A
           </div>
@@ -68,7 +71,7 @@ export function AuraHeader({
               </span>
               <span className="w-1.5 h-1.5 shrink-0 rounded-full bg-[#4edea3] animate-pulse" />
             </div>
-            <span className="text-[10px] sm:text-[11px] font-medium tracking-wide text-[#bbcabf] truncate leading-tight">
+            <span className="text-[10px] sm:text-[11px] font-semibold tracking-wide text-slate-300 truncate leading-tight">
               {sectionTitle}
             </span>
           </div>
@@ -78,30 +81,30 @@ export function AuraHeader({
         <nav className="hidden md:flex items-center gap-1 bg-white/[0.03] border border-white/10 px-2 py-1 rounded-full backdrop-blur-md shrink-0">
           <Link
             href="/"
-            className={`px-3 py-1 rounded-full text-xs transition-all ${
+            className={`px-3 py-1 rounded-full text-xs transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4edea3] ${
               isDashboard
                 ? "bg-[#4edea3] text-slate-950 font-black shadow-sm"
-                : "text-slate-300 hover:text-white hover:bg-white/10 font-medium"
+                : "text-slate-200 hover:text-white hover:bg-white/10 font-medium"
             }`}
           >
             Vault
           </Link>
           <Link
             href="/transactions"
-            className={`px-3 py-1 rounded-full text-xs transition-all ${
+            className={`px-3 py-1 rounded-full text-xs transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4edea3] ${
               isTransactions
                 ? "bg-[#4edea3] text-slate-950 font-black shadow-sm"
-                : "text-slate-300 hover:text-white hover:bg-white/10 font-medium"
+                : "text-slate-200 hover:text-white hover:bg-white/10 font-medium"
             }`}
           >
             Transactions
           </Link>
           <Link
             href="/budgets"
-            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs transition-all ${
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4edea3] ${
               isBudgets
                 ? "bg-[#4edea3] text-slate-950 font-black shadow-sm"
-                : "text-slate-300 hover:text-white hover:bg-white/10 font-medium"
+                : "text-slate-200 hover:text-white hover:bg-white/10 font-medium"
             }`}
           >
             <PieChart className="h-3.5 w-3.5 shrink-0" />
@@ -109,10 +112,10 @@ export function AuraHeader({
           </Link>
           <Link
             href="/transactions/recurring"
-            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs transition-all ${
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4edea3] ${
               isRecurring
                 ? "bg-[#4edea3] text-slate-950 font-black shadow-sm"
-                : "text-slate-300 hover:text-white hover:bg-white/10 font-medium"
+                : "text-slate-200 hover:text-white hover:bg-white/10 font-medium"
             }`}
           >
             <CalendarClock className="h-3.5 w-3.5 shrink-0" />
@@ -120,30 +123,30 @@ export function AuraHeader({
           </Link>
           <Link
             href="/cards"
-            className={`px-3 py-1 rounded-full text-xs transition-all ${
+            className={`px-3 py-1 rounded-full text-xs transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4edea3] ${
               isCards
                 ? "bg-[#4edea3] text-slate-950 font-black shadow-sm"
-                : "text-slate-300 hover:text-white hover:bg-white/10 font-medium"
+                : "text-slate-200 hover:text-white hover:bg-white/10 font-medium"
             }`}
           >
             Cards
           </Link>
           <Link
             href="/emi"
-            className={`px-3 py-1 rounded-full text-xs transition-all ${
+            className={`px-3 py-1 rounded-full text-xs transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4edea3] ${
               isLoans
                 ? "bg-[#4edea3] text-slate-950 font-black shadow-sm"
-                : "text-slate-300 hover:text-white hover:bg-white/10 font-medium"
+                : "text-slate-200 hover:text-white hover:bg-white/10 font-medium"
             }`}
           >
             Loans
           </Link>
           <Link
             href="/accounts"
-            className={`px-3 py-1 rounded-full text-xs transition-all ${
+            className={`px-3 py-1 rounded-full text-xs transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4edea3] ${
               isAccounts
                 ? "bg-[#4edea3] text-slate-950 font-black shadow-sm"
-                : "text-slate-300 hover:text-white hover:bg-white/10 font-medium"
+                : "text-slate-200 hover:text-white hover:bg-white/10 font-medium"
             }`}
           >
             Accounts
@@ -269,8 +272,8 @@ export function AuraBottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:pb-5">
-      <div className="max-w-md sm:max-w-lg mx-auto px-2 sm:px-4">
-        <div className="pointer-events-auto h-16 w-full rounded-full aura-dock flex items-center justify-between px-1 sm:px-2.5 relative shadow-2xl">
+      <div className="max-w-md sm:max-w-xl mx-auto px-2 sm:px-4">
+        <div className="pointer-events-auto h-16 w-full rounded-full aura-dock flex items-center justify-between px-1.5 sm:px-3 relative shadow-2xl overflow-x-auto no-scrollbar">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -280,10 +283,10 @@ export function AuraBottomNav() {
                 title={item.title}
                 aria-label={item.title}
                 aria-current={item.active ? "page" : undefined}
-                className={`flex flex-col items-center justify-center flex-1 min-w-0 min-h-[44px] py-1 px-0.5 rounded-full transition-all group cursor-pointer active:scale-95 ${
+                className={`flex flex-col items-center justify-center flex-1 min-w-[46px] sm:min-w-0 min-h-[44px] py-1 px-0.5 rounded-2xl transition-all group cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4edea3] ${
                   item.active
-                    ? "text-[#4edea3] font-bold"
-                    : "text-[#bbcabf] hover:text-[#dfe2eb]"
+                    ? "text-[#4edea3] font-bold bg-white/[0.04]"
+                    : "text-slate-300 hover:text-white hover:bg-white/[0.03]"
                 }`}
               >
                 <Icon
@@ -294,8 +297,8 @@ export function AuraBottomNav() {
                 <span className="text-[9px] sm:text-[10px] mt-0.5 tracking-tight font-medium leading-none text-center truncate max-w-full">
                   {item.shortLabel ? (
                     <>
-                      <span className="hidden min-[380px]:inline">{item.label}</span>
-                      <span className="min-[380px]:hidden">{item.shortLabel}</span>
+                      <span className="hidden min-[400px]:inline">{item.label}</span>
+                      <span className="min-[400px]:hidden">{item.shortLabel}</span>
                     </>
                   ) : (
                     item.label

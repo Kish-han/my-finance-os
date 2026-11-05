@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAccount } from "./actions";
@@ -10,6 +11,7 @@ import {
   Plus,
   ShieldCheck,
   Zap,
+  ArrowLeftRight,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AuraHeader, AuraBottomNav } from "@/components/AuraNav";
@@ -297,16 +299,26 @@ async function AccountsContent({
 
         {/* Saved Accounts List */}
         <section className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="h-2 w-2 rounded-full bg-[#4edea3] animate-pulse" />
               <h2 className="text-base sm:text-lg font-bold tracking-tight text-white">
                 Registered Accounts ({(accounts ?? []).length})
               </h2>
             </div>
-            <span className="text-[11px] font-mono text-slate-400">
-              LIQUID VAULT
-            </span>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/transactions/transfer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-xs font-bold text-cyan-300 hover:text-white transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 active:scale-95"
+                title="Transfer between accounts"
+              >
+                <ArrowLeftRight className="h-3.5 w-3.5 text-cyan-400" />
+                <span>Transfer Funds</span>
+              </Link>
+              <span className="text-[11px] font-mono text-slate-400 hidden sm:inline">
+                LIQUID VAULT
+              </span>
+            </div>
           </div>
 
           {!accounts?.length ? (
@@ -373,7 +385,7 @@ async function AccountsContent({
                         </div>
                       </div>
 
-                      <span className="text-[10px] text-slate-500">
+                      <span className="text-[10px] text-slate-400 font-mono">
                         Since {account.opening_balance_date}
                       </span>
                     </div>

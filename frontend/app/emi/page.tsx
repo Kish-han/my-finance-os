@@ -271,7 +271,7 @@ async function EmiPageData({
     paymentResult.error;
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-8 px-4 py-4 sm:px-6 pb-16">
+    <div className="mx-auto w-full max-w-5xl space-y-8 px-4 py-4 sm:px-6 pb-32 sm:pb-36">
       {/* Status Notifications */}
       {params.created === "1" && (
         <div

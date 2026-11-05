@@ -40,7 +40,35 @@ body {
 }
 
 .tabular-nums {
+  font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
+}
+
+/* Accessible visible focus indicators (WCAG 2.4.7 AA) */
+:focus-visible {
+  outline: 2px solid #4edea3;
+  outline-offset: 2px;
+}
+
+/* Utility to hide scrollbars while preserving scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Reduced motion preference support (WCAG 2.3.3) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* -------------------------------------------------------------
