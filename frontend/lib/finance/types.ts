@@ -101,6 +101,8 @@ export type DebtType =
     | "external_loan"
     | "other";
 
+export type EmiPurchaseMode = "existing_spend" | "new_purchase";
+
 export type InterestMethod =
     | "reducing_balance"
     | "flat_rate"
@@ -122,6 +124,9 @@ export interface EmiDebt {
 
     // Optional link to the underlying card_purchase transaction (prevents double counting)
     linkedTransactionId?: string | null;
+
+    // For credit-card EMIs: whether this was converted from existing card spend or was a new direct purchase
+    purchaseMode?: EmiPurchaseMode | null;
 
     // Optional account normally used to repay the EMI.
     paymentAccountId?: string;

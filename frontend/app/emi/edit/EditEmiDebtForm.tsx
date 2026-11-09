@@ -41,6 +41,8 @@ type DebtData = {
   first_emi_due_date: string;
   next_due_date: string | null;
   status: string;
+  purchase_mode?: string | null;
+  linked_transaction_id?: string | null;
   additional_charges_paise?: number | string | null;
   charge_description?: string | null;
   notes: string | null;
@@ -146,6 +148,9 @@ export default function EditEmiDebtForm({
         name="interest_method"
         value={isLoanEmi ? "reducing_balance" : "unknown"}
       />
+      {debt.purchase_mode && (
+        <input type="hidden" name="purchase_mode" value={debt.purchase_mode} />
+      )}
 
       {/* Commitment Type Banner */}
       <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 flex items-center justify-between gap-3">

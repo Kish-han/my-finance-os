@@ -292,6 +292,13 @@ export async function createEmiDebt(formData: FormData) {
   //   - Links the EMI plan to that transaction.
   //   - Does NOT double count.
   const emiScenario = String(formData.get("emi_scenario") ?? "").trim();
+  const rawPurchaseMode = String(formData.get("purchase_mode") ?? "").trim();
+  const purchaseMode =
+    debtType === "credit_card_emi"
+      ? rawPurchaseMode === "new_purchase" || emiScenario === "new_purchase"
+        ? "new_purchase"
+        : "existing_spend"
+      : null;
   const existingTransactionId = String(formData.get("existing_transaction_id") ?? "").trim();
   const categoryId = String(formData.get("category_id") ?? "").trim() || null;
   const purchaseDateInput = String(formData.get("purchase_date") ?? "").trim();
@@ -392,6 +399,7 @@ export async function createEmiDebt(formData: FormData) {
     debt_type: debtType,
     linked_credit_card_id: linkedCreditCardId || null,
     linked_transaction_id: resolvedLinkedTransactionId,
+    purchase_mode: purchaseMode,
     payment_account_id: paymentAccountId || null,
     original_principal_paise: originalPrincipalPaise,
     current_outstanding_principal_paise: outstandingPrincipalPaise,
@@ -415,6 +423,7 @@ export async function createEmiDebt(formData: FormData) {
 
   if (insertError) {
     const isColumnMissing =
+      insertError.message?.includes("purchase_mode") ||
       insertError.message?.includes("linked_transaction_id") ||
       insertError.message?.includes("additional_charges_paise") ||
       insertError.message?.includes("charge_description") ||
@@ -433,7 +442,12 @@ export async function createEmiDebt(formData: FormData) {
       }
 
       const recordWithoutExtraCols = { ...baseDebtRecord };
-      delete (recordWithoutExtraCols as Record<string, unknown>).linked_transaction_id;
+      if (insertError.message?.includes("linked_transaction_id")) {
+        delete (recordWithoutExtraCols as Record<string, unknown>).linked_transaction_id;
+      }
+      if (insertError.message?.includes("purchase_mode")) {
+        delete (recordWithoutExtraCols as Record<string, unknown>).purchase_mode;
+      }
 
       const { error: fallbackError } = await supabase
         .from("emi_debts")
@@ -692,7 +706,8 @@ export async function updateEmiDebt(formData: FormData) {
     }
   }
 
-  const baseUpdateRecord = {
+  const rawPurchaseMode = String(formData.get("purchase_mode") ?? "").trim();
+  const baseUpdateRecord: Record<string, unknown> = {
     name,
     lender_name: lenderName,
     debt_type: debtType,
@@ -709,6 +724,10 @@ export async function updateEmiDebt(formData: FormData) {
     first_emi_due_date: firstEmiDueDate,
     next_due_date: nextDueDate || null,
   };
+
+  if (debtType === "credit_card_emi" && rawPurchaseMode) {
+    baseUpdateRecord.purchase_mode = rawPurchaseMode;
+  }
 
   const { error: updateError } = await supabase
     .from("emi_debts")

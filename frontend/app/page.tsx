@@ -378,7 +378,7 @@ async function DashboardContent({
     supabase
       .from("emi_debts")
       .select(
-        "id, name, lender_name, debt_type, linked_credit_card_id, linked_transaction_id, status, emi_amount_paise, current_outstanding_principal_paise, original_principal_paise, annual_interest_rate_basis_points, total_tenure_months, installments_paid_before_tracking, first_emi_due_date, outstanding_as_of_date, next_due_date"
+        "id, name, lender_name, debt_type, linked_credit_card_id, linked_transaction_id, purchase_mode, status, emi_amount_paise, current_outstanding_principal_paise, original_principal_paise, annual_interest_rate_basis_points, total_tenure_months, installments_paid_before_tracking, first_emi_due_date, outstanding_as_of_date, next_due_date"
       )
       .eq("user_id", userId)
       .eq("status", "active")

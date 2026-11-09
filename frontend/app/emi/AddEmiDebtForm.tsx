@@ -521,6 +521,11 @@ export default function AddEmiDebtForm({
           <input type="hidden" name="debt_type" value="credit_card_emi" />
           <input type="hidden" name="interest_method" value="unknown" />
           <input type="hidden" name="emi_scenario" value={cardEmiScenario} />
+          <input
+            type="hidden"
+            name="purchase_mode"
+            value={cardEmiScenario === "convert_purchase" ? "existing_spend" : "new_purchase"}
+          />
           {cardEmiScenario === "new_purchase" && (
             <input type="hidden" name="is_new_purchase" value="true" />
           )}

@@ -45,6 +45,8 @@ export interface CardLinkedEmiInput {
   linked_credit_card_id?: string | null;
   linkedTransactionId?: string | null;
   linked_transaction_id?: string | null;
+  purchaseMode?: string | null;
+  purchase_mode?: string | null;
   currentOutstandingPrincipalPaise?: number | string;
   current_outstanding_principal_paise?: number | string;
   status?: string;
@@ -200,12 +202,24 @@ export function calculateBlockedEmiPrincipal(
     const status = (emi.status || "active").toLowerCase();
     if (status === "closed" || status === "foreclosed") continue;
 
+    // 1. Existing spend EMIs: The spend is already part of the card's balance/opening dues.
+    // Must NOT add principal a second time to credit-card utilization.
+    const mode = (emi.purchaseMode ?? emi.purchase_mode ?? "").toLowerCase();
+    if (mode === "existing_spend") {
+      continue;
+    }
+
+    // 2. Linked transactions: If an EMI is linked to a transaction already recorded
+    // on this card in the ledger, the purchase is already in revolving outstanding.
+    // Skip to prevent double counting.
     const linkedTxId = emi.linkedTransactionId ?? emi.linked_transaction_id;
     if (linkedTxId && cardTxIds.has(String(linkedTxId))) {
       // Already represented in card ledger transactions; skip to prevent double counting
       continue;
     }
 
+    // 3. New purchase EMIs or unlinked legacy records:
+    // Adds purchase amount exactly once to blocked credit limit.
     const principal = Number(
       emi.currentOutstandingPrincipalPaise ??
         emi.current_outstanding_principal_paise ??

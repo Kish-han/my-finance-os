@@ -127,7 +127,7 @@ async function NewTransactionContent({
 
     supabase
       .from("emi_debts")
-      .select("id, linked_credit_card_id, linked_transaction_id, current_outstanding_principal_paise, status")
+      .select("id, linked_credit_card_id, linked_transaction_id, purchase_mode, current_outstanding_principal_paise, status")
       .eq("user_id", userId)
       .eq("status", "active"),
 

@@ -277,16 +277,32 @@ function formatCardDisplayName(bankName?: string | null, cardName?: string | nul
   if (!bank) return name;
   if (!name) return bank;
 
+  // Trim trailing institutional noise words (e.g. 'Standard Chartered Bank' -> 'Standard Chartered')
+  const cleanBank = bank.replace(/\s+(bank|cards?|credit\s+cards?|ltd|limited)\s*$/gi, "").trim();
+
   const lowerBank = bank.toLowerCase();
   const lowerName = name.toLowerCase();
+  const lowerCleanBank = cleanBank.toLowerCase();
 
-  // If card name already incorporates the bank name (e.g. "Standard Chartered Platinum" with "Standard Chartered Bank")
-  if (lowerName.includes(lowerBank) || lowerBank.includes(lowerName)) {
-    return name.length >= bank.length ? name : bank;
+  // If card name already incorporates bank name (e.g. 'Standard Chartered Platinum' with 'Standard Chartered Bank')
+  if (lowerName.includes(lowerBank) || (lowerCleanBank && lowerName.includes(lowerCleanBank))) {
+    return name;
+  }
+  if (lowerBank.includes(lowerName)) {
+    return bank;
   }
 
-  // Concatenate cleanly in a single line
-  return `${bank} · ${name}`;
+  // Check word-by-word overlap
+  const bankTokens = lowerCleanBank.split(/\s+/).filter((t) => t.length > 2);
+  const nameTokens = lowerName.split(/\s+/).filter((t) => t.length > 2);
+  const common = bankTokens.filter((t) => nameTokens.includes(t));
+  if (common.length >= Math.min(bankTokens.length, 2) && common.length > 0) {
+    return name;
+  }
+
+  // Concatenate cleanly in a single line using clean bank name if available
+  const displayBank = cleanBank || bank;
+  return `${displayBank} · ${name}`;
 }
 
 export function CreditCardStackView({
@@ -996,18 +1012,18 @@ export function CreditCardStackView({
                   >
                     <div className="flex flex-col min-w-0 flex-1">
                       <span
-                        className={`text-[9px] tracking-wider uppercase font-medium truncate whitespace-nowrap block max-w-[170px] sm:max-w-[220px] ${
+                        className={`text-[9px] tracking-wider uppercase font-medium truncate whitespace-nowrap block ${
                           isLightCard ? "text-[#2c1d02]/70" : "text-[#bbcabf]/70"
                         }`}
                       >
-                        {card.bank_name}
+                        CARDHOLDER
                       </span>
                       <span
                         className={`text-xs sm:text-sm tracking-wide font-semibold uppercase truncate whitespace-nowrap block max-w-[150px] sm:max-w-[200px] ${
                           isLightCard ? "text-[#2c1d02]" : "text-white"
                         }`}
                       >
-                        {card.cardholder_name || cardholderName || "Not set"}
+                        {card.cardholder_name || cardholderName || "VALUED CARDMEMBER"}
                       </span>
                     </div>
 

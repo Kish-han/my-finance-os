@@ -652,4 +652,96 @@ describe("Card Limit Engine - Authoritative Credit Limit Enforcement", () => {
     expect(blockedResult.currentAvailablePaise).toBe(4_000_000);
     expect(blockedResult.exceededByPaise).toBe(500_000);
   });
+
+  // Case 17: purchase_mode = 'existing_spend' does not block principal a second time
+  it("Case 17: skips blocking principal when purchase_mode = 'existing_spend' even if unlinked", () => {
+    const card50k: CardLimitInput = {
+      id: "card-scb-50k",
+      creditLimitPaise: 5_000_000, // ₹50,000
+      openingOutstandingPaise: 1_000_000, // ₹10,000 opening dues
+      openingOutstandingDate: "2026-01-01",
+    };
+
+    const existingSpendEmi: CardLinkedEmiInput = {
+      id: "emi-existing",
+      linkedCreditCardId: card50k.id,
+      linkedTransactionId: null,
+      currentOutstandingPrincipalPaise: 1_000_000, // ₹10,000
+      purchaseMode: "existing_spend",
+      status: "active",
+    };
+
+    // calculateBlockedEmiPrincipal must return 0
+    const blocked = calculateBlockedEmiPrincipal(card50k.id, [existingSpendEmi], []);
+    expect(blocked).toBe(0);
+
+    // Total utilization must remain ₹10,000 (from opening balance), NOT ₹20,000
+    const util = calculateCardCreditUtilization(card50k, [], [existingSpendEmi]);
+    expect(util.totalUtilizedCreditPaise).toBe(1_000_000);
+    expect(util.availableCreditPaise).toBe(4_000_000);
+  });
+
+  // Case 18: purchase_mode = 'new_purchase' with linked ledger transaction counts exactly once
+  it("Case 18: purchase_mode = 'new_purchase' with linked transaction counts exactly once via ledger transaction", () => {
+    const card50k: CardLimitInput = {
+      id: "card-scb-50k",
+      creditLimitPaise: 5_000_000, // ₹50,000
+      openingOutstandingPaise: 0,
+      openingOutstandingDate: "2026-01-01",
+    };
+
+    const tx: CardTransactionInput = {
+      id: "tx-emi-purchase",
+      creditCardId: card50k.id,
+      amountPaise: 1_500_000, // ₹15,000
+      type: "card_purchase",
+      date: "2026-02-01",
+    };
+
+    const newPurchaseEmiLinked: CardLinkedEmiInput = {
+      id: "emi-new-linked",
+      linkedCreditCardId: card50k.id,
+      linkedTransactionId: tx.id,
+      currentOutstandingPrincipalPaise: 1_500_000,
+      purchaseMode: "new_purchase",
+      status: "active",
+    };
+
+    const blocked = calculateBlockedEmiPrincipal(card50k.id, [newPurchaseEmiLinked], [tx]);
+    expect(blocked).toBe(0); // 0 because tx already provides the utilization
+
+    const util = calculateCardCreditUtilization(card50k, [tx], [newPurchaseEmiLinked]);
+    expect(util.revolvingOutstandingPaise).toBe(1_500_000);
+    expect(util.blockedEmiPrincipalPaise).toBe(0);
+    expect(util.totalUtilizedCreditPaise).toBe(1_500_000);
+    expect(util.availableCreditPaise).toBe(3_500_000);
+  });
+
+  // Case 19: purchase_mode = 'new_purchase' without ledger transaction counts exactly once via blocked principal
+  it("Case 19: purchase_mode = 'new_purchase' without ledger transaction counts exactly once via blocked principal", () => {
+    const card50k: CardLimitInput = {
+      id: "card-scb-50k",
+      creditLimitPaise: 5_000_000, // ₹50,000
+      openingOutstandingPaise: 0,
+      openingOutstandingDate: "2026-01-01",
+    };
+
+    const newPurchaseEmiUnlinked: CardLinkedEmiInput = {
+      id: "emi-new-unlinked",
+      linkedCreditCardId: card50k.id,
+      linkedTransactionId: null,
+      currentOutstandingPrincipalPaise: 1_500_000,
+      purchaseMode: "new_purchase",
+      status: "active",
+    };
+
+    const blocked = calculateBlockedEmiPrincipal(card50k.id, [newPurchaseEmiUnlinked], []);
+    expect(blocked).toBe(1_500_000);
+
+    const util = calculateCardCreditUtilization(card50k, [], [newPurchaseEmiUnlinked]);
+    expect(util.revolvingOutstandingPaise).toBe(0);
+    expect(util.blockedEmiPrincipalPaise).toBe(1_500_000);
+    expect(util.totalUtilizedCreditPaise).toBe(1_500_000);
+    expect(util.availableCreditPaise).toBe(3_500_000);
+  });
 });

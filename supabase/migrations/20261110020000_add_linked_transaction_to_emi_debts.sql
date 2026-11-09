@@ -16,9 +16,12 @@
 --   ALTER TABLE emi_debts DROP COLUMN IF EXISTS linked_transaction_id;
 -- ==============================================================================
 
--- 1. Add linked_transaction_id column referencing transactions table
+-- 1. Add linked_transaction_id and purchase_mode columns
 ALTER TABLE emi_debts
   ADD COLUMN IF NOT EXISTS linked_transaction_id UUID REFERENCES transactions(id) ON DELETE SET NULL;
+
+ALTER TABLE emi_debts
+  ADD COLUMN IF NOT EXISTS purchase_mode TEXT DEFAULT NULL;
 
 -- 2. Index for fast lookup of linked transactions
 CREATE INDEX IF NOT EXISTS idx_emi_debts_linked_tx
@@ -93,6 +96,7 @@ BEGIN
     FROM emi_debts
     WHERE linked_credit_card_id = NEW.credit_card_id
       AND status = 'active'
+      AND COALESCE(purchase_mode, '') <> 'existing_spend'
       AND (
         linked_transaction_id IS NULL
         OR linked_transaction_id NOT IN (

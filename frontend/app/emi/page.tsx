@@ -47,6 +47,7 @@ type EmiDebtRow = {
   lender_name: string | null;
   linked_credit_card_id: string | null;
   linked_transaction_id?: string | null;
+  purchase_mode?: string | null;
   payment_account_id: string | null;
   original_principal_paise: number | string;
   current_outstanding_principal_paise: number | string;
@@ -208,7 +209,7 @@ async function EmiPageData({
       supabase
         .from("emi_debts")
         .select(
-          "id, name, debt_type, lender_name, linked_credit_card_id, linked_transaction_id, payment_account_id, original_principal_paise, current_outstanding_principal_paise, outstanding_as_of_date, annual_interest_rate_basis_points, interest_method, total_tenure_months, installments_paid_before_tracking, emi_amount_paise, first_emi_due_date, next_due_date, status, additional_charges_paise, charge_description, notes"
+          "id, name, debt_type, lender_name, linked_credit_card_id, linked_transaction_id, purchase_mode, payment_account_id, original_principal_paise, current_outstanding_principal_paise, outstanding_as_of_date, annual_interest_rate_basis_points, interest_method, total_tenure_months, installments_paid_before_tracking, emi_amount_paise, first_emi_due_date, next_due_date, status, additional_charges_paise, charge_description, notes"
         )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false }),
@@ -538,6 +539,14 @@ async function EmiPageData({
                       >
                         {isLoan ? "Loan EMI" : "Card EMI"}
                       </Badge>
+                      {!isLoan && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] uppercase font-bold tracking-wider border-white/20 text-slate-300 bg-white/5"
+                        >
+                          {debt.purchase_mode === "new_purchase" ? "New Purchase" : "Existing Spend"}
+                        </Badge>
+                      )}
                       <Badge
                         variant={isActive ? "cyan" : "outline"}
                         className="text-[10px] uppercase font-bold tracking-wider"
