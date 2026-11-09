@@ -20,6 +20,7 @@ import {
   Handshake,
 } from "lucide-react";
 import { ThemeToggle } from "./ThemeProvider";
+import { logout } from "@/app/login/actions";
 
 interface AuraNavProps {
   sectionTitle?: string;
@@ -253,17 +254,15 @@ export function AuraSidebar({
             </div>
           </Link>
 
-          {signOutAction && (
-            <form action={signOutAction} className="shrink-0">
-              <button
-                type="submit"
-                title="Sign out"
-                className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-200/60 dark:hover:bg-white/10 text-[var(--foreground-subtle)] hover:text-rose-500 transition-colors cursor-pointer"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-              </button>
-            </form>
-          )}
+          <form action={signOutAction || logout} className="shrink-0">
+            <button
+              type="submit"
+              title="Sign out of AURA Wealth"
+              className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-rose-500/15 text-[var(--foreground-subtle)] hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          </form>
         </div>
       </div>
     </aside>
@@ -342,14 +341,26 @@ export function AuraHeader({
           {/* Theme Switcher Toggle */}
           <ThemeToggle compact />
 
-          {/* User Profile Pill on Mobile */}
+          {/* User Profile Pill */}
           <Link
             href="/profile"
-            title={userEmail ? `Signed in as ${userEmail}` : "Profile Settings"}
-            className="lg:hidden flex items-center justify-center h-8 w-8 rounded-xl bg-slate-200/80 dark:bg-white/[0.06] border border-slate-300/80 dark:border-white/10 text-[var(--foreground)] hover:border-emerald-500/40 transition-all cursor-pointer"
+            title={userEmail ? `Signed in as ${userEmail} · Profile Settings` : "Profile Settings"}
+            className="flex items-center justify-center h-8 w-8 rounded-xl bg-slate-200/80 dark:bg-white/[0.06] border border-slate-300/80 dark:border-white/10 text-[var(--foreground)] hover:border-emerald-500/40 transition-all cursor-pointer"
           >
             <User className="h-4 w-4" />
           </Link>
+
+          {/* Quick Sign Out Action */}
+          <form action={signOutAction || logout} className="shrink-0">
+            <button
+              type="submit"
+              title="Sign out of AURA Wealth"
+              className="flex items-center gap-1.5 h-8 px-2 sm:px-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-xs font-bold transition-all cursor-pointer"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">Logout</span>
+            </button>
+          </form>
         </div>
       </div>
     </header>
@@ -360,7 +371,13 @@ export function AuraHeader({
 /* =========================================================
    3. MOBILE FLOATING LIQUID GLASS DOCK (lg:hidden)
 ========================================================= */
-export function AuraBottomNav() {
+export function AuraBottomNav({
+  signOutAction,
+}: {
+  userEmail?: string | null;
+  displayName?: string | null;
+  signOutAction?: () => Promise<void>;
+} = {}) {
   const pathname = usePathname();
   const { isVault, isTransactions, isBudgets, isCards, isLoans, isAccounts, isRecurring, isMoneyTracker } =
     getAuraNavActiveState(pathname);
@@ -572,16 +589,28 @@ export function AuraBottomNav() {
               </Link>
             </div>
 
-            <div className="mt-4 pt-4 border-t border-[var(--surface-panel-border)] flex items-center justify-between">
-              <Link
-                href="/profile"
-                onClick={() => setIsMoreOpen(false)}
-                className="flex items-center gap-2 text-xs font-bold text-[var(--foreground)] hover:text-emerald-600 dark:hover:text-[#4edea3] transition-colors"
-              >
-                <User className="h-4 w-4" />
-                <span>Account & Profile Settings</span>
-              </Link>
-              <ThemeToggle compact />
+            <div className="mt-4 pt-4 border-t border-[var(--surface-panel-border)] space-y-3">
+              <div className="flex items-center justify-between">
+                <Link
+                  href="/profile"
+                  onClick={() => setIsMoreOpen(false)}
+                  className="flex items-center gap-2 text-xs font-bold text-[var(--foreground)] hover:text-emerald-600 dark:hover:text-[#4edea3] transition-colors"
+                >
+                  <User className="h-4 w-4" />
+                  <span>Account & Profile Settings</span>
+                </Link>
+                <ThemeToggle compact />
+              </div>
+
+              <form action={signOutAction || logout}>
+                <button
+                  type="submit"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/25 text-xs font-bold transition-all cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Sign Out of AURA Wealth</span>
+                </button>
+              </form>
             </div>
           </div>
         </div>

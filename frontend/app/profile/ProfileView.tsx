@@ -20,8 +20,10 @@ import {
   Save,
   Clock,
   Sparkles,
+  LogOut,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { logout } from "../login/actions";
 import {
   updateDisplayNameAction,
   requestEmailChangeAction,
@@ -680,6 +682,46 @@ export function ProfileView({
               </span>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* =========================================================
+          SECTION 5: Session & Sign Out
+      ========================================================= */}
+      <section className="aura-panel p-6 sm:p-7 space-y-4">
+        <div className="flex items-center gap-2.5 border-b border-white/10 pb-4">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
+            <LogOut className="h-4 w-4" />
+          </div>
+          <div>
+            <h2 className="text-base sm:text-lg font-bold tracking-tight text-white">
+              Session Management
+            </h2>
+            <p className="text-xs text-slate-400">
+              Sign out of this device or terminate your active session
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+          <div>
+            <p className="text-xs text-slate-300 font-medium">
+              Signed in as <strong className="text-white">{email}</strong>
+            </p>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Securely logs out and invalidates the session token on this browser.
+            </p>
+          </div>
+
+          <form action={logout}>
+            <button
+              type="submit"
+              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 hover:text-rose-300 border border-rose-500/30 text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Log Out of AURA Wealth</span>
+            </button>
+          </form>
         </div>
       </section>
     </div>
