@@ -63,7 +63,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitializerScript }} />
       </head>
-      <body className="min-h-full flex flex-col bg-[var(--background)] text-[var(--foreground)] transition-colors duration-300">
+      <body
+        suppressHydrationWarning
+        className="min-h-full flex flex-col bg-[var(--background)] text-[var(--foreground)] transition-colors duration-300"
+      >
         <ThemeProvider>
           {children}
         </ThemeProvider>
