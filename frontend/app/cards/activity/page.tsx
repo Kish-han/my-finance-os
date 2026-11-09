@@ -16,6 +16,9 @@ import {
   Wallet,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { AuraHeader, AuraBottomNav } from "@/components/AuraNav";
+import { logout } from "../../login/actions";
+import { resolveDisplayName } from "@/lib/auth/user-display";
 import {
   calculateCardCreditUtilization,
   buildLimitExceededMessage,
@@ -137,14 +140,18 @@ async function ActivityContent({
   const params = await searchParams;
   const supabase = await createClient();
 
-  const { data: authData, error: authError } =
-    await supabase.auth.getClaims();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
 
-  const userId = authData?.claims?.sub;
-
-  if (authError || typeof userId !== "string") {
+  if (userError || !user) {
     redirect("/login");
   }
+
+  const userId = user.id;
+  const userEmail = user.email || "Private Client";
+  const displayName = resolveDisplayName(user);
 
   const [cardsResult, accountsResult, activityResult, emisResult] =
     await Promise.all([
@@ -256,48 +263,33 @@ async function ActivityContent({
   const activityError = activityResult.failed;
 
   return (
-    <main className="relative min-h-screen bg-[#07090e] px-4 py-8 text-slate-100 selection:bg-amber-500/30 selection:text-amber-200">
+    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] pt-20 pb-36 lg:pl-64 relative overflow-hidden selection:bg-amber-500/30 selection:text-amber-200 transition-colors">
       {/* Ambient glowing lighting */}
       <div className="pointer-events-none fixed -left-32 top-10 h-96 w-96 rounded-full bg-rose-500/10 blur-[130px] animate-pulse-glow" />
       <div className="pointer-events-none fixed -right-32 top-1/4 h-[30rem] w-[30rem] rounded-full bg-emerald-500/10 blur-[140px] animate-pulse-glow" style={{ animationDelay: "2s" }} />
       <div className="pointer-events-none fixed bottom-10 left-1/3 h-80 w-80 rounded-full bg-amber-500/10 blur-[120px] animate-pulse-glow" style={{ animationDelay: "4s" }} />
 
-      <div className="relative mx-auto max-w-4xl space-y-8">
-        {/* Apple-style floating frosted pill nav */}
-        <header className="sticky top-4 z-40 flex items-center justify-between rounded-full border border-white/10 bg-[#0e131f]/75 px-5 py-2.5 backdrop-blur-2xl shadow-2xl shadow-black/50 transition-all">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 via-amber-500 to-amber-700 text-slate-950 shadow-lg shadow-amber-500/30 ring-1 ring-white/40">
-              <CreditCard className="h-4 w-4" />
-            </div>
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400">
-                REVOLVING CREDIT LEDGER
-              </span>
-              <h1 className="text-sm font-black tracking-tight text-white sm:text-base">
-                Card Activity
-              </h1>
-            </div>
-          </div>
+      <AuraHeader
+        sectionTitle="Card Activity"
+        userEmail={userEmail}
+        displayName={displayName}
+        signOutAction={logout}
+      />
 
-          <nav className="flex items-center gap-2">
-            <Link
-              href="/cards"
-              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-slate-300 backdrop-blur-md transition-all hover:border-amber-400/40 hover:bg-white/10 hover:text-white"
-            >
-              <span>My Cards</span>
-            </Link>
-
-            <div className="h-4 w-px bg-white/10" />
-
-            <Link
-              href="/"
-              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-slate-300 backdrop-blur-md transition-all hover:border-white/20 hover:bg-white/10 hover:text-white"
-            >
-              <ArrowLeft className="h-3 w-3" />
-              <span>Dashboard</span>
-            </Link>
-          </nav>
-        </header>
+      <div className="relative mx-auto max-w-4xl px-4 sm:px-6 space-y-8">
+        {/* Navigation context bar */}
+        <div className="flex items-center justify-between">
+          <Link
+            href="/cards"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back to Cards</span>
+          </Link>
+          <span className="text-[10px] font-mono uppercase tracking-widest text-amber-500 font-bold">
+            REVOLVING CREDIT LEDGER
+          </span>
+        </div>
 
         {/* Status notifications */}
         {params.created === "purchase" && (
@@ -343,19 +335,19 @@ async function ActivityContent({
         )}
 
         {/* Floating Hero Outstanding Card */}
-        <section className="relative overflow-hidden rounded-[2.5rem] border border-amber-500/20 bg-gradient-to-br from-[#121626]/90 via-[#0a0d16]/90 to-[#07090e]/95 p-7 sm:p-9 shadow-2xl cred-glow-amber animate-float-slow backdrop-blur-2xl">
+        <section className="relative overflow-hidden rounded-[2.5rem] border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-slate-900/40 to-slate-950/60 dark:from-[#121626]/90 dark:via-[#0a0d16]/90 dark:to-[#07090e]/95 p-7 sm:p-9 shadow-2xl backdrop-blur-2xl">
           <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-amber-500/20 blur-3xl" />
           <div className="pointer-events-none absolute -left-20 -bottom-20 h-64 w-64 rounded-full bg-rose-500/15 blur-3xl" />
 
           <div className="relative z-10 space-y-4">
             <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300">
+              <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-300">
                 Total Outstanding Across Cards
               </span>
             </div>
 
-            <div className="text-4xl sm:text-6xl font-black tracking-tight text-white tabular-nums">
+            <div className="text-4xl sm:text-6xl font-black tracking-tight text-[var(--foreground)] tabular-nums">
               {canCalculate
                 ? formatRupees(
                     cards.reduce(
@@ -367,7 +359,7 @@ async function ActivityContent({
                 : "Unavailable"}
             </div>
 
-            <p className="text-xs sm:text-sm text-slate-400">
+            <p className="text-xs sm:text-sm text-[var(--muted-foreground)]">
               Computed from card opening balances, recorded purchases, and verified repayments.
             </p>
           </div>
@@ -376,35 +368,35 @@ async function ActivityContent({
         {/* Dual Actions Grid: Purchase & Repayment Forms */}
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
           {/* Card Purchase Form (Spends credit limit) */}
-          <section className="apple-panel p-6 sm:p-7 space-y-5">
+          <section className="aura-panel p-6 sm:p-7 space-y-5">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500/15 text-rose-400 ring-1 ring-rose-500/30">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500/15 text-rose-500 dark:text-rose-400 ring-1 ring-rose-500/30">
                 <ShoppingBag className="h-4 w-4" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-base font-bold tracking-tight text-white">
+                  <h2 className="text-base font-bold tracking-tight text-[var(--foreground)]">
                     Record Card Purchase
                   </h2>
                   <Link
                     href={params.card_id ? `/transactions/new?type=expense&card_id=${params.card_id}` : "/transactions/new?type=expense"}
-                    className="text-[11px] font-semibold text-rose-300 hover:text-rose-200 transition-colors inline-flex items-center gap-1 shrink-0"
+                    className="text-[11px] font-semibold text-rose-600 dark:text-rose-300 hover:text-rose-500 transition-colors inline-flex items-center gap-1 shrink-0"
                   >
                     <span>Use central composer</span>
                     <ArrowUpRight className="h-3 w-3" />
                   </Link>
                 </div>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[var(--muted-foreground)]">
                   Increases revolving debt. Doesn&apos;t deduct bank cash.
                 </p>
               </div>
             </div>
 
             {cardsError ? (
-              <p className="text-sm text-rose-400">Credit cards couldn&apos;t be loaded.</p>
+              <p className="text-sm text-rose-500">Credit cards couldn&apos;t be loaded.</p>
             ) : cards.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-6 text-center">
-                <p className="text-xs font-semibold text-slate-300">
+              <div className="rounded-2xl border border-dashed border-[var(--border)] bg-slate-50 dark:bg-white/5 p-6 text-center">
+                <p className="text-xs font-semibold text-[var(--muted-foreground)]">
                   Add a credit card before recording a purchase.
                 </p>
                 <Link
@@ -419,7 +411,7 @@ async function ActivityContent({
                 <div>
                   <label
                     htmlFor="purchase-card"
-                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300"
+                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]"
                   >
                     Credit card
                   </label>
@@ -428,16 +420,16 @@ async function ActivityContent({
                     name="creditCardId"
                     required
                     defaultValue={params.card_id ?? ""}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition-all focus:border-rose-400 focus:bg-white/10 focus:ring-4 focus:ring-rose-400/20"
+                    className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none transition-all focus:border-rose-400 focus:bg-white/10 focus:ring-4 focus:ring-rose-400/20"
                   >
-                    <option value="" disabled className="bg-slate-900 text-slate-400">
+                    <option value="" disabled className="bg-[var(--card)] text-[var(--muted-foreground)]">
                       Choose a card
                     </option>
                     {cards.map((card) => {
                       const util = cardCreditUtilByCard.get(card.id);
                       const avail = util ? util.availableCreditPaise : 0;
                       return (
-                        <option key={card.id} value={card.id} className="bg-slate-900 text-white">
+                        <option key={card.id} value={card.id} className="bg-[var(--card)] text-[var(--foreground)]">
                           {card.name} · {card.bank_name} (Avail: {formatRupees(avail)})
                         </option>
                       );
@@ -448,7 +440,7 @@ async function ActivityContent({
                 <div>
                   <label
                     htmlFor="purchase-amount"
-                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300"
+                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]"
                   >
                     Amount (₹)
                   </label>
@@ -461,14 +453,14 @@ async function ActivityContent({
                     step="0.01"
                     required
                     placeholder="e.g. 1500"
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold tabular-nums text-white placeholder:text-slate-500 outline-none transition-all focus:border-rose-400 focus:bg-white/10 focus:ring-4 focus:ring-rose-400/20"
+                    className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm font-semibold tabular-nums text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all focus:border-rose-400 focus:bg-white/10 focus:ring-4 focus:ring-rose-400/20"
                   />
                 </div>
 
                 <div>
                   <label
                     htmlFor="purchase-description"
-                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300"
+                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]"
                   >
                     What did you buy?
                   </label>
@@ -478,14 +470,14 @@ async function ActivityContent({
                     required
                     maxLength={160}
                     placeholder="e.g. Flight tickets, Groceries"
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition-all focus:border-rose-400 focus:bg-white/10 focus:ring-4 focus:ring-rose-400/20"
+                    className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all focus:border-rose-400 focus:bg-white/10 focus:ring-4 focus:ring-rose-400/20"
                   />
                 </div>
 
                 <div>
                   <label
                     htmlFor="purchase-category"
-                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300"
+                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]"
                   >
                     Spending category
                   </label>
@@ -495,14 +487,14 @@ async function ActivityContent({
                     required
                     maxLength={60}
                     placeholder="e.g. Travel, Food & dining"
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition-all focus:border-rose-400 focus:bg-white/10 focus:ring-4 focus:ring-rose-400/20"
+                    className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all focus:border-rose-400 focus:bg-white/10 focus:ring-4 focus:ring-rose-400/20"
                   />
                 </div>
 
                 <div>
                   <label
                     htmlFor="purchase-date"
-                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300"
+                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]"
                   >
                     Purchase date
                   </label>
@@ -513,7 +505,7 @@ async function ActivityContent({
                     required
                     max={indiaToday()}
                     defaultValue={indiaToday()}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition-all focus:border-rose-400 focus:bg-white/10 focus:ring-4 focus:ring-rose-400/20"
+                    className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none transition-all focus:border-rose-400 focus:bg-white/10 focus:ring-4 focus:ring-rose-400/20"
                   />
                 </div>
 
@@ -529,26 +521,26 @@ async function ActivityContent({
           </section>
 
           {/* Card Repayment Form (Clears card debt via account) */}
-          <section className="apple-panel p-6 sm:p-7 space-y-5">
+          <section className="aura-panel p-6 sm:p-7 space-y-5">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/30">
                 <Wallet className="h-4 w-4" />
               </div>
               <div>
-                <h2 className="text-base font-bold tracking-tight text-white">
+                <h2 className="text-base font-bold tracking-tight text-[var(--foreground)]">
                   Record Card Repayment
                 </h2>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[var(--muted-foreground)]">
                   Deducts bank cash and eliminates card debt.
                 </p>
               </div>
             </div>
 
             {cardsError || accountsError ? (
-              <p className="text-sm text-rose-400">Cards or accounts couldn&apos;t be loaded.</p>
+              <p className="text-sm text-rose-500">Cards or accounts couldn&apos;t be loaded.</p>
             ) : cards.length === 0 || accounts.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-6 text-center space-y-3">
-                <p className="text-xs font-semibold text-slate-300">
+              <div className="rounded-2xl border border-dashed border-[var(--border)] bg-slate-50 dark:bg-white/5 p-6 text-center space-y-3">
+                <p className="text-xs font-semibold text-[var(--muted-foreground)]">
                   Add a credit card and bank account before recording a repayment.
                 </p>
                 <div className="flex justify-center gap-2">
@@ -575,7 +567,7 @@ async function ActivityContent({
                 <div>
                   <label
                     htmlFor="payment-card"
-                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300"
+                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]"
                   >
                     Credit card to pay
                   </label>
@@ -584,13 +576,13 @@ async function ActivityContent({
                     name="creditCardId"
                     required
                     defaultValue={params.card_id ?? ""}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition-all focus:border-emerald-400 focus:bg-white/10 focus:ring-4 focus:ring-emerald-400/20"
+                    className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none transition-all focus:border-emerald-500 focus:bg-white/10 focus:ring-4 focus:ring-emerald-500/20"
                   >
-                    <option value="" disabled className="bg-slate-900 text-slate-400">
+                    <option value="" disabled className="bg-[var(--card)] text-[var(--muted-foreground)]">
                       Choose a card
                     </option>
                     {cards.map((card) => (
-                      <option key={card.id} value={card.id} className="bg-slate-900 text-white">
+                      <option key={card.id} value={card.id} className="bg-[var(--card)] text-[var(--foreground)]">
                         {card.name} · Debt {formatRupees(outstandingByCard.get(card.id) ?? 0)}
                       </option>
                     ))}
@@ -600,7 +592,7 @@ async function ActivityContent({
                 <div>
                   <label
                     htmlFor="payment-account"
-                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300"
+                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]"
                   >
                     Pay from bank / cash wallet
                   </label>
@@ -609,13 +601,13 @@ async function ActivityContent({
                     name="fromAccountId"
                     required
                     defaultValue=""
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition-all focus:border-emerald-400 focus:bg-white/10 focus:ring-4 focus:ring-emerald-400/20"
+                    className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none transition-all focus:border-emerald-500 focus:bg-white/10 focus:ring-4 focus:ring-emerald-500/20"
                   >
-                    <option value="" disabled className="bg-slate-900 text-slate-400">
+                    <option value="" disabled className="bg-[var(--card)] text-[var(--muted-foreground)]">
                       Choose payment source
                     </option>
                     {accounts.map((account) => (
-                      <option key={account.id} value={account.id} className="bg-slate-900 text-white">
+                      <option key={account.id} value={account.id} className="bg-[var(--card)] text-[var(--foreground)]">
                         {account.name} {account.institution ? ` · ${account.institution}` : ""}
                       </option>
                     ))}
@@ -625,7 +617,7 @@ async function ActivityContent({
                 <div>
                   <label
                     htmlFor="payment-amount"
-                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300"
+                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]"
                   >
                     Amount paid (₹)
                   </label>
@@ -638,14 +630,14 @@ async function ActivityContent({
                     step="0.01"
                     required
                     placeholder="e.g. 5000"
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold tabular-nums text-white placeholder:text-slate-500 outline-none transition-all focus:border-emerald-400 focus:bg-white/10 focus:ring-4 focus:ring-emerald-400/20"
+                    className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm font-semibold tabular-nums text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all focus:border-emerald-500 focus:bg-white/10 focus:ring-4 focus:ring-emerald-500/20"
                   />
                 </div>
 
                 <div>
                   <label
                     htmlFor="payment-description"
-                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300"
+                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]"
                   >
                     Description
                   </label>
@@ -655,14 +647,14 @@ async function ActivityContent({
                     maxLength={160}
                     defaultValue="Credit card repayment"
                     required
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition-all focus:border-emerald-400 focus:bg-white/10 focus:ring-4 focus:ring-emerald-400/20"
+                    className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all focus:border-emerald-500 focus:bg-white/10 focus:ring-4 focus:ring-emerald-500/20"
                   />
                 </div>
 
                 <div>
                   <label
                     htmlFor="payment-date"
-                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300"
+                    className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]"
                   >
                     Payment date
                   </label>
@@ -674,7 +666,7 @@ async function ActivityContent({
                     max={indiaToday()}
                     defaultValue={indiaToday()}
                     required
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition-all focus:border-emerald-400 focus:bg-white/10 focus:ring-4 focus:ring-emerald-400/20"
+                    className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none transition-all focus:border-emerald-500 focus:bg-white/10 focus:ring-4 focus:ring-emerald-500/20"
                   />
                 </div>
 
@@ -694,8 +686,8 @@ async function ActivityContent({
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-              <h2 className="text-base sm:text-lg font-bold tracking-tight text-white">
+              <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              <h2 className="text-base sm:text-lg font-bold tracking-tight text-[var(--foreground)]">
                 Recent Activity ({sortedActivities.length})
               </h2>
             </div>
@@ -706,12 +698,12 @@ async function ActivityContent({
               Card activity couldn&apos;t be loaded.
             </div>
           ) : sortedActivities.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.02] p-10 text-center backdrop-blur-md">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/30">
+            <div className="rounded-3xl border border-dashed border-[var(--border)] bg-slate-50/50 dark:bg-white/[0.02] p-10 text-center backdrop-blur-md">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500 ring-1 ring-amber-500/30">
                 <CreditCard className="h-7 w-7" />
               </div>
-              <h3 className="mt-4 text-base font-bold text-white">No card activity yet</h3>
-              <p className="mt-1 text-xs text-slate-400">
+              <h3 className="mt-4 text-base font-bold text-[var(--foreground)]">No card activity yet</h3>
+              <p className="mt-1 text-xs text-[var(--muted-foreground)]">
                 Saved card purchases and repayments will be streamed here.
               </p>
             </div>
@@ -723,14 +715,14 @@ async function ActivityContent({
                 return (
                   <article
                     key={activity.id}
-                    className="apple-panel group flex items-center justify-between gap-4 p-4 transition-all duration-300 hover:scale-[1.01] hover:border-amber-400/30"
+                    className="aura-panel group flex items-center justify-between gap-4 p-4 transition-all duration-300 hover:scale-[1.01] hover:border-amber-400/30"
                   >
                     <div className="flex items-center gap-3.5 min-w-0">
                       <div
                         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${
                           isPurchase
-                            ? "bg-rose-500/15 text-rose-400 ring-1 ring-rose-500/30"
-                            : "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30"
+                            ? "bg-rose-500/15 text-rose-500 dark:text-rose-400 ring-1 ring-rose-500/30"
+                            : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/30"
                         }`}
                       >
                         {isPurchase ? (
@@ -741,13 +733,13 @@ async function ActivityContent({
                       </div>
 
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-white group-hover:text-amber-300 transition-colors">
+                        <p className="truncate text-sm font-bold text-[var(--foreground)] group-hover:text-amber-500 transition-colors">
                           {activity.description}
                         </p>
-                        <p className="mt-0.5 text-xs text-slate-400">
+                        <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
                           {isPurchase ? "Card purchase" : "Card repayment"} · {displayDate(activity.transaction_date)}
                         </p>
-                        <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                        <p className="mt-0.5 truncate text-[11px] text-[var(--muted-foreground)]">
                           {cardNames.get(activity.credit_card_id ?? "") ?? "Credit card"}
                           {!isPurchase && activity.from_account_id
                             ? ` · Paid from ${accountNames.get(activity.from_account_id) ?? "Bank account"}`
@@ -759,7 +751,7 @@ async function ActivityContent({
                     <div className="shrink-0 text-right">
                       <p
                         className={`text-base font-black tabular-nums ${
-                          isPurchase ? "text-slate-100" : "text-emerald-400"
+                          isPurchase ? "text-[var(--foreground)]" : "text-emerald-600 dark:text-emerald-400"
                         }`}
                       >
                         {isPurchase ? "+" : "−"}
@@ -780,10 +772,12 @@ async function ActivityContent({
         </section>
 
         {/* Footer */}
-        <p className="pt-4 text-center text-xs leading-5 text-slate-500">
-          My Finance OS · Credit Card telemetry computed from verified database records.
+        <p className="pt-4 text-center text-xs leading-5 text-[var(--muted-foreground)]">
+          AURA Wealth · Credit Card telemetry computed from verified database records.
         </p>
       </div>
+
+      <AuraBottomNav />
     </main>
   );
 }
@@ -794,7 +788,7 @@ export default function CardActivityPage({
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-screen items-center justify-center bg-[#07090e] p-6 text-slate-400">
+        <main className="flex min-h-screen items-center justify-center bg-[var(--background)] p-6 text-[var(--muted-foreground)]">
           <div className="flex items-center gap-3">
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
             <p className="text-sm">Loading card activity...</p>

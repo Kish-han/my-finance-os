@@ -310,15 +310,15 @@ export function TransactionAnalysisView({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="flex h-2 w-2 shrink-0 rounded-full bg-[#4edea3] animate-pulse" />
-            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#4edea3]">
+            <span className="flex h-2 w-2 shrink-0 rounded-full bg-emerald-600 dark:bg-[#4edea3] animate-pulse" />
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-emerald-700 dark:text-[#4edea3]">
               LEDGER INTELLIGENCE · AUDITED
             </span>
           </div>
-          <h1 className="mt-1 text-2xl sm:text-3xl font-black tracking-tight text-white">
+          <h1 className="mt-1 text-2xl sm:text-3xl font-black tracking-tight text-[var(--foreground)]">
             Transactions
           </h1>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-[var(--foreground-muted)]">
             Time-based cashflow telemetry, spending analysis and verified ledger history
           </p>
         </div>
@@ -327,23 +327,23 @@ export function TransactionAnalysisView({
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
           <Link
             href="/transactions/transfer"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 px-3.5 py-2.5 text-xs font-bold text-cyan-300 hover:text-white transition-all active:scale-95 cursor-pointer shadow-sm"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 px-3.5 py-2.5 text-xs font-bold text-cyan-700 dark:text-cyan-300 hover:text-cyan-900 dark:hover:text-white transition-all active:scale-95 cursor-pointer shadow-sm"
             title="Transfer money between your bank and cash accounts"
           >
-            <ArrowLeftRight className="h-4 w-4 shrink-0 text-cyan-400" />
+            <ArrowLeftRight className="h-4 w-4 shrink-0 text-cyan-600 dark:text-cyan-400" />
             <span>Transfer</span>
           </Link>
           <Link
             href="/transactions/recurring"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 px-3.5 py-2.5 text-xs font-bold text-purple-300 hover:text-white transition-all active:scale-95 cursor-pointer shadow-sm"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 px-3.5 py-2.5 text-xs font-bold text-purple-700 dark:text-purple-300 hover:text-purple-900 dark:hover:text-white transition-all active:scale-95 cursor-pointer shadow-sm"
             title="Manage recurring schedules, reminders, and expected items"
           >
-            <CalendarClock className="h-4 w-4 shrink-0 text-purple-400" />
+            <CalendarClock className="h-4 w-4 shrink-0 text-purple-600 dark:text-purple-400" />
             <span>Recurring Transactions</span>
           </Link>
           <Link
             href="/transactions/new"
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-500 dark:to-teal-500 px-4 py-2.5 text-xs font-bold text-white dark:text-slate-950 shadow-md shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
           >
             <Plus className="h-4 w-4 shrink-0" />
             <span>Add Transaction</span>
@@ -392,68 +392,68 @@ export function TransactionAnalysisView({
       ========================================================= */}
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Total Inflow / Income Card */}
-        <div className="aura-panel p-4 sm:p-5 relative overflow-hidden group hover:border-emerald-500/40 transition-all">
+        <div className="aura-panel p-4 sm:p-5 relative overflow-hidden group hover:border-emerald-500/40 transition-all rounded-3xl">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-              <ArrowDownLeft className="h-4 w-4 shrink-0 text-emerald-400" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+              <ArrowDownLeft className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" />
               <span>Total Inflow</span>
             </span>
             <Badge
               variant="outline"
-              className="text-[9px] uppercase font-bold text-emerald-400 border-emerald-500/30 bg-emerald-500/10 py-0.5 px-2"
+              className="text-[9px] uppercase font-bold text-emerald-700 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10 py-0.5 px-2"
             >
               {summary.incomeCount} CREDITS
             </Badge>
           </div>
-          <p className="mt-2.5 text-2xl sm:text-3xl font-black text-white tabular-nums drop-shadow-sm">
+          <p className="mt-2.5 text-2xl sm:text-3xl font-black text-[var(--foreground)] tabular-nums drop-shadow-sm">
             +{formatRupees(summary.totalIncomePaise, 2)}
           </p>
-          <p className="mt-1 text-[11px] text-slate-400">
+          <p className="mt-1 text-[11px] text-[var(--foreground-muted)]">
             Verified salary, deposit and income credits
           </p>
         </div>
 
         {/* Total Outflow / Expenses Card */}
-        <div className="aura-panel p-4 sm:p-5 relative overflow-hidden group hover:border-rose-500/40 transition-all">
+        <div className="aura-panel p-4 sm:p-5 relative overflow-hidden group hover:border-rose-500/40 transition-all rounded-3xl">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-rose-400 flex items-center gap-1.5">
-              <ArrowUpRight className="h-4 w-4 shrink-0 text-rose-400" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400 flex items-center gap-1.5">
+              <ArrowUpRight className="h-4 w-4 shrink-0 text-rose-700 dark:text-rose-400" />
               <span>Total Outflow</span>
             </span>
             <Badge
               variant="outline"
-              className="text-[9px] uppercase font-bold text-rose-400 border-rose-500/30 bg-rose-500/10 py-0.5 px-2"
+              className="text-[9px] uppercase font-bold text-rose-700 dark:text-rose-400 border-rose-500/30 bg-rose-500/10 py-0.5 px-2"
             >
               {summary.expenseCount} DEBITS
             </Badge>
           </div>
-          <p className="mt-2.5 text-2xl sm:text-3xl font-black text-rose-200 tabular-nums drop-shadow-sm">
+          <p className="mt-2.5 text-2xl sm:text-3xl font-black text-rose-700 dark:text-rose-300 tabular-nums drop-shadow-sm">
             −{formatRupees(summary.totalExpensePaise, 2)}
           </p>
-          <p className="mt-1 text-[11px] text-slate-400">
+          <p className="mt-1 text-[11px] text-[var(--foreground-muted)]">
             Recorded direct expenses and card purchases
           </p>
         </div>
 
         {/* Net Cashflow / Savings Card */}
         <div
-          className={`aura-panel p-4 sm:p-5 relative overflow-hidden group transition-all ${
+          className={`aura-panel p-4 sm:p-5 relative overflow-hidden group transition-all rounded-3xl ${
             summary.netCashflowPaise >= 0
-              ? "hover:border-[#4edea3]/40"
-              : "hover:border-amber-500/40"
+              ? "hover:border-emerald-500/40"
+              : "hover:border-rose-500/40"
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-              <TrendingUp className="h-4 w-4 shrink-0 text-[#4edea3]" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] flex items-center gap-1.5">
+              <TrendingUp className="h-4 w-4 shrink-0 text-emerald-600 dark:text-[#4edea3]" />
               <span>Net Cashflow</span>
             </span>
             <Badge
               variant="outline"
               className={`text-[9px] uppercase font-bold py-0.5 px-2 ${
                 summary.netCashflowPaise >= 0
-                  ? "text-[#4edea3] border-[#4edea3]/30 bg-[#4edea3]/10"
-                  : "text-rose-400 border-rose-500/30 bg-rose-500/10"
+                  ? "text-emerald-700 dark:text-[#4edea3] border-emerald-500/30 bg-emerald-500/10"
+                  : "text-rose-700 dark:text-rose-400 border-rose-500/30 bg-rose-500/10"
               }`}
             >
               {summary.netCashflowPaise >= 0 ? "SURPLUS" : "DEFICIT"}
@@ -461,15 +461,15 @@ export function TransactionAnalysisView({
           </div>
           <p
             className={`mt-2.5 text-2xl sm:text-3xl font-black tabular-nums drop-shadow-sm ${
-              summary.netCashflowPaise >= 0 ? "text-[#4edea3]" : "text-rose-400"
+              summary.netCashflowPaise >= 0 ? "text-emerald-700 dark:text-[#4edea3]" : "text-rose-700 dark:text-rose-400"
             }`}
           >
             {summary.netCashflowPaise >= 0 ? "+" : "−"}
             {formatRupees(Math.abs(summary.netCashflowPaise), 2)}
           </p>
-          <p className="mt-1 text-[11px] text-slate-400 flex items-center gap-1.5">
+          <p className="mt-1 text-[11px] text-[var(--foreground-muted)] flex items-center gap-1.5">
             {summary.totalIncomePaise > 0 ? (
-              <span>Savings rate: <strong className="text-white">{summary.savingsRatePct}%</strong> of inflow</span>
+              <span>Savings rate: <strong className="text-[var(--foreground)]">{summary.savingsRatePct}%</strong> of inflow</span>
             ) : (
               <span>{summary.transactionCount} transactions recorded in period</span>
             )}
@@ -736,8 +736,8 @@ export function TransactionAnalysisView({
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Receipt className="h-4 w-4 text-emerald-400 shrink-0" />
-            <h2 className="text-base sm:text-lg font-bold tracking-tight text-white">
+            <Receipt className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <h2 className="text-base sm:text-lg font-bold tracking-tight text-[var(--foreground)]">
               Transaction History ({filteredTransactions.length})
             </h2>
           </div>
@@ -745,29 +745,29 @@ export function TransactionAnalysisView({
           <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
             <Link
               href="/transactions/transfer"
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-xs font-bold text-cyan-300 hover:text-white transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-xs font-bold text-cyan-700 dark:text-cyan-300 hover:text-cyan-900 dark:hover:text-white transition-all cursor-pointer"
               title="Transfer between accounts"
             >
-              <ArrowLeftRight className="h-3.5 w-3.5 text-cyan-400" />
+              <ArrowLeftRight className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
               <span>Transfer</span>
             </Link>
             <Link
               href="/transactions/recurring"
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-xs font-bold text-purple-300 hover:text-white transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-xs font-bold text-purple-700 dark:text-purple-300 hover:text-purple-900 dark:hover:text-white transition-all cursor-pointer"
               title="Recurring transactions & reminders"
             >
-              <CalendarClock className="h-3.5 w-3.5 text-purple-400" />
+              <CalendarClock className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
               <span className="hidden sm:inline">Recurring Transactions</span>
               <span className="sm:hidden">Recurring</span>
             </Link>
             <Link
               href="/transactions/new"
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 hover:text-white transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-200/70 dark:bg-white/5 hover:bg-slate-300/70 dark:hover:bg-white/10 border border-slate-300/80 dark:border-white/10 text-xs font-bold text-[var(--foreground)] transition-all cursor-pointer"
             >
-              <Plus className="h-3.5 w-3.5 text-[#4edea3]" />
+              <Plus className="h-3.5 w-3.5 text-emerald-600 dark:text-[#4edea3]" />
               <span>Add Transaction</span>
             </Link>
-            <span className="text-[10px] font-mono uppercase tracking-widest text-[#4edea3]">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-700 dark:text-[#4edea3] font-bold">
               {limitToDateRange
                 ? `${presetLabels[rangePreset]}`
                 : "ALL AVAILABLE HISTORY"}
@@ -776,20 +776,20 @@ export function TransactionAnalysisView({
         </div>
 
         {filteredTransactions.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.02] p-10 text-center backdrop-blur-md">
-            <div className="mx-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30">
+          <div className="rounded-3xl border border-dashed border-slate-300/80 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] p-10 text-center backdrop-blur-md">
+            <div className="mx-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/30">
               <Receipt className="h-7 w-7 shrink-0" />
             </div>
-            <h3 className="mt-4 text-base font-bold text-white">
+            <h3 className="mt-4 text-base font-bold text-[var(--foreground)]">
               No matching transactions found
             </h3>
-            <p className="mt-1 text-xs text-slate-400 max-w-sm mx-auto">
+            <p className="mt-1 text-xs text-[var(--foreground-muted)] max-w-sm mx-auto">
               Try adjusting your search query, type filter, or timeframe window.
             </p>
             <div className="mt-4">
               <Link
                 href="/transactions/new"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-xs font-bold text-slate-950 shadow-md hover:brightness-110 transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-500 dark:to-teal-500 px-4 py-2 text-xs font-bold text-white dark:text-slate-950 shadow-md hover:brightness-110 transition-all cursor-pointer"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>Add Transaction</span>
@@ -817,17 +817,17 @@ export function TransactionAnalysisView({
               return (
                 <article
                   key={tx.id}
-                  className="aura-panel group flex items-center justify-between gap-3 p-3.5 sm:p-4.5 transition-all duration-200 hover:border-[#4edea3]/30 hover:-translate-y-0.5"
+                  className="aura-panel group flex items-center justify-between gap-3 p-3.5 sm:p-4.5 transition-all duration-200 hover:border-emerald-500/30 hover:-translate-y-0.5 rounded-2xl"
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
                     {/* Direction Icon Badge */}
                     <div
                       className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base shadow-sm ${
                         isIncome
-                          ? "bg-[#10b981]/15 text-[#4edea3] border border-[#10b981]/30"
+                          ? "bg-emerald-500/15 text-emerald-700 dark:text-[#4edea3] border border-emerald-500/30"
                           : isTransfer || isCardRepayment
-                          ? "bg-cyan-500/15 text-cyan-400 border border-cyan-500/30"
-                          : "bg-white/5 text-slate-300 border border-white/10"
+                          ? "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border border-cyan-500/30"
+                          : "bg-slate-200/60 dark:bg-white/5 text-[var(--foreground-muted)] border border-slate-300/60 dark:border-white/10"
                       }`}
                     >
                       {isIncome ? (
@@ -843,17 +843,17 @@ export function TransactionAnalysisView({
 
                     {/* Metadata column */}
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-white group-hover:text-[#4edea3] transition-colors">
+                      <p className="truncate text-sm font-bold text-[var(--foreground)] group-hover:text-emerald-700 dark:group-hover:text-[#4edea3] transition-colors">
                         {tx.description}
                       </p>
-                      <p className="mt-0.5 text-xs text-slate-300 flex items-center gap-1.5 truncate">
+                      <p className="mt-0.5 text-xs text-[var(--foreground-muted)] flex items-center gap-1.5 truncate">
                         <span>{categoryLabel}</span>
                         <span>·</span>
-                        <span className="font-mono text-[11px] text-slate-400">
+                        <span className="font-mono text-[11px] text-[var(--foreground-subtle)]">
                           {formatDisplayDate(tx.transaction_date)}
                         </span>
                       </p>
-                      <p className="mt-0.5 truncate text-[11px] text-slate-400 font-medium">
+                      <p className="mt-0.5 truncate text-[11px] text-[var(--foreground-subtle)] font-medium">
                         {accountLabel}
                       </p>
                     </div>
@@ -865,10 +865,10 @@ export function TransactionAnalysisView({
                       <p
                         className={`text-sm sm:text-base font-black tabular-nums ${
                           isIncome
-                            ? "text-[#4edea3]"
+                            ? "text-emerald-700 dark:text-[#4edea3]"
                             : isTransfer || isCardRepayment
-                            ? "text-cyan-300"
-                            : "text-white"
+                            ? "text-cyan-700 dark:text-cyan-300"
+                            : "text-[var(--foreground)]"
                         }`}
                       >
                         {isIncome ? "+" : isTransfer || isCardRepayment ? "" : "−"}
@@ -886,9 +886,9 @@ export function TransactionAnalysisView({
                       type="button"
                       onClick={() => setEditingTx(tx)}
                       title="Edit this transaction"
-                      className="flex h-8 w-8 sm:h-8.5 sm:w-auto sm:px-2.5 items-center justify-center gap-1 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-emerald-500/40 text-slate-300 hover:text-white transition-all text-xs font-semibold cursor-pointer active:scale-95"
+                      className="flex h-8 w-8 sm:h-8.5 sm:w-auto sm:px-2.5 items-center justify-center gap-1 rounded-xl border border-slate-300/80 dark:border-white/10 bg-slate-200/70 dark:bg-white/5 hover:bg-slate-300 dark:hover:bg-white/10 hover:border-emerald-500/40 text-[var(--foreground)] transition-all text-xs font-semibold cursor-pointer active:scale-95"
                     >
-                      <Pencil className="h-3.5 w-3.5 text-[#4edea3] shrink-0" />
+                      <Pencil className="h-3.5 w-3.5 text-emerald-600 dark:text-[#4edea3] shrink-0" />
                       <span className="hidden sm:inline">Edit</span>
                     </button>
                   </div>

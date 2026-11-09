@@ -172,11 +172,11 @@ export function MonthwiseLedgerView({
       <section className="aura-panel p-5 sm:p-6 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h2 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-[#4edea3]" />
+            <h2 className="text-base sm:text-lg font-black tracking-tight text-[var(--foreground)] flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-emerald-600 dark:text-[#4edea3]" />
               <span>Monthwise Financial Ledger</span>
             </h2>
-            <p className="mt-0.5 text-xs text-slate-400">
+            <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
               Chronologically aligned transaction history grouped by calendar month
             </p>
           </div>
@@ -191,15 +191,15 @@ export function MonthwiseLedgerView({
         </div>
 
         {/* Search input + Type Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-white/10">
+        <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-[var(--border)]">
           <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--muted-foreground)]" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search description, category, or account..."
-              className="w-full rounded-xl bg-white/5 border border-white/10 pl-10 pr-4 py-2 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#4edea3]/50 focus:ring-1 focus:ring-[#4edea3]/30 transition-all"
+              className="w-full rounded-xl bg-slate-100/70 dark:bg-white/5 border border-[var(--border)] pl-10 pr-4 py-2 text-xs sm:text-sm text-[var(--foreground)] placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all"
             />
           </div>
 
@@ -217,8 +217,8 @@ export function MonthwiseLedgerView({
                 onClick={() => setSelectedType(tab.id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                   selectedType === tab.id
-                    ? "bg-[#4edea3] text-slate-950 shadow-md shadow-emerald-500/20"
-                    : "bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10"
+                    ? "bg-emerald-500 text-white dark:bg-[#4edea3] dark:text-slate-950 shadow-md shadow-emerald-500/20"
+                    : "bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-[var(--foreground)] border border-[var(--border)]"
                 }`}
               >
                 {tab.label}
@@ -230,12 +230,12 @@ export function MonthwiseLedgerView({
 
       {/* Month Groups List */}
       {monthGroups.length === 0 ? (
-        <section className="rounded-3xl border border-dashed border-white/10 bg-white/[0.02] p-12 text-center backdrop-blur-md">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 text-slate-400 ring-1 ring-white/10">
+        <section className="rounded-3xl border border-dashed border-[var(--border)] bg-slate-50/50 dark:bg-white/[0.02] p-12 text-center backdrop-blur-md">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 dark:bg-white/5 text-[var(--muted-foreground)] ring-1 ring-[var(--border)]">
             <Receipt className="h-7 w-7" />
           </div>
-          <h3 className="mt-4 text-base font-bold text-white">No transactions found</h3>
-          <p className="mt-1 text-xs text-slate-400 max-w-sm mx-auto">
+          <h3 className="mt-4 text-base font-bold text-[var(--foreground)]">No transactions found</h3>
+          <p className="mt-1 text-xs text-[var(--muted-foreground)] max-w-sm mx-auto">
             {searchQuery || selectedType !== "all"
               ? "No transactions match your current search or filter criteria."
               : "No transactions have been recorded into your ledger yet."}
@@ -249,28 +249,28 @@ export function MonthwiseLedgerView({
             return (
               <section
                 key={group.monthKey}
-                className="aura-panel rounded-3xl overflow-hidden border border-white/10 transition-all"
+                className="aura-panel rounded-3xl overflow-hidden border border-[var(--border)] transition-all"
               >
                 {/* Month Summary Header (Clickable to Collapse/Expand) */}
                 <div
                   onClick={() => toggleMonth(group.monthKey)}
-                  className="p-5 sm:p-6 bg-white/[0.02] hover:bg-white/[0.04] transition-colors cursor-pointer border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none"
+                  className="p-5 sm:p-6 bg-slate-50/50 dark:bg-white/[0.02] hover:bg-slate-100/50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer border-b border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-[#4edea3]">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-[#4edea3]">
                       <Calendar className="h-5 w-5" />
                     </div>
                     <div>
-                      <h3 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-2">
+                      <h3 className="text-base sm:text-lg font-black tracking-tight text-[var(--foreground)] flex items-center gap-2">
                         <span>{group.monthLabel}</span>
                         <Badge
                           variant="outline"
-                          className="text-[10px] uppercase font-bold text-slate-400 border-white/15"
+                          className="text-[10px] uppercase font-bold text-[var(--muted-foreground)] border-[var(--border)]"
                         >
                           {group.items.length} {group.items.length === 1 ? "entry" : "entries"}
                         </Badge>
                       </h3>
-                      <p className="text-xs text-slate-400">
+                      <p className="text-xs text-[var(--muted-foreground)]">
                         Monthly aggregation of verified transactions
                       </p>
                     </div>
@@ -279,30 +279,30 @@ export function MonthwiseLedgerView({
                   {/* Month Totals Banner */}
                   <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-5 text-xs font-mono">
                     <div className="text-right">
-                      <span className="text-[10px] text-slate-400 uppercase block font-sans">
+                      <span className="text-[10px] text-[var(--muted-foreground)] uppercase block font-sans">
                         Income
                       </span>
-                      <span className="font-bold text-[#4edea3] tabular-nums text-sm">
+                      <span className="font-bold text-emerald-600 dark:text-[#4edea3] tabular-nums text-sm">
                         +{formatRupees(group.incomePaise)}
                       </span>
                     </div>
 
                     <div className="text-right">
-                      <span className="text-[10px] text-slate-400 uppercase block font-sans">
+                      <span className="text-[10px] text-[var(--muted-foreground)] uppercase block font-sans">
                         Spent
                       </span>
-                      <span className="font-bold text-[#fb7185] tabular-nums text-sm">
+                      <span className="font-bold text-rose-600 dark:text-[#fb7185] tabular-nums text-sm">
                         −{formatRupees(group.expensePaise)}
                       </span>
                     </div>
 
-                    <div className="text-right pl-2 border-l border-white/10">
-                      <span className="text-[10px] text-slate-400 uppercase block font-sans">
+                    <div className="text-right pl-2 border-l border-[var(--border)]">
+                      <span className="text-[10px] text-[var(--muted-foreground)] uppercase block font-sans">
                         Net Savings
                       </span>
                       <span
                         className={`font-bold tabular-nums text-sm ${
-                          group.netPaise >= 0 ? "text-[#4edea3]" : "text-[#fb7185]"
+                          group.netPaise >= 0 ? "text-emerald-600 dark:text-[#4edea3]" : "text-rose-600 dark:text-[#fb7185]"
                         }`}
                       >
                         {group.netPaise >= 0 ? "+" : "−"}
@@ -310,7 +310,7 @@ export function MonthwiseLedgerView({
                       </span>
                     </div>
 
-                    <div className="text-slate-400 p-1">
+                    <div className="text-[var(--muted-foreground)] p-1">
                       {isCollapsed ? (
                         <ChevronDown className="h-4 w-4" />
                       ) : (
@@ -322,7 +322,7 @@ export function MonthwiseLedgerView({
 
                 {/* Month Transactions List */}
                 {!isCollapsed && (
-                  <div className="divide-y divide-white/5">
+                  <div className="divide-y divide-[var(--border)]">
                     {group.items.map((tx) => {
                       const isIncome = tx.transaction_type === "income";
                       const isTransfer = tx.transaction_type === "transfer";
@@ -332,21 +332,21 @@ export function MonthwiseLedgerView({
                       return (
                         <article
                           key={tx.id}
-                          className="flex items-center justify-between p-4 sm:p-5 transition-colors hover:bg-white/[0.03]"
+                          className="flex items-center justify-between p-4 sm:p-5 transition-colors hover:bg-slate-100/50 dark:hover:bg-white/[0.03]"
                         >
                           <div className="flex items-center gap-3.5 min-w-0">
                             {/* Type Icon */}
                             <div
                               className={`flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl text-base shadow-sm ${
                                 isIncome
-                                  ? "bg-[#10b981]/15 text-[#4edea3] border border-[#10b981]/30"
+                                  ? "bg-[#10b981]/15 text-emerald-600 dark:text-[#4edea3] border border-[#10b981]/30"
                                   : isTransfer
-                                  ? "bg-cyan-500/15 text-cyan-400 border border-cyan-500/30"
+                                  ? "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30"
                                   : isCardPurchase
-                                  ? "bg-amber-500/15 text-amber-400 border border-amber-500/30"
+                                  ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
                                   : isCardPayment
-                                  ? "bg-indigo-500/15 text-indigo-400 border border-indigo-500/30"
-                                  : "bg-rose-500/15 text-rose-400 border border-rose-500/30"
+                                  ? "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30"
+                                  : "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30"
                               }`}
                             >
                               {isIncome ? (
@@ -360,15 +360,15 @@ export function MonthwiseLedgerView({
 
                             {/* Details */}
                             <div className="min-w-0">
-                              <p className="truncate text-xs sm:text-sm font-bold text-white">
+                              <p className="truncate text-xs sm:text-sm font-bold text-[var(--foreground)]">
                                 {tx.description}
                               </p>
-                              <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+                              <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-[var(--muted-foreground)]">
                                 <span>{formatDisplayDate(tx.transaction_date)}</span>
                                 <span>•</span>
                                 <Badge
                                   variant="outline"
-                                  className="text-[9px] uppercase font-semibold py-0 px-1.5 border-white/10 text-slate-300"
+                                  className="text-[9px] uppercase font-semibold py-0 px-1.5 border-[var(--border)] text-[var(--foreground)]"
                                 >
                                   {categoryMap[tx.category_id ?? ""] ||
                                     (isIncome
@@ -382,7 +382,7 @@ export function MonthwiseLedgerView({
                                       : "Expense")}
                                 </Badge>
                                 <span className="hidden sm:inline">•</span>
-                                <span className="hidden sm:inline text-slate-500 text-[11px]">
+                                <span className="hidden sm:inline text-[var(--muted-foreground)] text-[11px]">
                                   {accountMap[tx.account_id ?? ""] ||
                                     (tx.from_account_id ? "Transfer Source" : "Account")}
                                 </span>
@@ -395,10 +395,10 @@ export function MonthwiseLedgerView({
                             <p
                               className={`text-sm sm:text-base font-black tabular-nums drop-shadow-sm ${
                                 isIncome
-                                  ? "text-[#4edea3]"
+                                  ? "text-emerald-600 dark:text-[#4edea3]"
                                   : isTransfer
-                                  ? "text-cyan-400"
-                                  : "text-white"
+                                  ? "text-cyan-600 dark:text-cyan-400"
+                                  : "text-[var(--foreground)]"
                               }`}
                             >
                               {isIncome ? "+" : isTransfer ? "" : "−"}

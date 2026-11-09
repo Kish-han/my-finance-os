@@ -354,8 +354,8 @@ async function NewTransactionContent({
     : rememberedExpenseSourceId;
 
   return (
-    <main className="min-h-screen bg-[#10141a] text-[#dfe2eb] pt-20 pb-36 relative overflow-hidden selection:bg-[#4edea3]/30 selection:text-[#4edea3]">
-      {/* Obsidian Wealth ambient atmospheric lights */}
+    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] pt-20 pb-36 lg:pl-64 relative overflow-hidden selection:bg-[#4edea3]/30 selection:text-[#4edea3] transition-colors">
+      {/* Ambient atmospheric lights */}
       <div className="pointer-events-none fixed -left-32 top-10 h-96 w-96 rounded-full bg-[#10b981]/10 blur-[150px] animate-pulse-glow" />
       <div
         className="pointer-events-none fixed -right-32 top-1/4 h-[30rem] w-[30rem] rounded-full bg-[#8b5cf6]/10 blur-[160px] animate-pulse-glow"
@@ -379,13 +379,13 @@ async function NewTransactionContent({
         <div className="flex items-center justify-between">
           <Link
             href="/transactions"
-            className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white transition-colors group cursor-pointer"
+            className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors group cursor-pointer"
           >
             <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
             <span>Back to Transactions</span>
           </Link>
 
-          <span className="text-[10px] font-mono uppercase tracking-widest text-[#4edea3]">
+          <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-600 dark:text-[#4edea3]">
             FINANCIAL TELEMETRY · ENTRY
           </span>
         </div>
@@ -393,15 +393,15 @@ async function NewTransactionContent({
         {/* Page Title Header */}
         <div>
           <div className="flex items-center gap-2">
-            <span className="flex h-2 w-2 shrink-0 rounded-full bg-[#4edea3] animate-pulse" />
-            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#4edea3]">
+            <span className="flex h-2 w-2 shrink-0 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-emerald-600 dark:text-[#4edea3]">
               AUDITED DOUBLE-ENTRY LEDGER
             </span>
           </div>
-          <h1 className="mt-1 text-2xl sm:text-3xl font-black tracking-tight text-white">
+          <h1 className="mt-1 text-2xl sm:text-3xl font-black tracking-tight text-[var(--foreground)]">
             Record Financial Activity
           </h1>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-[var(--muted-foreground)]">
             Post verified deposits, income credits, or expenses directly across your liquid accounts
           </p>
         </div>
@@ -476,14 +476,14 @@ async function NewTransactionContent({
         ) : (
           /* Transaction Entry Card */
           <section className="aura-panel p-6 sm:p-8 space-y-6">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
               <div className="flex items-center gap-2">
-                <span className="flex h-2 w-2 rounded-full bg-[#4edea3] animate-pulse" />
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-bold uppercase tracking-wider text-[var(--foreground)]">
                   Transaction Entry Parameters
                 </span>
               </div>
-              <Badge variant="outline" className="text-[10px] border-white/10 text-slate-400">
+              <Badge variant="outline" className="text-[10px] border-[var(--border)] text-[var(--muted-foreground)]">
                 INR · UNIFIED LEDGER
               </Badge>
             </div>
@@ -526,10 +526,10 @@ export default function NewTransactionPage({
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-screen items-center justify-center bg-[#10141a] p-6 text-slate-400">
+        <main className="flex min-h-screen items-center justify-center bg-[var(--background)] p-6 text-[var(--muted-foreground)]">
           <div className="flex items-center gap-3">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#4edea3] border-t-transparent" />
-            <p className="text-sm font-mono tracking-wider text-slate-300">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+            <p className="text-sm font-mono tracking-wider text-[var(--foreground)]">
               Loading transaction entry...
             </p>
           </div>

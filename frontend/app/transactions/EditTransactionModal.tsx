@@ -104,9 +104,18 @@ function EditTransactionFormContent({
   const [description, setDescription] = useState(transaction.description || "");
   const [amountInput, setAmountInput] = useState(initialAmountFormatted);
   const [transactionDate, setTransactionDate] = useState(transaction.transaction_date || "");
+  const initialType: "income" | "expense" | "transfer" | "card_purchase" | "card_payment" =
+    transaction.transaction_type === "income" ||
+    transaction.transaction_type === "expense" ||
+    transaction.transaction_type === "transfer" ||
+    transaction.transaction_type === "card_purchase" ||
+    transaction.transaction_type === "card_payment"
+      ? transaction.transaction_type
+      : "expense";
+
   const [transactionType, setTransactionType] = useState<
     "income" | "expense" | "transfer" | "card_purchase" | "card_payment"
-  >(transaction.transaction_type);
+  >(initialType);
   const [accountId, setAccountId] = useState(
     transaction.account_id || accounts[0]?.id || ""
   );

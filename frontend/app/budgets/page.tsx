@@ -146,7 +146,7 @@ async function BudgetsContent({ searchParams }: BudgetsPageProps) {
   }
 
   return (
-    <main className="min-h-screen bg-[#10141a] text-[#dfe2eb] pt-20 pb-36 relative overflow-hidden selection:bg-[#4edea3]/30 selection:text-[#4edea3]">
+    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] pt-20 pb-36 lg:pl-64 relative overflow-hidden selection:bg-[#4edea3]/30 selection:text-[#4edea3] transition-colors">
       {/* Ambient background glows */}
       <div
         className="pointer-events-none fixed top-0 right-1/4 h-96 w-96 rounded-full bg-emerald-500/10 blur-[140px] animate-pulse-glow"

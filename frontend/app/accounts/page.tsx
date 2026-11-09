@@ -91,7 +91,7 @@ async function AccountsContent({
   );
 
   return (
-    <main className="min-h-screen bg-[#10141a] text-[#dfe2eb] pt-20 pb-36 relative overflow-hidden selection:bg-[#4edea3]/30 selection:text-[#4edea3]">
+    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] pt-20 pb-36 lg:pl-64 relative overflow-hidden selection:bg-[#4edea3]/30 selection:text-[#4edea3] transition-colors">
       {/* Obsidian Wealth ambient atmospheric lighting */}
       <div className="pointer-events-none fixed -left-32 top-10 h-96 w-96 rounded-full bg-[#10b981]/10 blur-[150px] animate-pulse-glow" />
       <div className="pointer-events-none fixed -right-32 top-1/4 h-[30rem] w-[30rem] rounded-full bg-[#8b5cf6]/10 blur-[160px] animate-pulse-glow" style={{ animationDelay: "2s" }} />
@@ -109,11 +109,11 @@ async function AccountsContent({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="flex h-2 w-2 shrink-0 rounded-full bg-[#4edea3] animate-pulse" />
-            <h1 className="text-sm font-bold uppercase tracking-wider text-slate-300">
+            <h1 className="text-sm font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
               Institutional Liquid Reserves
             </h1>
           </div>
-          <span className="text-[10px] font-mono uppercase tracking-widest text-[#4edea3]">
+          <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-700 dark:text-[#4edea3] font-bold">
             INR · VERIFIED
           </span>
         </div>
@@ -156,34 +156,34 @@ async function AccountsContent({
 
           <div className="relative z-10 space-y-4">
             <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 rounded-full bg-[#4edea3] animate-pulse" />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#4edea3]">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-600 dark:bg-[#4edea3] animate-pulse" />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-[#4edea3]">
                 Total Opening Liquid Reserves
               </span>
             </div>
 
-            <div className="text-4xl sm:text-6xl font-black tracking-tight text-white tabular-nums drop-shadow-md">
+            <div className="text-4xl sm:text-6xl font-black tracking-tight text-[var(--foreground)] tabular-nums drop-shadow-md">
               {formatRupees(totalLiquidPaise)}
             </div>
 
-            <p className="text-xs sm:text-sm text-slate-400 flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-[#4edea3]" />
+            <p className="text-xs sm:text-sm text-[var(--foreground-muted)] flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-[#4edea3]" />
               <span>{(accounts ?? []).length} registered accounts and wallets</span>
             </p>
           </div>
         </section>
 
         {/* Add Account Module with Aura Panel Glass Form */}
-        <section className="aura-panel p-6 sm:p-8 space-y-6">
+        <section className="aura-panel p-6 sm:p-8 space-y-6 rounded-[2rem]">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#10b981]/15 text-[#4edea3] border border-[#10b981]/30">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-[#4edea3] border border-emerald-500/30">
               <Plus className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold tracking-tight text-white">
+              <h2 className="text-base sm:text-lg font-bold tracking-tight text-[var(--foreground)]">
                 Add an Account or Wallet
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[var(--foreground-muted)]">
                 Record a bank savings/checking account or cash reserve and its starting balance.
               </p>
             </div>

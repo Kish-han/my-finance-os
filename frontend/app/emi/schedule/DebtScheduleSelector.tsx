@@ -32,7 +32,7 @@ export default function DebtScheduleSelector({
     <div className="flex items-center gap-2">
       <label
         htmlFor="debt-schedule-select"
-        className="text-xs font-semibold text-slate-400 whitespace-nowrap"
+        className="text-xs font-semibold text-[var(--muted-foreground)] whitespace-nowrap"
       >
         Select loan:
       </label>
@@ -41,10 +41,10 @@ export default function DebtScheduleSelector({
         name="debt_id"
         value={selectedDebtId}
         onChange={(e) => handleSelectChange(e.target.value)}
-        className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2 text-xs font-bold text-cyan-300 outline-none transition-all focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+        className="rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-xs font-bold text-cyan-700 dark:text-cyan-300 outline-none transition-all focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
       >
         {debts.map((d) => (
-          <option key={d.id} value={d.id} className="bg-slate-900 text-white">
+          <option key={d.id} value={d.id} className="bg-[var(--card)] text-[var(--foreground)]">
             {d.name} {d.lenderName ? `(${d.lenderName})` : ""}
           </option>
         ))}

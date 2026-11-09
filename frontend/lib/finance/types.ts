@@ -66,6 +66,30 @@ export type Transaction =
         type: "card_payment";
         fromAccountId: string;
         creditCardId: string;
+    })
+    | (TransactionBase & {
+        type: "money_lent";
+        accountId: string;
+        personId?: string;
+        agreementId?: string;
+    })
+    | (TransactionBase & {
+        type: "repayment_received";
+        accountId: string;
+        personId?: string;
+        agreementId?: string;
+    })
+    | (TransactionBase & {
+        type: "money_borrowed";
+        accountId: string;
+        personId?: string;
+        agreementId?: string;
+    })
+    | (TransactionBase & {
+        type: "repayment_paid";
+        accountId: string;
+        personId?: string;
+        agreementId?: string;
     });
 
 
@@ -172,4 +196,103 @@ export interface ForeclosureQuote {
     totalPayoffPaise: number;
     source: ForeclosureQuoteSource;
     notes?: string;
+}
+
+// ============================================================================
+// MONEY TRACKER: Personal Lending & Borrowing Types
+// ============================================================================
+
+export interface Person {
+    id: string;
+    userId?: string;
+    name: string;
+    phone?: string | null;
+    notes?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+export type PersonalLoanDirection = "given" | "taken";
+
+export type PersonalLoanInterestType = "none" | "fixed_amount" | "simple_annual";
+
+export type PersonalLoanStatus = "active" | "settled";
+
+export interface PersonalLoanAgreement {
+    id: string;
+    userId?: string;
+    personId: string;
+    direction: PersonalLoanDirection;
+    principalPaise: number;
+    interestType: PersonalLoanInterestType;
+    interestRateAnnualBasisPoints?: number;
+    agreedInterestPaise?: number;
+    agreementDate: string; // YYYY-MM-DD
+    expectedRepaymentDate?: string | null; // YYYY-MM-DD
+    accountId: string;
+    linkedTransactionId?: string | null;
+    status: PersonalLoanStatus;
+    notes?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+
+    // Joined relations for UI
+    person?: Person;
+    account?: FinancialAccount;
+}
+
+export interface PersonalLoanPayment {
+    id: string;
+    userId?: string;
+    personalLoanId: string;
+    paymentAmountPaise: number;
+    principalComponentPaise: number;
+    interestComponentPaise: number;
+    paymentDate: string; // YYYY-MM-DD
+    accountId: string;
+    linkedTransactionId?: string | null;
+    notes?: string | null;
+    createdAt?: string;
+
+    // Joined relations for UI
+    account?: FinancialAccount;
+}
+
+export interface AgreementBalance {
+    totalExpectedPaise: number;
+    totalInterestPaise: number;
+    totalPrincipalRepaidPaise: number;
+    totalInterestRepaidPaise: number;
+    totalRepaidPaise: number;
+    remainingPrincipalPaise: number;
+    remainingInterestPaise: number;
+    totalOutstandingPaise: number;
+    isSettled: boolean;
+    progressPercent: number;
+}
+
+export interface PersonBalanceSummary {
+    person: Person;
+    totalGivenPaise: number;
+    totalGivenRecoveredPaise: number;
+    outstandingReceivablePaise: number;
+    totalTakenPaise: number;
+    totalTakenRepaidPaise: number;
+    outstandingPayablePaise: number;
+    netPositionPaise: number; // positive = they owe user; negative = user owes them
+    activeAgreementsCount: number;
+    settledAgreementsCount: number;
+}
+
+export interface MoneyTrackerMetrics {
+    totalGivenPaise: number;
+    totalReceivedBackPaise: number;
+    outstandingReceivablesPaise: number;
+    totalBorrowedPaise: number;
+    totalRepaidPaise: number;
+    outstandingPayablesPaise: number;
+    netPositionPaise: number; // outstandingReceivablesPaise - outstandingPayablesPaise
+    activeGivenCount: number;
+    activeTakenCount: number;
+    settledCount: number;
 }

@@ -197,15 +197,15 @@ export function RecurringTransactionsView({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="flex h-2 w-2 shrink-0 rounded-full bg-purple-400 animate-pulse" />
-            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-purple-400">
+            <span className="flex h-2 w-2 shrink-0 rounded-full bg-purple-500 animate-pulse" />
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-purple-700 dark:text-purple-400">
               RECURRING CASHFLOW · EXPECTED RULES
             </span>
           </div>
-          <h1 className="mt-1 text-2xl sm:text-3xl font-black tracking-tight text-white">
+          <h1 className="mt-1 text-2xl sm:text-3xl font-black tracking-tight text-[var(--foreground)]">
             Recurring Transactions
           </h1>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-[var(--foreground-muted)]">
             Set up regular income and expense schedules with automated expected items and reminders
           </p>
         </div>
@@ -213,14 +213,14 @@ export function RecurringTransactionsView({
         <div className="flex items-center gap-2">
           <Link
             href="/transactions"
-            className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-300 hover:text-white transition-all"
+            className="px-3.5 py-2 rounded-xl bg-slate-200/70 dark:bg-white/5 hover:bg-slate-300/70 dark:hover:bg-white/10 border border-slate-300/80 dark:border-white/10 text-xs font-semibold text-[var(--foreground)] transition-all"
           >
             ← Back to Ledger
           </Link>
           <button
             type="button"
             onClick={openCreateModal}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-500 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-purple-500/20 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-purple-500/20 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
           >
             <Plus className="h-4 w-4 shrink-0" />
             <span>New Schedule</span>

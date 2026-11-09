@@ -34,7 +34,7 @@ async function LoginContent({ searchParams }: LoginPageProps) {
     : null;
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#07090e] px-4 py-12 text-slate-100 selection:bg-emerald-500/30 selection:text-emerald-200">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[var(--background)] px-4 py-12 text-[var(--foreground)] selection:bg-emerald-500/30 selection:text-emerald-200 transition-colors">
       {/* Dynamic ambient floating lighting */}
       <div className="pointer-events-none fixed -left-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-emerald-500/15 blur-[140px] animate-pulse-glow" />
       <div
@@ -46,9 +46,9 @@ async function LoginContent({ searchParams }: LoginPageProps) {
         style={{ animationDelay: "4s" }}
       />
 
-      <section className="apple-panel relative z-10 w-full max-w-md p-8 sm:p-10 shadow-2xl cred-glow-emerald animate-float-slow">
+      <section className="aura-card-obsidian relative z-10 w-full max-w-md p-8 sm:p-10 shadow-2xl rounded-[2.5rem]">
         {/* Brand glyph */}
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-700 text-slate-950 font-black text-2xl shadow-xl shadow-emerald-500/30 ring-1 ring-white/50">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-emerald-700 text-white dark:from-emerald-400 dark:via-teal-500 dark:to-cyan-700 dark:text-slate-950 font-black text-2xl shadow-xl shadow-emerald-500/30 ring-1 ring-white/50">
           A
         </div>
 
@@ -56,17 +56,17 @@ async function LoginContent({ searchParams }: LoginPageProps) {
           <Badge variant="emerald" className="text-[10px] uppercase font-bold tracking-widest px-2.5 py-0.5">
             AURA Wealth
           </Badge>
-          <div className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-400">
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 animate-pulse" />
+          <div className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-600 dark:text-emerald-400">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 animate-pulse" />
             <span>256-BIT ENCRYPTION</span>
           </div>
         </div>
 
-        <h1 className="mt-3 text-2xl sm:text-3xl font-black tracking-tight text-white">
+        <h1 className="mt-3 text-2xl sm:text-3xl font-black tracking-tight text-[var(--foreground)]">
           Access AURA Wealth
         </h1>
 
-        <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-400">
+        <p className="mt-2 text-xs sm:text-sm leading-relaxed text-[var(--foreground-muted)]">
           Sign in to access your financial telemetry, revolving credit portfolios and amortized EMI schedules.
         </p>
 
@@ -92,7 +92,7 @@ async function LoginContent({ searchParams }: LoginPageProps) {
           <div>
             <label
               htmlFor="email"
-              className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300"
+              className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]"
             >
               Email address
             </label>
@@ -104,7 +104,7 @@ async function LoginContent({ searchParams }: LoginPageProps) {
                 autoComplete="email"
                 required
                 placeholder="you@example.com"
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition-all focus:border-emerald-400 focus:bg-white/10 focus:ring-4 focus:ring-emerald-400/20"
+                className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-400/20"
               />
             </div>
           </div>
@@ -112,7 +112,7 @@ async function LoginContent({ searchParams }: LoginPageProps) {
           <div>
             <label
               htmlFor="password"
-              className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300"
+              className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]"
             >
               Password
             </label>
@@ -125,28 +125,28 @@ async function LoginContent({ searchParams }: LoginPageProps) {
                 minLength={8}
                 required
                 placeholder="At least 8 characters"
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition-all focus:border-emerald-400 focus:bg-white/10 focus:ring-4 focus:ring-emerald-400/20"
+                className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-400/20"
               />
             </div>
           </div>
 
           <button
             formAction={login}
-            className="w-full rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 py-3.5 text-sm font-bold text-slate-950 shadow-xl shadow-emerald-500/20 transition-all hover:brightness-110 active:scale-[0.99] cursor-pointer"
+            className="w-full rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 dark:from-emerald-500 dark:via-teal-500 dark:to-emerald-600 py-3.5 text-sm font-bold text-white dark:text-slate-950 shadow-xl shadow-emerald-500/20 transition-all hover:brightness-110 active:scale-[0.99] cursor-pointer"
           >
             Sign In
           </button>
 
           <button
             formAction={signup}
-            className="w-full rounded-2xl border border-white/15 bg-white/5 py-3.5 text-sm font-semibold text-slate-200 transition-all hover:bg-white/10 hover:border-white/25 active:scale-[0.99] cursor-pointer"
+            className="w-full rounded-2xl border border-slate-300/80 dark:border-white/10 bg-slate-200/60 dark:bg-white/5 py-3.5 text-sm font-semibold text-[var(--foreground)] transition-all hover:bg-slate-300/60 dark:hover:bg-white/10 cursor-pointer"
           >
-            Create Account
+            Request Access
           </button>
         </form>
 
-        <div className="mt-8 flex items-center justify-center gap-2 border-t border-white/10 pt-5 text-[11px] text-slate-500">
-          <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+        <div className="mt-8 flex items-center justify-center gap-2 border-t border-[var(--border)] pt-5 text-[11px] text-[var(--muted-foreground)]">
+          <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
           <span>All financial records remain strictly isolated to your verified identity.</span>
         </div>
       </section>

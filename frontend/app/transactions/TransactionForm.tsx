@@ -432,19 +432,19 @@ export default function TransactionForm({
       {/* ========================================================================= */}
       {/* 1. INCOME / EXPENSE DUAL SWITCH (Tier 1)                                   */}
       {/* ========================================================================= */}
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-1.5 grid grid-cols-2 gap-2 shadow-inner">
+      <div className="rounded-2xl border border-[var(--border)] bg-slate-100/70 dark:bg-white/[0.03] p-1.5 grid grid-cols-2 gap-2 shadow-inner">
         <button
           type="button"
           onClick={() => handleTypeChange("expense")}
           className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
             flowType === "expense"
               ? "bg-rose-500 text-white shadow-lg shadow-rose-500/30 font-black scale-[1.01]"
-              : "text-slate-400 hover:text-white hover:bg-white/5"
+              : "text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-black/5 dark:hover:bg-white/5"
           }`}
         >
           <div
             className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
-              flowType === "expense" ? "bg-white/20 text-white" : "bg-rose-500/15 text-rose-400"
+              flowType === "expense" ? "bg-white/20 text-white" : "bg-rose-500/15 text-rose-500 dark:text-rose-400"
             }`}
           >
             <ArrowUpRight className="h-4 w-4" />
@@ -457,13 +457,13 @@ export default function TransactionForm({
           onClick={() => handleTypeChange("income")}
           className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
             flowType === "income"
-              ? "bg-[#4edea3] text-slate-950 shadow-lg shadow-emerald-500/30 font-black scale-[1.01]"
-              : "text-slate-400 hover:text-white hover:bg-white/5"
+              ? "bg-emerald-500 text-white dark:bg-[#4edea3] dark:text-slate-950 shadow-lg shadow-emerald-500/30 font-black scale-[1.01]"
+              : "text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-black/5 dark:hover:bg-white/5"
           }`}
         >
           <div
             className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
-              flowType === "income" ? "bg-slate-950/20 text-slate-950" : "bg-emerald-500/15 text-emerald-400"
+              flowType === "income" ? "bg-white/20 dark:bg-slate-950/20 text-white dark:text-slate-950" : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
             }`}
           >
             <ArrowDownLeft className="h-4 w-4" />
@@ -474,15 +474,15 @@ export default function TransactionForm({
 
       {/* Notification Toast for Template Prefills */}
       {templateActionMessage && (
-        <div className="flex items-center justify-between rounded-xl bg-cyan-950/60 border border-cyan-500/30 p-3 text-xs text-cyan-300 animate-in fade-in duration-200">
+        <div className="flex items-center justify-between rounded-xl bg-cyan-50 dark:bg-cyan-950/60 border border-cyan-200 dark:border-cyan-500/30 p-3 text-xs text-cyan-800 dark:text-cyan-300 animate-in fade-in duration-200">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-cyan-400 shrink-0" />
+            <Sparkles className="h-4 w-4 text-cyan-600 dark:text-cyan-400 shrink-0" />
             <span>{templateActionMessage}</span>
           </div>
           <button
             type="button"
             onClick={() => setTemplateActionMessage(null)}
-            className="text-cyan-400 hover:text-white"
+            className="text-cyan-600 dark:text-cyan-400 hover:text-[var(--foreground)]"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -494,14 +494,14 @@ export default function TransactionForm({
       {/* ========================================================================= */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-            <Tag className="h-3 w-3 text-[#4edea3]" />
+          <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted-foreground)] flex items-center gap-1.5">
+            <Tag className="h-3 w-3 text-emerald-600 dark:text-[#4edea3]" />
             <span>Quick Categories</span>
           </label>
           <button
             type="button"
             onClick={() => setShowAllCategories(!showAllCategories)}
-            className="text-[11px] font-semibold text-[#4edea3] hover:underline flex items-center gap-1 cursor-pointer"
+            className="text-[11px] font-semibold text-emerald-600 dark:text-[#4edea3] hover:underline flex items-center gap-1 cursor-pointer"
           >
             <span>{showAllCategories ? "Hide Full List" : "+ More Categories"}</span>
             <ChevronDown
@@ -524,19 +524,17 @@ export default function TransactionForm({
                 className={`group relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   isSelected
                     ? flowType === "income"
-                      ? "bg-[#4edea3] text-slate-950 shadow-md shadow-emerald-500/20 font-bold scale-[1.02]"
+                      ? "bg-emerald-500 text-white dark:bg-[#4edea3] dark:text-slate-950 shadow-md shadow-emerald-500/20 font-bold scale-[1.02]"
                       : "bg-rose-500 text-white shadow-md shadow-rose-500/20 font-bold scale-[1.02]"
-                    : "bg-white/[0.04] text-slate-300 border border-white/10 hover:border-white/20 hover:bg-white/[0.08]"
+                    : "bg-slate-100 dark:bg-white/[0.04] text-[var(--foreground)] border border-[var(--border)] hover:border-slate-300 dark:hover:border-white/20 hover:bg-slate-200/60 dark:hover:bg-white/[0.08]"
                 }`}
               >
                 {isPinned && (
                   <Pin
                     className={`h-3 w-3 ${
                       isSelected
-                        ? flowType === "income"
-                          ? "text-slate-950 fill-current"
-                          : "text-white fill-current"
-                        : "text-amber-400 fill-current"
+                        ? "text-white dark:text-slate-950 fill-current"
+                        : "text-amber-500 dark:text-amber-400 fill-current"
                     }`}
                   />
                 )}
@@ -549,12 +547,12 @@ export default function TransactionForm({
 
         {/* Expandable All Categories Dropdown */}
         {showAllCategories && (
-          <div className="mt-2 rounded-2xl border border-white/10 bg-slate-900/90 p-3 space-y-2 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between pb-1 border-b border-white/10">
-              <span className="text-[10px] font-mono uppercase text-slate-400">
+          <div className="mt-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-3 space-y-2 animate-in fade-in duration-200 shadow-xl">
+            <div className="flex items-center justify-between pb-1 border-b border-[var(--border)]">
+              <span className="text-[10px] font-mono uppercase text-[var(--muted-foreground)]">
                 Complete Category Registry
               </span>
-              <span className="text-[10px] text-slate-500">Tap pin to favorite</span>
+              <span className="text-[10px] text-[var(--muted-foreground)]">Tap pin to favorite</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-48 overflow-y-auto pr-1">
               {availableCategories.map((catName) => {
@@ -566,8 +564,8 @@ export default function TransactionForm({
                     key={catName}
                     className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
                       isSelected
-                        ? "bg-white/15 text-white font-bold border border-white/20"
-                        : "text-slate-300 hover:bg-white/5"
+                        ? "bg-emerald-500/15 dark:bg-white/15 text-emerald-800 dark:text-white font-bold border border-emerald-500/30 dark:border-white/20"
+                        : "text-[var(--foreground)] hover:bg-slate-100 dark:hover:bg-white/5"
                     }`}
                   >
                     <button
@@ -584,11 +582,11 @@ export default function TransactionForm({
                       type="button"
                       title={isPinned ? "Unpin category" : "Pin category"}
                       onClick={(e) => handleTogglePinCategory(catName, isPinned, e)}
-                      className="p-1 text-slate-500 hover:text-amber-400 cursor-pointer ml-1"
+                      className="p-1 text-[var(--muted-foreground)] hover:text-amber-500 dark:hover:text-amber-400 cursor-pointer ml-1"
                     >
                       <Pin
                         className={`h-3 w-3 ${
-                          isPinned ? "text-amber-400 fill-amber-400" : "opacity-40"
+                          isPinned ? "text-amber-500 dark:text-amber-400 fill-amber-500 dark:fill-amber-400" : "opacity-40"
                         }`}
                       />
                     </button>
@@ -622,10 +620,10 @@ export default function TransactionForm({
               <div
                 key={template.id}
                 onClick={() => handleApplyTemplate(template)}
-                className="snap-start shrink-0 min-w-[170px] max-w-[210px] rounded-2xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/20 p-3 space-y-2 transition-all cursor-pointer group shadow-sm"
+                className="snap-start shrink-0 min-w-[170px] max-w-[210px] rounded-2xl border border-[var(--border)] bg-slate-100/50 dark:bg-white/[0.03] hover:bg-slate-200/50 dark:hover:bg-white/[0.07] p-3 space-y-2 transition-all cursor-pointer group shadow-sm"
               >
                 <div className="flex items-start justify-between gap-1">
-                  <span className="text-xs font-bold text-white truncate max-w-[130px]">
+                  <span className="text-xs font-bold text-[var(--foreground)] truncate max-w-[130px]">
                     {template.name}
                   </span>
                   <div className="flex items-center gap-1">
@@ -633,7 +631,7 @@ export default function TransactionForm({
                       type="button"
                       title={template.isFavorite ? "Unfavorite" : "Favorite"}
                       onClick={(e) => handleToggleFavorite(template.id, template.isFavorite, e)}
-                      className="text-slate-500 hover:text-amber-400 cursor-pointer"
+                      className="text-[var(--muted-foreground)] hover:text-amber-500 cursor-pointer"
                     >
                       <Star
                         className={`h-3.5 w-3.5 ${
@@ -645,7 +643,7 @@ export default function TransactionForm({
                       type="button"
                       title="Delete template"
                       onClick={(e) => handleDeleteTemplate(template.id, e)}
-                      className="text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                      className="text-[var(--muted-foreground)] hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -653,19 +651,19 @@ export default function TransactionForm({
                 </div>
 
                 <div className="flex items-baseline justify-between">
-                  <span className="text-sm font-black font-mono text-emerald-400">
+                  <span className="text-sm font-black font-mono text-emerald-600 dark:text-emerald-400">
                     {formatRupees(template.amountPaise ?? 0)}
                   </span>
-                  <span className="text-[9px] font-mono uppercase text-slate-400 truncate max-w-[80px]">
+                  <span className="text-[9px] font-mono uppercase text-[var(--muted-foreground)] truncate max-w-[80px]">
                     {template.categoryName}
                   </span>
                 </div>
 
-                <div className="text-[10px] text-slate-400 truncate border-t border-white/5 pt-1.5 flex items-center gap-1">
+                <div className="text-[10px] text-[var(--muted-foreground)] truncate border-t border-[var(--border)] pt-1.5 flex items-center gap-1">
                   {template.sourceId?.startsWith("card:") ? (
-                    <CreditCardIcon className="h-2.5 w-2.5 text-amber-400 shrink-0" />
+                    <CreditCardIcon className="h-2.5 w-2.5 text-amber-500 shrink-0" />
                   ) : (
-                    <Landmark className="h-2.5 w-2.5 text-cyan-400 shrink-0" />
+                    <Landmark className="h-2.5 w-2.5 text-cyan-600 dark:text-cyan-400 shrink-0" />
                   )}
                   <span className="truncate">{template.description}</span>
                 </div>
@@ -677,31 +675,31 @@ export default function TransactionForm({
               <div
                 key={routine.id}
                 onClick={() => handleApplyTemplate(routine)}
-                className="snap-start shrink-0 min-w-[170px] max-w-[210px] rounded-2xl border border-dashed border-white/15 bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/25 p-3 space-y-2 transition-all cursor-pointer group shadow-sm"
+                className="snap-start shrink-0 min-w-[170px] max-w-[210px] rounded-2xl border border-dashed border-[var(--border)] bg-slate-100/40 dark:bg-white/[0.02] hover:bg-slate-200/40 dark:hover:bg-white/[0.06] p-3 space-y-2 transition-all cursor-pointer group shadow-sm"
               >
                 <div className="flex items-start justify-between gap-1">
-                  <span className="text-xs font-bold text-slate-200 truncate max-w-[130px]">
+                  <span className="text-xs font-bold text-[var(--foreground)] truncate max-w-[130px]">
                     {routine.name}
                   </span>
-                  <span className="text-[9px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">
+                  <span className="text-[9px] font-mono text-cyan-700 dark:text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">
                     <Repeat className="h-2.5 w-2.5 inline mr-0.5" /> RECENT
                   </span>
                 </div>
 
                 <div className="flex items-baseline justify-between">
-                  <span className="text-sm font-black font-mono text-white">
+                  <span className="text-sm font-black font-mono text-[var(--foreground)]">
                     {formatRupees(routine.amountPaise)}
                   </span>
-                  <span className="text-[9px] font-mono uppercase text-slate-400 truncate max-w-[80px]">
+                  <span className="text-[9px] font-mono uppercase text-[var(--muted-foreground)] truncate max-w-[80px]">
                     {routine.categoryName}
                   </span>
                 </div>
 
-                <div className="text-[10px] text-slate-400 truncate border-t border-white/5 pt-1.5 flex items-center gap-1">
+                <div className="text-[10px] text-[var(--muted-foreground)] truncate border-t border-[var(--border)] pt-1.5 flex items-center gap-1">
                   {routine.sourceId?.startsWith("card:") ? (
-                    <CreditCardIcon className="h-2.5 w-2.5 text-amber-400 shrink-0" />
+                    <CreditCardIcon className="h-2.5 w-2.5 text-amber-500 shrink-0" />
                   ) : (
-                    <Landmark className="h-2.5 w-2.5 text-cyan-400 shrink-0" />
+                    <Landmark className="h-2.5 w-2.5 text-cyan-600 dark:text-cyan-400 shrink-0" />
                   )}
                   <span className="truncate">{routine.description}</span>
                 </div>
@@ -714,11 +712,11 @@ export default function TransactionForm({
       {/* ========================================================================= */}
       {/* 4. FAST SETTLEMENT AMOUNT ENTRY (Tier 4)                                  */}
       {/* ========================================================================= */}
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5 transition-all focus-within:border-[#4edea3]/50 focus-within:bg-white/[0.05] shadow-lg">
+      <div className="rounded-2xl border border-[var(--border)] bg-slate-100/60 dark:bg-white/[0.03] p-4 sm:p-5 transition-all focus-within:border-emerald-500/50 shadow-lg">
         <div className="flex items-center justify-between mb-2">
           <label
             htmlFor="amount"
-            className="text-[10px] font-bold uppercase tracking-wider text-slate-400 cursor-pointer"
+            className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted-foreground)] cursor-pointer"
           >
             Settlement Amount
           </label>
@@ -727,19 +725,19 @@ export default function TransactionForm({
               <button
                 type="button"
                 onClick={handleClearAmount}
-                className="text-[10px] font-mono font-bold text-slate-400 hover:text-rose-400 bg-white/5 px-2 py-0.5 rounded cursor-pointer transition-colors"
+                className="text-[10px] font-mono font-bold text-[var(--muted-foreground)] hover:text-rose-500 bg-slate-200/60 dark:bg-white/5 px-2 py-0.5 rounded cursor-pointer transition-colors"
               >
                 CLEAR
               </button>
             )}
-            <span className="text-[10px] font-mono text-[#4edea3] font-semibold">INR TABULAR</span>
+            <span className="text-[10px] font-mono text-emerald-600 dark:text-[#4edea3] font-semibold">INR TABULAR</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <span
             className={`text-2xl sm:text-3xl font-black ${
-              flowType === "income" ? "text-[#4edea3]" : "text-rose-400"
+              flowType === "income" ? "text-emerald-600 dark:text-[#4edea3]" : "text-rose-500 dark:text-rose-400"
             }`}
           >
             ₹
@@ -756,13 +754,13 @@ export default function TransactionForm({
             value={amountInput}
             onChange={(e) => setAmountInput(e.target.value)}
             placeholder="0.00"
-            className="w-full bg-transparent text-2xl sm:text-4xl font-black text-white placeholder:text-slate-600 outline-none tabular-nums tracking-tight"
+            className="w-full bg-transparent text-2xl sm:text-4xl font-black text-[var(--foreground)] placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none tabular-nums tracking-tight"
           />
         </div>
 
         {/* Quick Increment Numeric Chips */}
-        <div className="mt-3 pt-3 border-t border-white/10 flex flex-wrap items-center gap-1.5 sm:gap-2">
-          <span className="text-[10px] font-mono uppercase text-slate-500 mr-1 hidden sm:inline">
+        <div className="mt-3 pt-3 border-t border-[var(--border)] flex flex-wrap items-center gap-1.5 sm:gap-2">
+          <span className="text-[10px] font-mono uppercase text-[var(--muted-foreground)] mr-1 hidden sm:inline">
             Quick Add:
           </span>
           {QUICK_INCREMENTS.map((inc) => (
@@ -770,7 +768,7 @@ export default function TransactionForm({
               key={inc.label}
               type="button"
               onClick={() => handleIncrementAmount(inc.paise)}
-              className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-white/[0.04] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/10 active:scale-95 transition-all cursor-pointer"
+              className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-slate-200/50 dark:bg-white/[0.04] hover:bg-slate-200 dark:hover:bg-white/[0.1] text-[var(--foreground)] border border-[var(--border)] active:scale-95 transition-all cursor-pointer"
             >
               {inc.label}
             </button>
@@ -779,29 +777,29 @@ export default function TransactionForm({
 
         {/* Live Credit Card Limit Dynamics Preview */}
         {selectedCardInfo && (
-          <div className="mt-3.5 pt-3 border-t border-white/10 space-y-2.5">
+          <div className="mt-3.5 pt-3 border-t border-[var(--border)] space-y-2.5">
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-              <span className="text-slate-400 font-medium">Card Limit Status</span>
+              <span className="text-[var(--muted-foreground)] font-medium">Card Limit Status</span>
               <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
-                <span className="text-slate-400">
-                  Limit: <strong className="text-white">{formatRupees(selectedCardInfo.limitPaise)}</strong>
+                <span className="text-[var(--muted-foreground)]">
+                  Limit: <strong className="text-[var(--foreground)]">{formatRupees(selectedCardInfo.limitPaise)}</strong>
                 </span>
-                <span className="text-slate-600">·</span>
+                <span className="text-[var(--muted-foreground)]">·</span>
                 <span
                   className={
                     selectedCardInfo.availablePaise < 0
-                      ? "text-rose-400 font-bold"
-                      : "text-emerald-400"
+                      ? "text-rose-500 font-bold"
+                      : "text-emerald-600 dark:text-emerald-400"
                   }
                 >
                   Available: <strong>{formatRupees(selectedCardInfo.availablePaise)}</strong>
                 </span>
-                <span className="text-slate-600">·</span>
+                <span className="text-[var(--muted-foreground)]">·</span>
                 <span
                   className={
                     selectedCardInfo.isExceeded
-                      ? "text-rose-400 font-black animate-pulse"
-                      : "text-cyan-300 font-semibold"
+                      ? "text-rose-500 font-black animate-pulse"
+                      : "text-cyan-600 dark:text-cyan-300 font-semibold"
                   }
                 >
                   Projected: <strong>{formatRupees(selectedCardInfo.projectedAvailablePaise)}</strong>
@@ -810,13 +808,13 @@ export default function TransactionForm({
             </div>
 
             {selectedCardInfo.isExceeded && (
-              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300 flex items-start gap-2.5 shadow-inner">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400 mt-0.5" />
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2.5 shadow-inner">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-500 dark:text-rose-400 mt-0.5" />
                 <div className="space-y-1">
-                  <p className="font-semibold text-rose-200">
+                  <p className="font-semibold text-rose-800 dark:text-rose-200">
                     {selectedCardInfo.errorMessage}
                   </p>
-                  <p className="text-[11px] text-rose-300/80">
+                  <p className="text-[11px] text-rose-700/80 dark:text-rose-300/80">
                     This transaction exceeds the configured credit limit on this card. Lower the amount or record a card repayment first.
                   </p>
                 </div>
@@ -829,16 +827,16 @@ export default function TransactionForm({
       {/* ========================================================================= */}
       {/* 5. DESCRIPTION / MERCHANT FIELD (Tier 5)                                  */}
       {/* ========================================================================= */}
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition-all focus-within:border-[#4edea3]/50 focus-within:bg-white/[0.05]">
+      <div className="rounded-2xl border border-[var(--border)] bg-slate-100/60 dark:bg-white/[0.03] p-4 transition-all focus-within:border-emerald-500/50">
         <div className="flex items-center justify-between mb-1.5">
           <label
             htmlFor="description"
-            className="text-[10px] font-bold uppercase tracking-wider text-slate-400 cursor-pointer flex items-center gap-1"
+            className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted-foreground)] cursor-pointer flex items-center gap-1"
           >
             <FileText className="h-3 w-3" />
             <span>Description / Merchant</span>
           </label>
-          <span className="text-[10px] font-mono text-slate-500">REQUIRED</span>
+          <span className="text-[10px] font-mono text-[var(--muted-foreground)]">REQUIRED</span>
         </div>
         <input
           id="description"
@@ -849,34 +847,34 @@ export default function TransactionForm({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder={descriptionPlaceholder}
-          className="w-full bg-transparent text-sm sm:text-base font-semibold text-white placeholder:text-slate-500 outline-none"
+          className="w-full bg-transparent text-sm sm:text-base font-semibold text-[var(--foreground)] placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none"
         />
       </div>
 
       {/* ========================================================================= */}
       {/* 6. REMEMBERED PAYMENT SOURCE (Tier 6)                                     */}
       {/* ========================================================================= */}
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition-all focus-within:border-[#4edea3]/50 focus-within:bg-white/[0.05] shadow-sm">
+      <div className="rounded-2xl border border-[var(--border)] bg-slate-100/60 dark:bg-white/[0.03] p-4 transition-all focus-within:border-emerald-500/50 shadow-sm">
         <div className="flex items-center justify-between mb-1.5">
           <label
             htmlFor="sourceId"
-            className="text-[10px] font-bold uppercase tracking-wider text-slate-400 cursor-pointer"
+            className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted-foreground)] cursor-pointer"
           >
             {flowType === "income" ? "Destination Account" : "Payment Source / Card"}
           </label>
           <div className="flex items-center gap-1.5">
             {selectedSourceDetails.type === "card" ? (
-              <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+              <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
                 <CreditCardIcon className="h-3 w-3" />
                 <span>CREDIT CARD</span>
               </span>
             ) : selectedSourceDetails.type === "cash" ? (
-              <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+              <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                 <Wallet className="h-3 w-3" />
                 <span>CASH</span>
               </span>
             ) : (
-              <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/20">
+              <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-cyan-700 dark:text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/20">
                 <Landmark className="h-3 w-3" />
                 <span>BANK</span>
               </span>
@@ -890,20 +888,20 @@ export default function TransactionForm({
           required
           value={selectedSourceId}
           onChange={(e) => setSelectedSourceId(e.target.value)}
-          className="w-full bg-transparent text-sm sm:text-base font-bold text-white outline-none cursor-pointer py-1"
+          className="w-full bg-transparent text-sm sm:text-base font-bold text-[var(--foreground)] outline-none cursor-pointer py-1"
         >
-          <option value="" disabled className="bg-slate-900 text-slate-400">
+          <option value="" disabled className="bg-[var(--card)] text-[var(--muted-foreground)]">
             Select payment source...
           </option>
 
           {/* Group: Bank Accounts */}
           {bankAccounts.length > 0 && (
-            <optgroup label="── Bank Accounts ──" className="bg-slate-900 text-slate-300 font-bold">
+            <optgroup label="── Bank Accounts ──" className="bg-[var(--card)] text-[var(--foreground)] font-bold">
               {bankAccounts.map((account) => (
                 <option
                   key={account.id}
                   value={`account:${account.id}`}
-                  className="bg-slate-900 text-white font-normal"
+                  className="bg-[var(--card)] text-[var(--foreground)] font-normal"
                 >
                   🏦 {account.name} {account.institution ? `(${account.institution})` : ""}
                 </option>
@@ -913,12 +911,12 @@ export default function TransactionForm({
 
           {/* Group: Cash in Hand */}
           {cashAccounts.length > 0 && (
-            <optgroup label="── Cash in Hand ──" className="bg-slate-900 text-slate-300 font-bold">
+            <optgroup label="── Cash in Hand ──" className="bg-[var(--card)] text-[var(--foreground)] font-bold">
               {cashAccounts.map((account) => (
                 <option
                   key={account.id}
                   value={`account:${account.id}`}
-                  className="bg-slate-900 text-white font-normal"
+                  className="bg-[var(--card)] text-[var(--foreground)] font-normal"
                 >
                   💵 {account.name} (Physical Cash)
                 </option>
@@ -928,12 +926,12 @@ export default function TransactionForm({
 
           {/* Group: Credit Cards (Strictly available for Expenses only) */}
           {flowType === "expense" && activeCards.length > 0 && (
-            <optgroup label="── Credit Cards ──" className="bg-slate-900 text-amber-300 font-bold">
+            <optgroup label="── Credit Cards ──" className="bg-[var(--card)] text-amber-600 dark:text-amber-300 font-bold">
               {activeCards.map((card) => (
                 <option
                   key={card.id}
                   value={`card:${card.id}`}
-                  className="bg-slate-900 text-amber-200 font-normal"
+                  className="bg-[var(--card)] text-[var(--foreground)] font-normal"
                 >
                   💳 {card.bank_name} {card.name}{" "}
                   {card.last_four_digits ? `(••${card.last_four_digits})` : ""}
@@ -943,8 +941,8 @@ export default function TransactionForm({
           )}
         </select>
 
-        <p className="mt-2 text-[11px] text-slate-400 font-medium truncate flex items-center gap-1.5 border-t border-white/5 pt-2">
-          <span className="text-[#4edea3]">●</span>
+        <p className="mt-2 text-[11px] text-[var(--muted-foreground)] font-medium truncate flex items-center gap-1.5 border-t border-[var(--border)] pt-2">
+          <span className="text-emerald-500">●</span>
           <span>{sourceLabel}</span>
         </p>
       </div>
@@ -953,16 +951,16 @@ export default function TransactionForm({
       {/* 7. DATE & OPTIONAL MEMO (Tier 7)                                          */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition-all focus-within:border-[#4edea3]/50 focus-within:bg-white/[0.05]">
+        <div className="rounded-2xl border border-[var(--border)] bg-slate-100/60 dark:bg-white/[0.03] p-4 transition-all focus-within:border-emerald-500/50">
           <div className="flex items-center justify-between mb-1.5">
             <label
               htmlFor="transactionDate"
-              className="text-[10px] font-bold uppercase tracking-wider text-slate-400 cursor-pointer flex items-center gap-1"
+              className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted-foreground)] cursor-pointer flex items-center gap-1"
             >
               <Calendar className="h-3 w-3" />
               <span>Transaction Date</span>
             </label>
-            <span className="text-[10px] font-mono text-slate-500">IST TODAY</span>
+            <span className="text-[10px] font-mono text-[var(--muted-foreground)]">IST TODAY</span>
           </div>
           <input
             id="transactionDate"
@@ -973,24 +971,24 @@ export default function TransactionForm({
             value={transactionDate}
             onChange={(e) => setTransactionDate(e.target.value)}
             required
-            className="w-full bg-transparent text-sm sm:text-base font-bold text-white outline-none cursor-pointer"
+            className="w-full bg-transparent text-sm sm:text-base font-bold text-[var(--foreground)] outline-none cursor-pointer"
           />
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 flex flex-col justify-between">
+        <div className="rounded-2xl border border-[var(--border)] bg-slate-100/60 dark:bg-white/[0.03] p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
               Additional Memo
             </span>
             <button
               type="button"
               onClick={() => setShowNotes(!showNotes)}
-              className="text-xs font-semibold text-[#4edea3] hover:underline cursor-pointer"
+              className="text-xs font-semibold text-emerald-600 dark:text-[#4edea3] hover:underline cursor-pointer"
             >
               {showNotes ? "Hide Notes" : "+ Add Note / Tag"}
             </button>
           </div>
-          <p className="text-[11px] text-slate-400 mt-1">
+          <p className="text-[11px] text-[var(--muted-foreground)] mt-1">
             {showNotes
               ? "Optional context appended to ledger record."
               : "Add invoice number, receipt tag, or reimbursement note."}
@@ -1000,10 +998,10 @@ export default function TransactionForm({
 
       {/* Optional Memo Input */}
       {showNotes && (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 animate-in fade-in duration-200">
+        <div className="rounded-2xl border border-[var(--border)] bg-slate-100/60 dark:bg-white/[0.03] p-4 animate-in fade-in duration-200">
           <label
             htmlFor="notes"
-            className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 cursor-pointer"
+            className="block text-[10px] font-bold uppercase tracking-wider text-[var(--muted-foreground)] mb-1.5 cursor-pointer"
           >
             Optional Notes / Metadata
           </label>
@@ -1015,19 +1013,19 @@ export default function TransactionForm({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="e.g. Receipt #1042, reimbursed by client, work travel"
-            className="w-full bg-transparent text-sm font-medium text-white placeholder:text-slate-500 outline-none"
+            className="w-full bg-transparent text-sm font-medium text-[var(--foreground)] placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none"
           />
         </div>
       )}
 
       {/* Save as Template Toggle */}
-      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
+      <div className="rounded-2xl border border-[var(--border)] bg-slate-100/40 dark:bg-white/[0.02] p-4 space-y-3">
         <label className="flex items-center justify-between cursor-pointer">
           <div className="flex items-center gap-2">
-            <Bookmark className="h-4 w-4 text-cyan-400" />
+            <Bookmark className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
             <div>
-              <p className="text-xs font-bold text-white">Save as 1-Tap Template</p>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs font-bold text-[var(--foreground)]">Save as 1-Tap Template</p>
+              <p className="text-[11px] text-[var(--muted-foreground)]">
                 Add to your quick favorites to pre-fill future entries in 1 tap
               </p>
             </div>
@@ -1038,16 +1036,16 @@ export default function TransactionForm({
             value="true"
             checked={saveAsTemplate}
             onChange={(e) => setSaveAsTemplate(e.target.checked)}
-            className="h-4 w-4 rounded accent-[#4edea3] cursor-pointer"
+            className="h-4 w-4 rounded accent-emerald-500 dark:accent-[#4edea3] cursor-pointer"
           />
         </label>
 
         {saveAsTemplate && (
-          <div className="pt-2 border-t border-white/10 grid grid-cols-1 sm:grid-cols-2 gap-3 animate-in fade-in duration-150">
+          <div className="pt-2 border-t border-[var(--border)] grid grid-cols-1 sm:grid-cols-2 gap-3 animate-in fade-in duration-150">
             <div>
               <label
                 htmlFor="templateName"
-                className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1"
+                className="block text-[10px] font-bold uppercase tracking-wider text-[var(--muted-foreground)] mb-1"
               >
                 Template Name
               </label>
@@ -1059,11 +1057,11 @@ export default function TransactionForm({
                 value={customTemplateName}
                 onChange={(e) => setCustomTemplateName(e.target.value)}
                 placeholder={description || "e.g. Swiggy Weekly, Rent Payment"}
-                className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-1.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-cyan-400"
+                className="w-full rounded-xl bg-slate-100 dark:bg-white/5 border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--foreground)] placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-cyan-400"
               />
             </div>
             <div className="flex items-end">
-              <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer pb-1.5">
+              <label className="flex items-center gap-2 text-xs text-[var(--foreground)] cursor-pointer pb-1.5">
                 <input
                   type="checkbox"
                   name="templateFavorite"
@@ -1073,7 +1071,7 @@ export default function TransactionForm({
                   className="h-3.5 w-3.5 rounded accent-amber-400 cursor-pointer"
                 />
                 <span className="flex items-center gap-1">
-                  <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                  <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
                   Mark as Favorite Template
                 </span>
               </label>

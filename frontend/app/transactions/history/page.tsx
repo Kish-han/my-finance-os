@@ -75,8 +75,8 @@ async function MonthwiseLedgerContent() {
   }
 
   return (
-    <main className="min-h-screen bg-[#10141a] text-[#dfe2eb] pt-20 pb-36 relative overflow-hidden selection:bg-[#4edea3]/30 selection:text-[#4edea3]">
-      {/* Obsidian Wealth ambient light orbs */}
+    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] pt-20 pb-36 lg:pl-64 relative overflow-hidden selection:bg-[#4edea3]/30 selection:text-[#4edea3] transition-colors">
+      {/* Ambient light orbs */}
       <div className="pointer-events-none fixed -left-32 top-10 h-96 w-96 rounded-full bg-[#10b981]/10 blur-[150px] animate-pulse-glow" />
       <div
         className="pointer-events-none fixed -right-32 top-1/4 h-[30rem] w-[30rem] rounded-full bg-[#8b5cf6]/10 blur-[160px] animate-pulse-glow"
@@ -96,14 +96,14 @@ async function MonthwiseLedgerContent() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
             href="/transactions"
-            className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             <span>Transactions</span>
           </Link>
 
           <div className="flex items-center gap-3">
-            <span className="text-[10px] font-mono uppercase tracking-widest text-[#4edea3]">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-600 dark:text-[#4edea3]">
               {transactions.length} TOTAL TRANSACTIONS
             </span>
             <Link
@@ -140,10 +140,10 @@ export default function MonthwiseHistoryPage() {
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-screen items-center justify-center bg-[#10141a] p-6 text-slate-400">
+        <main className="flex min-h-screen items-center justify-center bg-[var(--background)] p-6 text-[var(--muted-foreground)]">
           <div className="flex items-center gap-3">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#4edea3] border-t-transparent" />
-            <p className="text-sm font-mono tracking-wider text-slate-300">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+            <p className="text-sm font-mono tracking-wider text-[var(--foreground)]">
               Loading monthwise ledger...
             </p>
           </div>

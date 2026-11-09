@@ -9,7 +9,7 @@ export default function EmiLayout({
   children: ReactNode;
 }) {
   return (
-    <div className="relative min-h-screen bg-[#10141a] text-[#dfe2eb] pt-20 pb-36 selection:bg-cyan-500/30 selection:text-cyan-200 overflow-hidden">
+    <div className="relative min-h-screen bg-[var(--background)] text-[var(--foreground)] pt-20 pb-36 lg:pl-64 selection:bg-cyan-500/30 selection:text-cyan-200 overflow-hidden transition-colors">
       {/* Dynamic ambient atmospheric lighting */}
       <div className="pointer-events-none fixed -left-32 top-10 h-96 w-96 rounded-full bg-cyan-500/10 blur-[150px] animate-pulse-glow" />
       <div

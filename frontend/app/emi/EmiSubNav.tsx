@@ -14,12 +14,12 @@ export function EmiSubNav() {
 
   return (
     <nav className="mx-auto max-w-5xl px-4 sm:px-6 mb-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#181c22]/80 px-4 py-2.5 backdrop-blur-xl shadow-xl">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl aura-panel px-4 py-2.5 shadow-xl">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border border-cyan-500/30">
             <Percent className="h-3.5 w-3.5 shrink-0" />
           </div>
-          <span className="text-xs font-bold text-white tracking-wide">
+          <span className="text-xs font-bold text-[var(--foreground)] tracking-wide">
             Loan Management & Amortization
           </span>
         </div>
@@ -29,8 +29,8 @@ export function EmiSubNav() {
             href="/emi"
             className={`rounded-xl px-3 py-1.5 transition-all ${
               isOverview
-                ? "text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 shadow-sm font-bold"
-                : "text-slate-300 hover:text-white hover:bg-white/10 border border-transparent"
+                ? "text-cyan-700 dark:text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 shadow-sm font-bold"
+                : "text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-slate-200/60 dark:hover:bg-white/10 border border-transparent"
             }`}
           >
             Loans Overview
@@ -40,8 +40,8 @@ export function EmiSubNav() {
             href="/emi/schedule"
             className={`rounded-xl px-3 py-1.5 transition-all inline-flex items-center gap-1.5 ${
               isSchedule
-                ? "text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 shadow-sm font-bold"
-                : "text-slate-300 hover:text-white hover:bg-white/10 border border-transparent"
+                ? "text-cyan-700 dark:text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 shadow-sm font-bold"
+                : "text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-slate-200/60 dark:hover:bg-white/10 border border-transparent"
             }`}
           >
             <Calendar className="h-3 w-3 shrink-0" />
@@ -52,8 +52,8 @@ export function EmiSubNav() {
             href="/emi/foreclosure"
             className={`rounded-xl px-3 py-1.5 transition-all inline-flex items-center gap-1.5 ${
               isForeclosure
-                ? "text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 shadow-sm font-bold"
-                : "text-slate-300 hover:text-white hover:bg-white/10 border border-transparent"
+                ? "text-cyan-700 dark:text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 shadow-sm font-bold"
+                : "text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-slate-200/60 dark:hover:bg-white/10 border border-transparent"
             }`}
           >
             <AlertCircle className="h-3 w-3 shrink-0" />
@@ -64,8 +64,8 @@ export function EmiSubNav() {
             href="/emi/payments"
             className={`rounded-xl px-3 py-1.5 transition-all inline-flex items-center gap-1.5 ${
               isPayments
-                ? "text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 shadow-sm font-bold"
-                : "text-slate-300 hover:text-white hover:bg-white/10 border border-transparent"
+                ? "text-cyan-700 dark:text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 shadow-sm font-bold"
+                : "text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-slate-200/60 dark:hover:bg-white/10 border border-transparent"
             }`}
           >
             <Receipt className="h-3 w-3 shrink-0" />

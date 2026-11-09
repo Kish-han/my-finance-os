@@ -167,7 +167,7 @@ async function CardsContent({ searchParams }: CardsPageProps) {
   const cardholderName = resolveCardholderName(user);
 
   return (
-    <main className="min-h-screen bg-[#10141a] text-[#dfe2eb] pt-20 pb-36 relative overflow-hidden selection:bg-amber-500/30 selection:text-amber-200">
+    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] pt-20 pb-36 lg:pl-64 relative overflow-hidden selection:bg-amber-500/30 selection:text-amber-200 transition-colors">
       {/* Obsidian Wealth ambient atmospheric lighting */}
       <div className="pointer-events-none fixed -left-32 top-10 h-96 w-96 rounded-full bg-amber-500/10 blur-[140px] animate-pulse-glow" />
       <div className="pointer-events-none fixed -right-32 top-1/4 h-[30rem] w-[30rem] rounded-full bg-[#10b981]/10 blur-[150px] animate-pulse-glow" style={{ animationDelay: "2s" }} />
@@ -184,16 +184,16 @@ async function CardsContent({ searchParams }: CardsPageProps) {
       <div className="relative mx-auto max-w-4xl px-4 sm:px-6 space-y-6">
         {/* Navigation pill row */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1 backdrop-blur-md self-start">
+          <div className="inline-flex rounded-full border border-slate-300/80 dark:border-white/10 bg-slate-200/60 dark:bg-white/5 p-1 backdrop-blur-md self-start">
             <button
               type="button"
-              className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20"
+              className="rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-1.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20"
             >
               Physical Cards Stack ({cards.length})
             </button>
             <Link
               href="/cards/activity"
-              className="rounded-full px-4 py-1.5 text-xs font-semibold text-slate-400 hover:text-white transition-colors flex items-center gap-1.5"
+              className="rounded-full px-4 py-1.5 text-xs font-semibold text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-1.5"
             >
               <span>Card Activity</span>
               <ArrowUpRight className="h-3 w-3" />
@@ -201,8 +201,8 @@ async function CardsContent({ searchParams }: CardsPageProps) {
           </div>
 
           {/* Bespoke finish preview swatches from Stitch Screen 2 */}
-          <div className="flex items-center gap-2 self-start sm:self-auto bg-white/5 border border-white/10 rounded-full px-3 py-1">
-            <span className="text-[10px] uppercase font-bold text-slate-400 mr-1">
+          <div className="flex items-center gap-2 self-start sm:self-auto bg-slate-200/60 dark:bg-white/5 border border-slate-300/80 dark:border-white/10 rounded-full px-3 py-1">
+            <span className="text-[10px] uppercase font-bold text-[var(--foreground-muted)] mr-1">
               Finishes:
             </span>
             <div
@@ -286,10 +286,10 @@ async function CardsContent({ searchParams }: CardsPageProps) {
               <Plus className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold tracking-tight text-white">
+              <h2 className="text-base sm:text-lg font-bold tracking-tight text-[var(--foreground)]">
                 Add a Credit Card
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[var(--foreground-muted)]">
                 Record your card&apos;s credit limit and current balance. Never enter CVV or PIN.
               </p>
             </div>
@@ -300,7 +300,7 @@ async function CardsContent({ searchParams }: CardsPageProps) {
               <div>
                 <label
                   htmlFor="name"
-                  className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300"
+                  className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]"
                 >
                   Card nickname / Display name
                 </label>
@@ -310,14 +310,14 @@ async function CardsContent({ searchParams }: CardsPageProps) {
                   required
                   maxLength={80}
                   placeholder="e.g. Neo RuPay Platinum"
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition-all focus:border-amber-400 focus:bg-white/10 focus:ring-4 focus:ring-amber-400/20"
+                  className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20"
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="bankName"
-                  className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300"
+                  className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]"
                 >
                   Issuing bank
                 </label>
@@ -327,7 +327,7 @@ async function CardsContent({ searchParams }: CardsPageProps) {
                   required
                   maxLength={100}
                   placeholder="e.g. Axis Bank, HDFC Bank"
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition-all focus:border-amber-400 focus:bg-white/10 focus:ring-4 focus:ring-amber-400/20"
+                  className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20"
                 />
               </div>
             </div>
@@ -336,7 +336,7 @@ async function CardsContent({ searchParams }: CardsPageProps) {
               <div>
                 <label
                   htmlFor="cardholderName"
-                  className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300"
+                  className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]"
                 >
                   Name on Card
                 </label>
@@ -347,14 +347,14 @@ async function CardsContent({ searchParams }: CardsPageProps) {
                   maxLength={100}
                   placeholder="e.g. ADITYA VERMA"
                   defaultValue={cardholderName !== "PRIVATE CLIENT" ? cardholderName : ""}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white uppercase placeholder:text-slate-500 placeholder:normal-case outline-none transition-all focus:border-amber-400 focus:bg-white/10 focus:ring-4 focus:ring-amber-400/20"
+                  className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm text-[var(--foreground)] uppercase placeholder:text-slate-400 placeholder:normal-case outline-none transition-all focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20"
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="cardNetwork"
-                  className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300"
+                  className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]"
                 >
                   Card Network
                 </label>
@@ -363,10 +363,10 @@ async function CardsContent({ searchParams }: CardsPageProps) {
                   name="cardNetwork"
                   required
                   defaultValue="Visa"
-                  className="w-full rounded-xl border border-white/10 bg-[#171c24] px-4 py-3 text-sm font-semibold text-white outline-none transition-all focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20 cursor-pointer"
+                  className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-[#171c24] px-4 py-3 text-sm font-semibold text-[var(--foreground)] outline-none transition-all focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20 cursor-pointer"
                 >
                   {CARD_NETWORKS.map((network) => (
-                    <option key={network} value={network} className="bg-[#171c24] text-white">
+                    <option key={network} value={network} className="bg-[var(--background)] text-[var(--foreground)]">
                       {network}
                     </option>
                   ))}

@@ -15,15 +15,15 @@ export function Button({
 }: ButtonProps) {
   const variantStyles = {
     primary:
-      "bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold shadow-[0_0_25px_-5px_rgba(16,185,129,0.5)] border border-emerald-400/40",
+      "bg-emerald-600 hover:bg-emerald-500 text-white dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:text-slate-950 font-bold shadow-[0_4px_20px_-4px_rgba(16,185,129,0.4)] border border-emerald-500/30",
     secondary:
-      "bg-white/10 hover:bg-white/15 text-white border border-white/15 shadow-sm",
+      "bg-slate-200/80 hover:bg-slate-300/80 text-slate-900 border border-slate-300/70 dark:bg-white/10 dark:hover:bg-white/15 dark:text-white dark:border-white/15 shadow-sm",
     outline:
-      "border border-white/20 text-slate-200 hover:bg-white/5 hover:border-white/30",
+      "border border-slate-300 hover:border-slate-400 text-slate-800 hover:bg-slate-100 dark:border-white/20 dark:text-slate-200 dark:hover:bg-white/5 dark:hover:border-white/30",
     danger:
-      "bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-500/30",
+      "bg-rose-500/15 text-rose-700 hover:bg-rose-500/25 border border-rose-500/30 dark:text-rose-300 dark:bg-rose-500/20 dark:hover:bg-rose-500/30",
     ghost:
-      "text-slate-400 hover:text-white hover:bg-white/5",
+      "text-slate-600 hover:text-slate-950 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/5",
   };
 
   const sizeStyles = {
@@ -35,7 +35,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 font-semibold transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4edea3] focus-visible:ring-offset-2 focus-visible:ring-offset-[#10141a]",
+        "inline-flex items-center justify-center gap-2 font-semibold transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#10b981] dark:focus-visible:ring-[#4edea3] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]",
         variantStyles[variant],
         sizeStyles[size],
         className

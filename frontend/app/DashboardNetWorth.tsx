@@ -10,13 +10,18 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Landmark,
+  Wallet,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { LiquidGlassOrb } from "@/components/LiquidGlassOrb";
 
 interface DashboardNetWorthProps {
   netWorthPaise: number;
   totalAssetsPaise: number;
   totalLiabilitiesPaise: number;
+  availableBalancePaise?: number;
+  personalReceivablesPaise?: number;
+  personalPayablesPaise?: number;
   canCalculate: boolean;
   accountsCount: number;
   cardsCount: number;
@@ -37,6 +42,9 @@ export function DashboardNetWorth({
   netWorthPaise,
   totalAssetsPaise,
   totalLiabilitiesPaise,
+  availableBalancePaise = totalAssetsPaise,
+  personalReceivablesPaise = 0,
+  personalPayablesPaise = 0,
   canCalculate,
   accountsCount,
   cardsCount,
@@ -46,30 +54,39 @@ export function DashboardNetWorth({
 }: DashboardNetWorthProps) {
   const [isMasked, setIsMasked] = useState(false);
 
-  const clientName =
-    (displayName && displayName !== "User"
+  const clientName = (
+    displayName && displayName !== "User"
       ? displayName
       : userEmail.split("@")[0] || "PRIVATE CLIENT"
-    ).toUpperCase();
+  ).toUpperCase();
   const isPositive = netWorthPaise >= 0;
 
+  // Debt-to-Asset ratio calculation
+  const debtToAssetPct =
+    totalAssetsPaise > 0
+      ? Math.round((totalLiabilitiesPaise / totalAssetsPaise) * 100)
+      : totalLiabilitiesPaise > 0
+      ? 100
+      : 0;
+
   return (
-    <section className="aura-card-obsidian relative overflow-hidden rounded-[2.5rem] p-5 sm:p-9 shadow-2xl backdrop-blur-2xl border border-white/10">
-      {/* Ambient specular light flares */}
-      <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-emerald-500/15 blur-3xl animate-pulse-glow" />
-      <div className="pointer-events-none absolute -left-24 -bottom-24 h-72 w-72 rounded-full bg-amber-500/10 blur-3xl animate-pulse-glow" />
+    <section className="aura-card-obsidian relative overflow-hidden rounded-[2.5rem] p-6 sm:p-9 shadow-2xl backdrop-blur-2xl">
+      {/* 3D Liquid Glass Interactive Refraction Orb */}
+      <div className="pointer-events-none absolute -right-6 -top-6 sm:right-6 sm:top-6 opacity-85 z-0">
+        <LiquidGlassOrb size={210} />
+      </div>
 
       <div className="relative z-10 space-y-6">
         {/* Top telemetry bar */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="flex h-2.5 w-2.5 rounded-full bg-[#4edea3] animate-pulse shadow-[0_0_10px_#4edea3]" />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-300 font-mono">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--foreground)] font-mono">
               ESTIMATED TOTAL NET WORTH
             </span>
             <Badge
-              variant="outline"
-              className="text-[10px] uppercase font-bold tracking-widest border-emerald-500/30 text-emerald-400 bg-emerald-500/10 py-0.5 px-2"
+              variant="emerald"
+              className="text-[10px] uppercase font-bold tracking-widest py-0.5 px-2"
             >
               AUDITED VAULT
             </Badge>
@@ -79,7 +96,7 @@ export function DashboardNetWorth({
             <button
               type="button"
               onClick={() => setIsMasked(!isMasked)}
-              className="flex items-center gap-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1 text-xs text-slate-200 hover:text-white transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4edea3]"
+              className="flex items-center gap-1.5 rounded-full bg-slate-200/80 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 border border-slate-300/80 dark:border-white/15 px-3 py-1.5 text-xs text-[var(--foreground)] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#10b981] dark:focus-visible:ring-[#4edea3]"
               title={isMasked ? "Reveal figures" : "Mask figures"}
             >
               {isMasked ? (
@@ -103,10 +120,10 @@ export function DashboardNetWorth({
             <div
               className={`text-4xl sm:text-6xl md:text-7xl font-black tracking-tight tabular-nums drop-shadow-md ${
                 !canCalculate
-                  ? "text-slate-400"
+                  ? "text-[var(--foreground-muted)]"
                   : isPositive
-                  ? "text-white"
-                  : "text-rose-400"
+                  ? "text-[var(--foreground)]"
+                  : "text-rose-600 dark:text-rose-400"
               }`}
             >
               {isMasked
@@ -115,8 +132,8 @@ export function DashboardNetWorth({
                 ? formatRupees(netWorthPaise)
                 : "Unavailable"}
             </div>
-            <p className="mt-2 text-xs sm:text-sm text-slate-300 flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
+            <p className="mt-2 text-xs sm:text-sm text-[var(--foreground-muted)] flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-[#4edea3] shrink-0" />
               <span>
                 Computed across {accountsCount} accounts, {cardsCount} credit cards, and {debtsCount} active loans for {clientName}.
               </span>
@@ -126,14 +143,14 @@ export function DashboardNetWorth({
           <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
             <Link
               href="/accounts"
-              className="rounded-full bg-white/10 hover:bg-white/20 border border-white/15 px-4 py-2 text-xs font-bold text-white transition-all shadow-sm flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4edea3]"
+              className="rounded-full bg-slate-200/80 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 border border-slate-300/80 dark:border-white/15 px-4 py-2 text-xs font-bold text-[var(--foreground)] transition-all shadow-sm flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#10b981] dark:focus-visible:ring-[#4edea3]"
             >
               <span>Accounts</span>
               <Landmark className="h-3.5 w-3.5" />
             </Link>
             <Link
               href="/transactions/new"
-              className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-xs font-bold text-slate-950 shadow-md shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4edea3]"
+              className="rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-500 dark:to-teal-500 px-4 py-2 text-xs font-bold text-white dark:text-slate-950 shadow-md shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#10b981] dark:focus-visible:ring-[#4edea3]"
             >
               <TrendingUp className="h-3.5 w-3.5" />
               <span>New Entry</span>
@@ -141,62 +158,101 @@ export function DashboardNetWorth({
           </div>
         </div>
 
-        {/* Dual Assets vs Liabilities Breakdown */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 border-t border-white/10 pt-5">
-          {/* Liquid Assets Card */}
+        {/* 3-Column Assets vs Liabilities vs Available Runway Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 border-t border-[var(--surface-card-border)] pt-5">
+          {/* 1. Liquid Assets Card */}
           <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 sm:p-5 backdrop-blur-md relative overflow-hidden group hover:border-emerald-500/40 transition-all">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                <div className="h-6 w-6 rounded-lg bg-emerald-500/20 text-emerald-700 dark:text-[#4edea3] flex items-center justify-center">
                   <ArrowDownLeft className="h-3.5 w-3.5" />
                 </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">
-                  Total Liquid Assets
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                  Total Assets
                 </span>
               </div>
-              <span className="text-[10px] font-mono uppercase text-emerald-400/80">
+              <span className="text-[10px] font-mono uppercase text-[var(--foreground-subtle)]">
                 {accountsCount} ACCOUNTS
               </span>
             </div>
             <div className="mt-2.5">
-              <p className="text-2xl sm:text-3xl font-black text-white tabular-nums drop-shadow-sm">
+              <p className="text-xl sm:text-2xl font-black text-[var(--foreground)] tabular-nums drop-shadow-sm">
                 {isMasked
                   ? "••••••••"
                   : canCalculate
                   ? formatRupees(totalAssetsPaise)
                   : "Unavailable"}
               </p>
-              <p className="mt-1 text-xs text-emerald-400/90 font-medium">
+              <p className="mt-1 text-xs text-[var(--foreground-muted)] font-medium">
                 Verified liquid bank accounts & cash reserves
               </p>
+              {personalReceivablesPaise > 0 && (
+                <span className="text-[10px] text-emerald-600 dark:text-[#4edea3] font-mono block mt-0.5">
+                  + ₹{(personalReceivablesPaise / 100).toLocaleString("en-IN")} personal receivables
+                </span>
+              )}
             </div>
           </div>
 
-          {/* Total Liabilities Card */}
+          {/* 2. Total Liabilities Card */}
           <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 sm:p-5 backdrop-blur-md relative overflow-hidden group hover:border-rose-500/40 transition-all">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center">
+                <div className="h-6 w-6 rounded-lg bg-rose-500/20 text-rose-700 dark:text-rose-400 flex items-center justify-center">
                   <ArrowUpRight className="h-3.5 w-3.5" />
                 </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-rose-300">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">
                   Total Liabilities
                 </span>
               </div>
-              <span className="text-[10px] font-mono uppercase text-rose-400/80">
+              <span className="text-[10px] font-mono uppercase text-[var(--foreground-subtle)]">
                 {cardsCount} CARDS · {debtsCount} LOANS
               </span>
             </div>
             <div className="mt-2.5">
-              <p className="text-2xl sm:text-3xl font-black text-rose-200 tabular-nums drop-shadow-sm">
+              <p className="text-xl sm:text-2xl font-black text-rose-600 dark:text-rose-400 tabular-nums drop-shadow-sm">
                 {isMasked
                   ? "••••••••"
                   : canCalculate
                   ? formatRupees(totalLiabilitiesPaise)
                   : "Unavailable"}
               </p>
-              <p className="mt-1 text-xs text-rose-300/80 font-medium">
-                Revolving card balances + active loan principal
+              <p className="mt-1 text-xs text-[var(--foreground-muted)] font-medium">
+                Revolving card dues + term loan principal
+              </p>
+              {personalPayablesPaise > 0 && (
+                <span className="text-[10px] text-rose-600 dark:text-rose-400 font-mono block mt-0.5">
+                  + ₹{(personalPayablesPaise / 100).toLocaleString("en-IN")} personal borrowing
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* 3. Available Balance & Solvency Health */}
+          <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4 sm:p-5 backdrop-blur-md relative overflow-hidden group hover:border-cyan-500/40 transition-all">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-6 rounded-lg bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 flex items-center justify-center">
+                  <Wallet className="h-3.5 w-3.5" />
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-700 dark:text-cyan-400">
+                  Available Balance
+                </span>
+              </div>
+              <span className="text-[10px] font-mono uppercase text-[var(--foreground-subtle)]">
+                {debtToAssetPct}% DEBT RATIO
+              </span>
+            </div>
+            <div className="mt-2.5">
+              <p className="text-xl sm:text-2xl font-black text-cyan-700 dark:text-cyan-300 tabular-nums drop-shadow-sm">
+                {isMasked
+                  ? "••••••••"
+                  : canCalculate
+                  ? formatRupees(availableBalancePaise)
+                  : "Unavailable"}
+              </p>
+              <p className="mt-1 text-xs text-[var(--foreground-muted)] font-medium">
+                Immediately deployable liquid capital
               </p>
             </div>
           </div>

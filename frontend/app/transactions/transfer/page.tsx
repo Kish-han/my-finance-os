@@ -105,7 +105,7 @@ async function TransferContent({ searchParams }: TransferPageProps) {
   });
 
   return (
-    <main className="min-h-screen bg-[#10141a] text-[#dfe2eb] pt-20 pb-36 relative overflow-hidden selection:bg-[#4edea3]/30 selection:text-[#4edea3]">
+    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] pt-20 pb-36 lg:pl-64 relative overflow-hidden selection:bg-[#4edea3]/30 selection:text-[#4edea3] transition-colors">
       {/* Atmospheric lights */}
       <div className="pointer-events-none fixed -left-32 top-10 h-96 w-96 rounded-full bg-[#10b981]/10 blur-[150px] animate-pulse-glow" />
       <div
@@ -129,12 +129,12 @@ async function TransferContent({ searchParams }: TransferPageProps) {
         <div className="flex items-center justify-between">
           <Link
             href="/transactions"
-            className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white transition-colors group"
+            className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors group"
           >
             <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
             <span>Back to Transactions</span>
           </Link>
-          <span className="text-[10px] font-mono uppercase tracking-widest text-[#4edea3]">
+          <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-700 dark:text-[#4edea3] font-bold">
             ACCOUNT TRANSFER
           </span>
         </div>
@@ -142,15 +142,15 @@ async function TransferContent({ searchParams }: TransferPageProps) {
         {/* Title */}
         <div>
           <div className="flex items-center gap-2">
-            <span className="flex h-2 w-2 shrink-0 rounded-full bg-[#4edea3] animate-pulse" />
-            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#4edea3]">
+            <span className="flex h-2 w-2 shrink-0 rounded-full bg-emerald-600 dark:bg-[#4edea3] animate-pulse" />
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-emerald-700 dark:text-[#4edea3]">
               INTERNAL FUND MOVEMENT
             </span>
           </div>
-          <h1 className="mt-1 text-2xl sm:text-3xl font-black tracking-tight text-white">
+          <h1 className="mt-1 text-2xl sm:text-3xl font-black tracking-tight text-[var(--foreground)]">
             Transfer Between Accounts
           </h1>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-[var(--foreground-muted)]">
             Move money between your bank accounts and cash wallets. Transfers
             are excluded from income, expense and budget analytics.
           </p>

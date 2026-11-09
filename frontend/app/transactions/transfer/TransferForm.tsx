@@ -215,7 +215,7 @@ export default function TransferForm({
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-center gap-3">
           {/* Source Account */}
           <div className="space-y-1.5">
-            <span className="text-[11px] font-medium text-slate-400">
+            <span className="text-[11px] font-medium text-[var(--foreground-muted)]">
               From Account (Debit)
             </span>
             <div className="relative">
@@ -226,24 +226,24 @@ export default function TransferForm({
                   setFromAccountId(e.target.value);
                   setClientError(null);
                 }}
-                className="w-full rounded-xl bg-white/[0.04] border border-white/10 px-3.5 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-[#4edea3]/40 focus:border-[#4edea3] transition-all appearance-none cursor-pointer pr-9"
+                className="w-full rounded-xl bg-white/70 dark:bg-white/[0.04] border border-slate-300/80 dark:border-white/10 px-3.5 py-2.5 text-xs font-bold text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[#10b981] dark:focus:ring-[#4edea3]/40 focus:border-transparent transition-all appearance-none cursor-pointer pr-9"
               >
                 {accounts.map((acc) => (
                   <option
                     key={`from-${acc.id}`}
                     value={acc.id}
-                    className="bg-[#181c22] text-white"
+                    className="bg-[var(--background)] text-[var(--foreground)]"
                   >
                     {acc.name} ({acc.account_type === "cash" ? "Cash Wallet" : acc.institution || "Bank"})
                   </option>
                 ))}
               </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--foreground-subtle)]" />
             </div>
             {fromAccount?.available_balance_paise !== undefined && (
-              <p className="text-[10px] font-mono text-slate-400 pt-0.5">
+              <p className="text-[10px] font-mono text-[var(--foreground-muted)] pt-0.5">
                 Available:{" "}
-                <span className={`font-bold ${fromAccount.available_balance_paise >= 0 ? "text-[#4edea3]" : "text-rose-400"}`}>
+                <span className={`font-bold ${fromAccount.available_balance_paise >= 0 ? "text-emerald-700 dark:text-[#4edea3]" : "text-rose-600 dark:text-rose-400"}`}>
                   ₹{(fromAccount.available_balance_paise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </span>
               </p>
@@ -256,7 +256,7 @@ export default function TransferForm({
               type="button"
               onClick={handleSwapAccounts}
               title="Swap source and destination"
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-[#4edea3] hover:bg-white/10 hover:border-[#4edea3]/40 transition-all cursor-pointer active:scale-95"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-200/70 dark:bg-white/5 border border-slate-300/80 dark:border-white/10 text-[var(--foreground-muted)] hover:text-emerald-700 dark:hover:text-[#4edea3] hover:bg-slate-300/70 dark:hover:bg-white/10 transition-all cursor-pointer active:scale-95"
             >
               <ArrowLeftRight className="h-4 w-4" />
             </button>
@@ -264,7 +264,7 @@ export default function TransferForm({
 
           {/* Destination Account */}
           <div className="space-y-1.5">
-            <span className="text-[11px] font-medium text-slate-400">
+            <span className="text-[11px] font-medium text-[var(--foreground-muted)]">
               To Account (Credit)
             </span>
             <div className="relative">
@@ -275,28 +275,28 @@ export default function TransferForm({
                   setToAccountId(e.target.value);
                   setClientError(null);
                 }}
-                className={`w-full rounded-xl bg-white/[0.04] border ${
+                className={`w-full rounded-xl bg-white/70 dark:bg-white/[0.04] border ${
                   isSameAccount
-                    ? "border-rose-500/50 text-rose-300 ring-1 ring-rose-500/30"
-                    : "border-white/10 text-white focus:ring-2 focus:ring-[#4edea3]/40 focus:border-[#4edea3]"
+                    ? "border-rose-500/50 text-rose-600 dark:text-rose-300 ring-1 ring-rose-500/30"
+                    : "border-slate-300/80 dark:border-white/10 text-[var(--foreground)] focus:ring-2 focus:ring-[#10b981] dark:focus:ring-[#4edea3]/40"
                 } px-3.5 py-2.5 text-xs font-bold focus:outline-none transition-all appearance-none cursor-pointer pr-9`}
               >
                 {accounts.map((acc) => (
                   <option
                     key={`to-${acc.id}`}
                     value={acc.id}
-                    className="bg-[#181c22] text-white"
+                    className="bg-[var(--background)] text-[var(--foreground)]"
                   >
                     {acc.name} ({acc.account_type === "cash" ? "Cash Wallet" : acc.institution || "Bank"})
                   </option>
                 ))}
               </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--foreground-subtle)]" />
             </div>
             {toAccount?.available_balance_paise !== undefined && (
-              <p className="text-[10px] font-mono text-slate-400 pt-0.5">
+              <p className="text-[10px] font-mono text-[var(--foreground-muted)] pt-0.5">
                 Available:{" "}
-                <span className={`font-bold ${toAccount.available_balance_paise >= 0 ? "text-slate-300" : "text-rose-400"}`}>
+                <span className={`font-bold ${toAccount.available_balance_paise >= 0 ? "text-[var(--foreground)]" : "text-rose-600 dark:text-rose-400"}`}>
                   ₹{(toAccount.available_balance_paise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </span>
               </p>
@@ -319,7 +319,7 @@ export default function TransferForm({
         </label>
 
         <div className="relative">
-          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg font-black text-slate-400">
+          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg font-black text-[var(--foreground-subtle)]">
             ₹
           </span>
           <input
@@ -334,7 +334,7 @@ export default function TransferForm({
               setAmountInput(e.target.value);
               setClientError(null);
             }}
-            className="w-full rounded-2xl bg-white/[0.04] border border-white/10 py-3.5 pl-9 pr-4 text-xl sm:text-2xl font-black text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-[#4edea3]/40 focus:border-[#4edea3] transition-all"
+            className="w-full rounded-2xl bg-white/70 dark:bg-white/[0.04] border border-slate-300/80 dark:border-white/10 py-3.5 pl-9 pr-4 text-xl sm:text-2xl font-black text-[var(--foreground)] placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#10b981] dark:focus:ring-[#4edea3]/40 transition-all"
           />
         </div>
 
@@ -345,7 +345,7 @@ export default function TransferForm({
               key={item.label}
               type="button"
               onClick={() => handleQuickIncrement(item.value)}
-              className="rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 px-2.5 py-1 text-[11px] font-bold text-slate-300 hover:text-white transition-all cursor-pointer active:scale-95"
+              className="rounded-lg bg-slate-200/70 dark:bg-white/5 hover:bg-slate-300/70 dark:hover:bg-white/10 border border-slate-300/80 dark:border-white/10 px-2.5 py-1 text-[11px] font-bold text-[var(--foreground)] transition-all cursor-pointer active:scale-95"
             >
               {item.label}
             </button>
@@ -354,7 +354,7 @@ export default function TransferForm({
             <button
               type="button"
               onClick={() => setAmountInput("")}
-              className="rounded-lg bg-white/5 hover:bg-rose-500/20 border border-white/10 px-2 py-1 text-[10px] font-medium text-slate-400 hover:text-rose-300 transition-all cursor-pointer"
+              className="rounded-lg bg-slate-200/70 dark:bg-white/5 hover:bg-rose-500/20 border border-slate-300/80 dark:border-white/10 px-2 py-1 text-[10px] font-medium text-[var(--foreground-muted)] hover:text-rose-500 transition-all cursor-pointer"
             >
               Clear
             </button>

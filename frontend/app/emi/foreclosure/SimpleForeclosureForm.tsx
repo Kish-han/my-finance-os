@@ -309,20 +309,20 @@ export default function SimpleForeclosureForm({
           <div className="space-y-4">
             {/* 1. Loan Selection */}
             <div>
-              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300">
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
                 Select Active Loan to Foreclose
               </label>
               <select
                 value={selectedDebtId}
                 onChange={(e) => setSelectedDebtId(e.target.value)}
                 required
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition-all focus:border-cyan-400 focus:bg-white/10 focus:ring-4 focus:ring-cyan-400/20"
+                className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none transition-all focus:border-cyan-500 focus:bg-white dark:focus:bg-white/10 focus:ring-4 focus:ring-cyan-500/20"
               >
                 {loans.map((loan) => (
                   <option
                     key={loan.id}
                     value={loan.id}
-                    className="bg-slate-900 text-white"
+                    className="bg-[var(--card)] text-[var(--foreground)]"
                   >
                     {loan.name} {loan.lender_name ? `(${loan.lender_name})` : ""} · Current Est: {formatRupees(loan.estimated_principal_paise)}
                   </option>
@@ -334,26 +334,26 @@ export default function SimpleForeclosureForm({
             {selectedLoan && (
               <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4 flex flex-wrap items-center justify-between gap-3 text-xs">
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
                     Registered Terms
                   </span>
-                  <p className="font-semibold text-white">
+                  <p className="font-semibold text-[var(--foreground)]">
                     Original Principal: {formatRupees(selectedLoan.original_principal_paise)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
                     Estimated Outstanding
                   </span>
-                  <p className="font-semibold text-cyan-300 tabular-nums">
+                  <p className="font-semibold text-cyan-600 dark:text-cyan-300 tabular-nums">
                     {formatRupees(selectedLoan.estimated_principal_paise)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
                     Snapshot Date
                   </span>
-                  <p className="font-semibold text-slate-300">
+                  <p className="font-semibold text-[var(--foreground)]">
                     {formatDate(selectedLoan.outstanding_as_of_date)}
                   </p>
                 </div>
@@ -363,7 +363,7 @@ export default function SimpleForeclosureForm({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {/* 2. Foreclosure Payoff Amount */}
               <div>
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300">
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
                   Actual Lender Payoff Amount (₹)
                 </label>
                 <input
@@ -374,16 +374,16 @@ export default function SimpleForeclosureForm({
                   placeholder="e.g. 185000"
                   value={payoffAmount}
                   onChange={(e) => setPayoffAmount(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold tabular-nums text-white placeholder:text-slate-500 outline-none transition-all focus:border-cyan-400 focus:bg-white/10 focus:ring-4 focus:ring-cyan-400/20"
+                  className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm font-semibold tabular-nums text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all focus:border-cyan-500 focus:bg-white dark:focus:bg-white/10 focus:ring-4 focus:ring-cyan-500/20"
                 />
-                <span className="mt-1 block text-[11px] text-slate-400">
+                <span className="mt-1 block text-[11px] text-[var(--muted-foreground)]">
                   Final settlement amount stated in lender payoff letter / statement.
                 </span>
               </div>
 
               {/* 3. Payment Date */}
               <div>
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300">
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
                   Settlement Payment Date
                 </label>
                 <input
@@ -393,9 +393,9 @@ export default function SimpleForeclosureForm({
                   max={today}
                   value={paymentDate}
                   onChange={(e) => setPaymentDate(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition-all focus:border-cyan-400 focus:bg-white/10 focus:ring-4 focus:ring-cyan-400/20"
+                  className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none transition-all focus:border-cyan-500 focus:bg-white dark:focus:bg-white/10 focus:ring-4 focus:ring-cyan-500/20"
                 />
-                <span className="mt-1 block text-[11px] text-slate-400">
+                <span className="mt-1 block text-[11px] text-[var(--muted-foreground)]">
                   Date the payment was processed by your bank. Cannot be in future.
                 </span>
               </div>
@@ -403,33 +403,33 @@ export default function SimpleForeclosureForm({
 
             {/* 4. Payment Account */}
             <div>
-              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300">
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
                 Payment Source Account
               </label>
               <select
                 value={selectedAccountId}
                 onChange={(e) => setSelectedAccountId(e.target.value)}
                 required
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition-all focus:border-cyan-400 focus:bg-white/10 focus:ring-4 focus:ring-cyan-400/20"
+                className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none transition-all focus:border-cyan-500 focus:bg-white dark:focus:bg-white/10 focus:ring-4 focus:ring-cyan-500/20"
               >
                 {accounts.map((account) => (
                   <option
                     key={account.id}
                     value={account.id}
-                    className="bg-slate-900 text-white"
+                    className="bg-[var(--card)] text-[var(--foreground)]"
                   >
                     {account.name} {account.institution ? `· ${account.institution}` : ""} ({account.account_type.toUpperCase()})
                   </option>
                 ))}
               </select>
-              <span className="mt-1 block text-[11px] text-slate-400">
+              <span className="mt-1 block text-[11px] text-[var(--muted-foreground)]">
                 The settlement amount will be recorded as an expense against this account ledger.
               </span>
             </div>
 
             {/* 5. Notes */}
             <div>
-              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300">
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
                 Notes / Reference (Optional)
               </label>
               <input
@@ -438,7 +438,7 @@ export default function SimpleForeclosureForm({
                 placeholder="e.g. NOC ref #12345, RTGS UTR, or foreclosure letter ID"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition-all focus:border-cyan-400 focus:bg-white/10 focus:ring-4 focus:ring-cyan-400/20"
+                className="w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all focus:border-cyan-500 focus:bg-white dark:focus:bg-white/10 focus:ring-4 focus:ring-cyan-500/20"
               />
             </div>
           </div>

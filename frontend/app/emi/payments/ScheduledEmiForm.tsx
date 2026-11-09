@@ -37,7 +37,7 @@ type Props = {
 };
 
 const inputClass =
-  "w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition-all focus:border-cyan-400 focus:bg-white/10 focus:ring-4 focus:ring-cyan-400/20";
+  "w-full rounded-xl border border-slate-300/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all focus:border-cyan-500 focus:bg-white dark:focus:bg-white/10 focus:ring-4 focus:ring-cyan-500/20";
 
 export default function ScheduledEmiForm({
   loans,
@@ -113,7 +113,7 @@ export default function ScheduledEmiForm({
         >
           <option value="" className="bg-slate-900 text-slate-400">Select loan or EMI</option>
           {loans.map((loan) => (
-            <option key={loan.id} value={loan.id} className="bg-slate-900 text-white">
+            <option key={loan.id} value={loan.id} className="bg-[var(--card)] text-[var(--foreground)]">
               {loan.label} {loan.category === "credit_card_emi" ? "(Card EMI)" : "(Loan)"}
             </option>
           ))}
@@ -311,9 +311,9 @@ export default function ScheduledEmiForm({
               onChange={(event) => setCardId(event.target.value)}
               className={inputClass}
             >
-              <option value="" className="bg-slate-900 text-slate-400">Select credit card</option>
+              <option value="" className="bg-[var(--card)] text-[var(--muted-foreground)]">Select credit card</option>
               {cards.map((card) => (
-                <option key={card.id} value={card.id} className="bg-slate-900 text-white">
+                <option key={card.id} value={card.id} className="bg-[var(--card)] text-[var(--foreground)]">
                   {card.label}
                 </option>
               ))}
@@ -324,7 +324,7 @@ export default function ScheduledEmiForm({
           </div>
         ) : (
           <div>
-            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300">
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
               Account Debited
             </label>
             <select
@@ -334,9 +334,9 @@ export default function ScheduledEmiForm({
               onChange={(event) => setAccountId(event.target.value)}
               className={inputClass}
             >
-              <option value="" className="bg-slate-900 text-slate-400">Select payment account</option>
+              <option value="" className="bg-[var(--card)] text-[var(--muted-foreground)]">Select payment account</option>
               {accounts.map((account) => (
-                <option key={account.id} value={account.id} className="bg-slate-900 text-white">
+                <option key={account.id} value={account.id} className="bg-[var(--card)] text-[var(--foreground)]">
                   {account.label}
                 </option>
               ))}

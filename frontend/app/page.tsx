@@ -15,8 +15,13 @@ import {
   Percent,
   PieChart,
   AlertTriangle,
+  Receipt,
+  Sparkles,
+  Plus,
+  Handshake,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { fetchMoneyTrackerData } from "@/lib/finance/money-tracker-data";
 import {
   calculateAccountBalance,
   separateAccountBalances,
@@ -47,7 +52,11 @@ type TransactionType =
   | "expense"
   | "transfer"
   | "card_purchase"
-  | "card_payment";
+  | "card_payment"
+  | "money_lent"
+  | "repayment_received"
+  | "money_borrowed"
+  | "repayment_paid";
 
 type AccountRow = {
   id: string;
@@ -213,6 +222,34 @@ function toFinancialTransaction(row: TransactionRow): Transaction {
         fromAccountId: row.from_account_id!,
         creditCardId: row.credit_card_id!,
       };
+
+    case "money_lent":
+      return {
+        ...base,
+        type: "money_lent",
+        accountId: row.account_id!,
+      };
+
+    case "repayment_received":
+      return {
+        ...base,
+        type: "repayment_received",
+        accountId: row.account_id!,
+      };
+
+    case "money_borrowed":
+      return {
+        ...base,
+        type: "money_borrowed",
+        accountId: row.account_id!,
+      };
+
+    case "repayment_paid":
+      return {
+        ...base,
+        type: "repayment_paid",
+        accountId: row.account_id!,
+      };
   }
 }
 
@@ -223,7 +260,7 @@ async function loadTransactions(
   const { data, error } = await supabase
     .from("transactions")
     .select(
-      "id, transaction_date, amount_paise, transaction_type, account_id, from_account_id, to_account_id, credit_card_id, category_id"
+      "id, description, transaction_date, amount_paise, transaction_type, account_id, from_account_id, to_account_id, credit_card_id, category_id"
     )
     .eq("user_id", userId)
     .order("transaction_date", { ascending: false });
@@ -319,6 +356,7 @@ async function DashboardContent({
     pendingRecurringResult,
     budgetRows,
     categoryRows,
+    moneyTrackerResult,
   ] = await Promise.all([
     supabase
       .from("accounts")
@@ -401,7 +439,17 @@ async function DashboardContent({
         return [];
       }
     })(),
+
+    (async () => {
+      try {
+        return await fetchMoneyTrackerData(supabase);
+      } catch {
+        return null;
+      }
+    })(),
   ]);
+
+  const moneyTrackerData = moneyTrackerResult;
 
   const accountRows =
     (accountsResult.data ?? []) as unknown as AccountRow[];
@@ -520,10 +568,17 @@ async function DashboardContent({
     totalStandaloneLoanPaise: totalStandaloneLoanPrincipalPaise,
   } = partitionDebtsForLiabilities(activeEmis);
 
-  const { totalLiabilitiesPaise, netWorthPaise } = calculateNetWorth({
+  const personalReceivablesPaise =
+    moneyTrackerData?.metrics.outstandingReceivablesPaise ?? 0;
+  const personalPayablesPaise =
+    moneyTrackerData?.metrics.outstandingPayablesPaise ?? 0;
+
+  const { totalAssetsPaise, totalLiabilitiesPaise, netWorthPaise } = calculateNetWorth({
     liquidAssetsPaise: totalBankCashPaise,
     cardOutstandingPaise: totalCardOutstandingPaise,
     standaloneLoanPrincipalPaise: totalStandaloneLoanPrincipalPaise,
+    personalReceivablesPaise,
+    personalPayablesPaise,
   });
 
   const upcomingCardOptions = cardRows.map((c) => {
@@ -617,9 +672,30 @@ async function DashboardContent({
   const userEmail = user.email || "Private Client";
   const displayName = resolveDisplayName(user);
 
+  const recentTransactions = transactionRows.slice(0, 5);
+
+  const liquidityRunwayMonths =
+    monthlyExpensesPaise > 0
+      ? (totalBankCashPaise / monthlyExpensesPaise).toFixed(1)
+      : null;
+
+  const debtToAssetRatio =
+    totalBankCashPaise > 0
+      ? Math.round((totalLiabilitiesPaise / totalBankCashPaise) * 100)
+      : totalLiabilitiesPaise > 0
+      ? 100
+      : 0;
+
+  const savingsRatePct =
+    monthlyIncomePaise > 0
+      ? Math.round(
+          ((monthlyIncomePaise - monthlyExpensesPaise) / monthlyIncomePaise) * 100
+        )
+      : null;
+
   return (
-    <main className="min-h-screen bg-[#10141a] text-[#dfe2eb] pt-20 pb-36 relative overflow-hidden selection:bg-[#4edea3]/30 selection:text-[#4edea3]">
-      {/* Obsidian Wealth ambient atmospheric light orbs */}
+    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] lg:pl-64 pt-20 pb-36 relative overflow-hidden selection:bg-[#4edea3]/30 selection:text-[#4edea3] transition-colors duration-300">
+      {/* Atmospheric ambient liquid glass glow orbs */}
       <div className="pointer-events-none absolute -top-40 left-1/4 h-[500px] w-[500px] rounded-full bg-[#10b981]/10 blur-[130px] animate-pulse-glow" />
       <div
         className="pointer-events-none absolute top-1/3 -right-40 h-[600px] w-[600px] rounded-full bg-[#3b82f6]/10 blur-[150px] animate-pulse-glow"
@@ -630,9 +706,9 @@ async function DashboardContent({
         style={{ animationDelay: "4s" }}
       />
 
-      {/* 1. Compact Top Navigation & Brand Header */}
+      {/* Top Contextual Header */}
       <AuraHeader
-        sectionTitle="Vault Overview"
+        sectionTitle="Wealth Overview"
         userEmail={userEmail}
         displayName={displayName}
         signOutAction={logout}
@@ -673,8 +749,11 @@ async function DashboardContent({
         <section>
           <DashboardNetWorth
             netWorthPaise={netWorthPaise}
-            totalAssetsPaise={totalBankCashPaise}
+            totalAssetsPaise={totalAssetsPaise}
             totalLiabilitiesPaise={totalLiabilitiesPaise}
+            availableBalancePaise={totalBankCashPaise}
+            personalReceivablesPaise={personalReceivablesPaise}
+            personalPayablesPaise={personalPayablesPaise}
             canCalculate={
               canCalculateBankBalances &&
               canCalculateCardBalances &&
@@ -692,46 +771,46 @@ async function DashboardContent({
         <section className="grid grid-cols-4 gap-2 sm:gap-4">
           <Link
             href="/transactions/new?type=income"
-            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl bg-[#181c22]/90 border border-white/[0.08] backdrop-blur-xl hover:border-[#4edea3]/40 hover:bg-[#1c2026] hover:-translate-y-0.5 active:scale-[0.97] transition-all shadow-lg text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4edea3]"
+            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl aura-panel hover:border-emerald-500/40 hover:-translate-y-0.5 active:scale-[0.97] transition-all shadow-lg text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#10b981] dark:focus-visible:ring-[#4edea3]"
           >
-            <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-[#10b981]/15 text-[#4edea3] border border-[#10b981]/30 group-hover:scale-105 transition-transform">
+            <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-[#4edea3] border border-emerald-500/30 group-hover:scale-105 transition-transform">
               <ArrowDownLeft className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
-            <span className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-white tracking-wide">Deposit</span>
-            <span className="text-[10px] text-slate-300 hidden sm:block">Add Capital</span>
+            <span className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-[var(--foreground)] tracking-wide">Deposit</span>
+            <span className="text-[10px] text-[var(--foreground-muted)] hidden sm:block">Add Capital</span>
           </Link>
 
           <Link
             href="/transactions/new?type=expense"
-            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl bg-[#181c22]/90 border border-white/[0.08] backdrop-blur-xl hover:border-rose-500/40 hover:bg-[#1c2026] hover:-translate-y-0.5 active:scale-[0.97] transition-all shadow-lg text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl aura-panel hover:border-rose-500/40 hover:-translate-y-0.5 active:scale-[0.97] transition-all shadow-lg text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
           >
-            <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-rose-500/15 text-rose-300 border border-rose-500/30 group-hover:scale-105 transition-transform">
+            <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30 group-hover:scale-105 transition-transform">
               <ArrowUpRight className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
-            <span className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-white tracking-wide">Expense</span>
-            <span className="text-[10px] text-slate-300 hidden sm:block">Record Spend</span>
+            <span className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-[var(--foreground)] tracking-wide">Expense</span>
+            <span className="text-[10px] text-[var(--foreground-muted)] hidden sm:block">Record Spend</span>
           </Link>
 
           <Link
             href="/transactions/transfer"
-            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl bg-[#181c22]/90 border border-white/[0.08] backdrop-blur-xl hover:border-cyan-400/40 hover:bg-[#1c2026] hover:-translate-y-0.5 active:scale-[0.97] transition-all shadow-lg text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl aura-panel hover:border-cyan-400/40 hover:-translate-y-0.5 active:scale-[0.97] transition-all shadow-lg text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
           >
-            <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 group-hover:scale-105 transition-transform">
+            <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30 group-hover:scale-105 transition-transform">
               <ArrowLeftRight className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
-            <span className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-white tracking-wide">Transfer</span>
-            <span className="text-[10px] text-slate-300 hidden sm:block">Move Funds</span>
+            <span className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-[var(--foreground)] tracking-wide">Transfer</span>
+            <span className="text-[10px] text-[var(--foreground-muted)] hidden sm:block">Move Funds</span>
           </Link>
 
           <Link
             href="/cards"
-            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl bg-[#181c22]/90 border border-white/[0.08] backdrop-blur-xl hover:border-amber-400/40 hover:bg-[#1c2026] hover:-translate-y-0.5 active:scale-[0.97] transition-all shadow-lg text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+            className="group flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl aura-panel hover:border-amber-400/40 hover:-translate-y-0.5 active:scale-[0.97] transition-all shadow-lg text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
           >
-            <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-[#d4af37]/15 text-[#f3e5ab] border border-[#d4af37]/30 group-hover:scale-105 transition-transform">
+            <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 group-hover:scale-105 transition-transform">
               <CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
-            <span className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-white tracking-wide">Cards</span>
-            <span className="text-[10px] text-slate-300 hidden sm:block">Revolving</span>
+            <span className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-bold text-[var(--foreground)] tracking-wide">Cards</span>
+            <span className="text-[10px] text-[var(--foreground-muted)] hidden sm:block">Revolving</span>
           </Link>
         </section>
 
@@ -739,14 +818,14 @@ async function DashboardContent({
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-[#4edea3] shadow-[0_0_8px_rgba(78,222,163,0.8)]" />
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+              <span className="h-2 w-2 rounded-full bg-emerald-600 dark:bg-[#4edea3] shadow-[0_0_8px_rgba(78,222,163,0.8)]" />
+              <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
                 Liquid Reserves
               </h2>
             </div>
             <Link
               href="/accounts"
-              className="text-xs font-semibold text-[#4edea3] hover:text-emerald-300 transition-colors flex items-center gap-1"
+              className="text-xs font-semibold text-emerald-700 dark:text-[#4edea3] hover:underline transition-colors flex items-center gap-1"
             >
               <span>Manage Accounts</span>
               <ChevronRight className="h-3 w-3" />
@@ -755,60 +834,60 @@ async function DashboardContent({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
             {/* Cash in Hand */}
-            <div className="aura-panel p-4 sm:p-5 flex flex-col justify-between hover:border-emerald-400/40 transition-all rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl">
+            <div className="aura-panel p-4 sm:p-5 flex flex-col justify-between hover:border-emerald-500/40 transition-all rounded-3xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
                     <Wallet className="h-5 w-5" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-subtle)] block">
                       Physical Currency
                     </span>
-                    <h3 className="text-sm sm:text-base font-bold text-white">Cash in Hand</h3>
+                    <h3 className="text-sm sm:text-base font-bold text-[var(--foreground)]">Cash in Hand</h3>
                   </div>
                 </div>
-                <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
+                <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
                   {cashAccountBalances.length} {cashAccountBalances.length === 1 ? "wallet" : "wallets"}
                 </span>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-white/5 flex items-baseline justify-between">
-                <span className="text-2xl sm:text-3xl font-black text-white tabular-nums drop-shadow-sm truncate">
+              <div className="mt-4 pt-3 border-t border-[var(--surface-panel-border)] flex items-baseline justify-between">
+                <span className="text-2xl sm:text-3xl font-black text-[var(--foreground)] tabular-nums drop-shadow-sm truncate">
                   {canCalculateBankBalances
                     ? formatRupees(totalCashInHandPaise)
                     : "Unavailable"}
                 </span>
-                <span className="text-xs text-slate-400 shrink-0 ml-2">Total cash</span>
+                <span className="text-xs text-[var(--foreground-muted)] shrink-0 ml-2">Total cash</span>
               </div>
             </div>
 
             {/* Bank Balances */}
-            <div className="aura-panel p-4 sm:p-5 flex flex-col justify-between hover:border-[#4edea3]/40 transition-all rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl">
+            <div className="aura-panel p-4 sm:p-5 flex flex-col justify-between hover:border-emerald-500/40 transition-all rounded-3xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#10b981]/15 text-[#4edea3] border border-[#10b981]/30">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-[#4edea3] border border-emerald-500/30">
                     <Landmark className="h-5 w-5" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-subtle)] block">
                       Institutional Deposits
                     </span>
-                    <h3 className="text-sm sm:text-base font-bold text-white">Bank Balances</h3>
+                    <h3 className="text-sm sm:text-base font-bold text-[var(--foreground)]">Bank Balances</h3>
                   </div>
                 </div>
-                <span className="rounded-full bg-[#10b981]/15 border border-[#10b981]/30 px-2.5 py-0.5 text-[11px] font-bold text-[#4edea3]">
+                <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-[#4edea3]">
                   {bankAccountBalances.length} {bankAccountBalances.length === 1 ? "account" : "accounts"}
                 </span>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-white/5 flex items-baseline justify-between">
-                <span className="text-2xl sm:text-3xl font-black text-white tabular-nums drop-shadow-sm truncate">
+              <div className="mt-4 pt-3 border-t border-[var(--surface-panel-border)] flex items-baseline justify-between">
+                <span className="text-2xl sm:text-3xl font-black text-[var(--foreground)] tabular-nums drop-shadow-sm truncate">
                   {canCalculateBankBalances
                     ? formatRupees(totalBankBalancesPaise)
                     : "Unavailable"}
                 </span>
-                <span className="text-xs text-slate-400 shrink-0 ml-2">Bank reserves</span>
+                <span className="text-xs text-[var(--foreground-muted)] shrink-0 ml-2">Bank reserves</span>
               </div>
             </div>
           </div>
@@ -818,83 +897,83 @@ async function DashboardContent({
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+              <span className="h-2 w-2 rounded-full bg-cyan-600 dark:bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
+              <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
                 Liabilities & Monthly Flow
               </h2>
             </div>
-            <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--foreground-subtle)]">
               AUDITED TELEMETRY
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
             {/* Credit Card Outstanding */}
-            <div className="aura-panel p-4 sm:p-5 flex flex-col justify-between hover:border-amber-400/40 transition-all rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl">
+            <div className="aura-panel p-4 sm:p-5 flex flex-col justify-between hover:border-amber-400/40 transition-all rounded-3xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-xl bg-amber-500/15 text-amber-300 flex items-center justify-center border border-amber-500/30">
+                  <div className="h-8 w-8 rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-300 flex items-center justify-center border border-amber-500/30">
                     <CreditCard className="h-4 w-4" />
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-amber-300">
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
                     Card Liabilities
                   </span>
                 </div>
-                <span className="text-[10px] font-mono uppercase text-slate-400">
+                <span className="text-[10px] font-mono uppercase text-[var(--foreground-subtle)]">
                   {cardRows.length} {cardRows.length === 1 ? "card" : "cards"}
                 </span>
               </div>
               <div className="mt-3">
-                <span className="text-xl sm:text-2xl font-black text-amber-300 tabular-nums block truncate">
+                <span className="text-xl sm:text-2xl font-black text-amber-700 dark:text-amber-300 tabular-nums block truncate">
                   {canCalculateCardBalances
                     ? formatRupees(totalCardOutstandingPaise)
                     : "Unavailable"}
                 </span>
-                <p className="mt-1 text-[11px] text-slate-400">
+                <p className="mt-1 text-[11px] text-[var(--foreground-muted)]">
                   Revolving dues (excludes double-counted EMI)
                 </p>
               </div>
             </div>
 
             {/* Standalone Loan Principal */}
-            <div className="aura-panel p-4 sm:p-5 flex flex-col justify-between hover:border-cyan-400/40 transition-all rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl">
+            <div className="aura-panel p-4 sm:p-5 flex flex-col justify-between hover:border-cyan-400/40 transition-all rounded-3xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-xl bg-cyan-500/15 text-cyan-400 flex items-center justify-center border border-cyan-500/30">
+                  <div className="h-8 w-8 rounded-xl bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 flex items-center justify-center border border-cyan-500/30">
                     <Percent className="h-4 w-4" />
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-cyan-400">
+                  <span className="text-xs font-bold uppercase tracking-wider text-cyan-700 dark:text-cyan-400">
                     Loan Principal
                   </span>
                 </div>
-                <span className="text-[10px] font-mono uppercase text-slate-400">
+                <span className="text-[10px] font-mono uppercase text-[var(--foreground-subtle)]">
                   {standaloneLoans.length} {standaloneLoans.length === 1 ? "loan" : "loans"}
                 </span>
               </div>
               <div className="mt-3">
-                <span className="text-xl sm:text-2xl font-black text-cyan-300 tabular-nums block truncate">
+                <span className="text-xl sm:text-2xl font-black text-cyan-700 dark:text-cyan-300 tabular-nums block truncate">
                   {canCalculateEmiBalances
                     ? formatRupees(totalStandaloneLoanPrincipalPaise)
                     : "Unavailable"}
                 </span>
-                <p className="mt-1 text-[11px] text-slate-400">
+                <p className="mt-1 text-[11px] text-[var(--foreground-muted)]">
                   Standalone loan principal liability
                 </p>
               </div>
             </div>
 
             {/* Monthly Net Flow */}
-            <div className="aura-panel p-4 sm:p-5 flex flex-col justify-between hover:border-[#d0bcff]/40 transition-all rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl">
+            <div className="aura-panel p-4 sm:p-5 flex flex-col justify-between hover:border-[#8b5cf6]/40 transition-all rounded-3xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-xl bg-[#8b5cf6]/15 text-[#d0bcff] flex items-center justify-center border border-[#8b5cf6]/30">
+                  <div className="h-8 w-8 rounded-xl bg-purple-500/15 text-purple-700 dark:text-purple-300 flex items-center justify-center border border-purple-500/30">
                     <TrendingUp className="h-4 w-4" />
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#d0bcff]">
+                  <span className="text-xs font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300">
                     Monthly Net Flow
                   </span>
                 </div>
-                <span className="text-[10px] font-mono uppercase text-slate-400">
+                <span className="text-[10px] font-mono uppercase text-[var(--foreground-subtle)]">
                   THIS MONTH
                 </span>
               </div>
@@ -902,19 +981,19 @@ async function DashboardContent({
                 <span
                   className={`text-xl sm:text-2xl font-black tabular-nums block truncate ${
                     !canCalculateMonthlyActivity
-                      ? "text-slate-400"
+                      ? "text-[var(--foreground-subtle)]"
                       : monthlyIncomePaise >= monthlyExpensesPaise
-                      ? "text-emerald-400"
-                      : "text-rose-400"
+                      ? "text-emerald-700 dark:text-[#4edea3]"
+                      : "text-rose-700 dark:text-rose-400"
                   }`}
                 >
                   {canCalculateMonthlyActivity
                     ? formatRupees(monthlyIncomePaise - monthlyExpensesPaise)
                     : "Unavailable"}
                 </span>
-                <div className="mt-1 flex items-center justify-between text-[11px] text-slate-400">
-                  <span className="text-emerald-400">+{formatRupees(monthlyIncomePaise)}</span>
-                  <span className="text-rose-400">−{formatRupees(monthlyExpensesPaise)}</span>
+                <div className="mt-1 flex items-center justify-between text-[11px] text-[var(--foreground-muted)]">
+                  <span className="text-emerald-700 dark:text-[#4edea3]">+{formatRupees(monthlyIncomePaise)}</span>
+                  <span className="text-rose-700 dark:text-rose-400">−{formatRupees(monthlyExpensesPaise)}</span>
                 </div>
               </div>
             </div>
@@ -923,22 +1002,22 @@ async function DashboardContent({
 
         {/* Compact Monthly Budget Summary (if budgets configured) */}
         {budgetOverview.categoriesCount > 0 && (
-          <section className="aura-card-obsidian rounded-3xl p-5 sm:p-6 border border-white/10 shadow-xl relative overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/10">
+          <section className="aura-card-obsidian rounded-3xl p-5 sm:p-6 border border-[var(--surface-panel-border)] shadow-xl relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[var(--surface-panel-border)]">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30">
+                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500/30">
                   <PieChart className="h-4.5 w-4.5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-sm sm:text-base font-bold text-white">
+                    <h2 className="text-sm sm:text-base font-bold text-[var(--foreground)]">
                       Monthly Budget Summary
                     </h2>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-200/70 dark:bg-white/5 border border-slate-300/80 dark:border-white/10 text-[var(--foreground-muted)]">
                       {budgetOverview.monthLabel}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-[var(--foreground-muted)]">
                     {budgetOverview.categoriesCount} active {budgetOverview.categoriesCount === 1 ? "category" : "categories"} tracked
                   </p>
                 </div>
@@ -946,7 +1025,7 @@ async function DashboardContent({
 
               <Link
                 href="/budgets"
-                className="inline-flex items-center gap-1 text-xs font-bold text-[#4edea3] hover:text-white hover:underline transition-colors self-start sm:self-auto cursor-pointer"
+                className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-[#4edea3] hover:underline transition-colors self-start sm:self-auto cursor-pointer"
               >
                 <span>Manage Budgets</span>
                 <ChevronRight className="h-4 w-4" />
@@ -955,25 +1034,25 @@ async function DashboardContent({
 
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <span className="text-[11px] font-medium text-slate-400">Total Budget</span>
-                <p className="text-xl sm:text-2xl font-black text-white tabular-nums mt-0.5">
+                <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Total Budget</span>
+                <p className="text-xl sm:text-2xl font-black text-[var(--foreground)] tabular-nums mt-0.5">
                   {formatRupees(budgetOverview.totalBudgetPaise)}
                 </p>
               </div>
 
               <div>
-                <span className="text-[11px] font-medium text-slate-400">Actual Spending</span>
-                <p className="text-xl sm:text-2xl font-black text-slate-200 tabular-nums mt-0.5">
+                <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Actual Spending</span>
+                <p className="text-xl sm:text-2xl font-black text-[var(--foreground)] tabular-nums mt-0.5">
                   {formatRupees(budgetOverview.totalActualSpendingPaise)}
                 </p>
-                <div className="mt-1.5 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                <div className="mt-1.5 h-1.5 w-full rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${
                       budgetOverview.overallPercentageUsed > 100
                         ? "bg-rose-500"
                         : budgetOverview.overallPercentageUsed >= 80
                         ? "bg-amber-400"
-                        : "bg-[#4edea3]"
+                        : "bg-emerald-500"
                     }`}
                     style={{ width: `${Math.min(100, budgetOverview.overallPercentageUsed)}%` }}
                   />
@@ -981,12 +1060,12 @@ async function DashboardContent({
               </div>
 
               <div>
-                <span className="text-[11px] font-medium text-slate-400">
+                <span className="text-[11px] font-medium text-[var(--foreground-muted)]">
                   {budgetOverview.totalOverspentPaise > 0 ? "Total Overspent" : "Remaining Buffer"}
                 </span>
                 <p
                   className={`text-xl sm:text-2xl font-black tabular-nums mt-0.5 ${
-                    budgetOverview.totalOverspentPaise > 0 ? "text-rose-400" : "text-[#4edea3]"
+                    budgetOverview.totalOverspentPaise > 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-700 dark:text-[#4edea3]"
                   }`}
                 >
                   {budgetOverview.totalOverspentPaise > 0
@@ -999,12 +1078,12 @@ async function DashboardContent({
             {/* Most Urgent Alert Highlight (if any) */}
             {urgentBudget && (
               <div
-                className={`mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs rounded-2xl px-3.5 py-2.5 ${
+                className={`mt-4 pt-3 border-t border-[var(--surface-panel-border)] flex items-center justify-between text-xs rounded-2xl px-3.5 py-2.5 ${
                   urgentBudget.isOverspent
-                    ? "bg-rose-500/10 text-rose-300 border border-rose-500/20"
+                    ? "bg-rose-500/10 text-rose-800 dark:text-rose-300 border border-rose-500/20"
                     : urgentBudget.status === "warning_80"
-                    ? "bg-amber-500/10 text-amber-300 border border-amber-500/20"
-                    : "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                    ? "bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20"
+                    : "bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20"
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -1036,16 +1115,272 @@ async function DashboardContent({
           today={indiaToday}
         />
 
+        {/* Personal Lending & Money Tracker Status */}
+        {moneyTrackerData && (
+          <section className="aura-card-obsidian rounded-3xl p-5 sm:p-6 border border-[var(--surface-card-border)] space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-[#4edea3] border border-emerald-500/25">
+                  <Handshake className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[var(--foreground)]">
+                    Personal Lending & Debt (Money Tracker)
+                  </h3>
+                  <p className="text-[11px] text-[var(--foreground-subtle)]">
+                    Bilateral informal loans, receivables and payables
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                href="/money-tracker"
+                className="text-xs font-bold text-emerald-700 dark:text-[#4edea3] hover:underline flex items-center gap-1"
+              >
+                <span>Open Tracker</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-2">
+              <div className="p-3.5 rounded-2xl bg-slate-100/60 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/10">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--foreground-subtle)] block">
+                  Personal Receivables
+                </span>
+                <span className="text-lg font-black font-mono text-emerald-700 dark:text-[#4edea3] tabular-nums mt-0.5 block">
+                  {formatRupees(personalReceivablesPaise)}
+                </span>
+                <span className="text-[10px] text-[var(--foreground-subtle)] block mt-0.5">
+                  {moneyTrackerData.metrics.activeGivenCount} active borrower(s)
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-100/60 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/10">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--foreground-subtle)] block">
+                  Personal Payables
+                </span>
+                <span className="text-lg font-black font-mono text-cyan-700 dark:text-cyan-400 tabular-nums mt-0.5 block">
+                  {formatRupees(personalPayablesPaise)}
+                </span>
+                <span className="text-[10px] text-[var(--foreground-subtle)] block mt-0.5">
+                  {moneyTrackerData.metrics.activeTakenCount} active creditor(s)
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-100/60 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/10">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--foreground-subtle)] block">
+                  Net Lending Position
+                </span>
+                <span
+                  className={`text-lg font-black font-mono tabular-nums mt-0.5 block ${
+                    personalReceivablesPaise >= personalPayablesPaise
+                      ? "text-emerald-700 dark:text-[#4edea3]"
+                      : "text-cyan-700 dark:text-cyan-400"
+                  }`}
+                >
+                  {personalReceivablesPaise < personalPayablesPaise ? "−" : "+"}
+                  {formatRupees(Math.abs(personalReceivablesPaise - personalPayablesPaise))}
+                </span>
+                <span className="text-[10px] text-[var(--foreground-subtle)] block mt-0.5">
+                  {personalReceivablesPaise >= personalPayablesPaise ? "Net Creditor" : "Net Debtor"}
+                </span>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* 6. Strategic Financial Intelligence & Insights (Section 5.H) */}
+        <section className="aura-card-obsidian rounded-3xl p-5 sm:p-6 border relative overflow-hidden space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-500/15 text-[#4edea3] ring-1 ring-emerald-500/30">
+                <Sparkles className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <h2 className="text-sm sm:text-base font-bold text-[var(--foreground)]">
+                  Financial Telemetry Insights
+                </h2>
+                <p className="text-xs text-[var(--foreground-muted)]">
+                  Computed directly from your verified balances and transaction flow
+                </p>
+              </div>
+            </div>
+            <span className="text-[10px] font-mono uppercase tracking-widest text-[#4edea3] font-bold">
+              AUDITED TELEMETRY
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
+            {/* Liquidity Runway */}
+            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.07] space-y-1">
+              <span className="text-[11px] font-semibold text-[var(--foreground-subtle)] uppercase tracking-wider block">
+                Liquidity Runway
+              </span>
+              <p className="text-xl sm:text-2xl font-black text-[var(--foreground)] tabular-nums">
+                {liquidityRunwayMonths !== null ? `${liquidityRunwayMonths} mo` : "Infinite buffer"}
+              </p>
+              <p className="text-[11px] text-[var(--foreground-muted)]">
+                {liquidityRunwayMonths !== null
+                  ? `Liquid reserves support ${liquidityRunwayMonths} months at current burn rate`
+                  : "No outflow recorded this billing cycle"}
+              </p>
+            </div>
+
+            {/* Debt to Asset Solvency */}
+            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.07] space-y-1">
+              <span className="text-[11px] font-semibold text-[var(--foreground-subtle)] uppercase tracking-wider block">
+                Debt-to-Asset Solvency
+              </span>
+              <p className={`text-xl sm:text-2xl font-black tabular-nums ${
+                debtToAssetRatio > 60 ? "text-rose-400" : debtToAssetRatio > 35 ? "text-amber-400" : "text-[#4edea3]"
+              }`}>
+                {debtToAssetRatio}%
+              </p>
+              <p className="text-[11px] text-[var(--foreground-muted)]">
+                {debtToAssetRatio <= 35
+                  ? "Conservative leverage (< 35% safe limit)"
+                  : debtToAssetRatio <= 60
+                  ? "Moderate leverage across credit cards & loans"
+                  : "Elevated debt relative to liquid assets"}
+              </p>
+            </div>
+
+            {/* Monthly Capital Retention (Savings Rate) */}
+            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.07] space-y-1">
+              <span className="text-[11px] font-semibold text-[var(--foreground-subtle)] uppercase tracking-wider block">
+                Monthly Capital Retention
+              </span>
+              <p className={`text-xl sm:text-2xl font-black tabular-nums ${
+                savingsRatePct !== null && savingsRatePct >= 20
+                  ? "text-[#4edea3]"
+                  : savingsRatePct !== null && savingsRatePct >= 0
+                  ? "text-amber-400"
+                  : "text-rose-400"
+              }`}>
+                {savingsRatePct !== null ? `${savingsRatePct}%` : "—"}
+              </p>
+              <p className="text-[11px] text-[var(--foreground-muted)]">
+                {savingsRatePct !== null && savingsRatePct > 0
+                  ? "Net savings retained from this month's inflow"
+                  : savingsRatePct !== null && savingsRatePct < 0
+                  ? "Expenses exceed inflow this month"
+                  : "Awaiting incoming capital entries"}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* 7. Recent Transactions Ledger (Section 5.G) */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Receipt className="h-4 w-4 text-[#4edea3]" />
+              <h2 className="text-sm sm:text-base font-bold text-[var(--foreground)]">
+                Recent Ledger Activity
+              </h2>
+            </div>
+            <Link
+              href="/transactions"
+              className="text-xs font-semibold text-[#4edea3] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <span>View Full Ledger</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          {recentTransactions.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-slate-300/80 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] p-8 text-center backdrop-blur-md">
+              <Receipt className="h-8 w-8 mx-auto text-emerald-600 dark:text-emerald-400/60" />
+              <h3 className="mt-2 text-sm font-bold text-[var(--foreground)]">No transactions recorded</h3>
+              <p className="text-xs text-[var(--foreground-muted)] mt-0.5">
+                Record your first deposit, expense, or transfer to populate the financial ledger.
+              </p>
+              <Link
+                href="/transactions/new"
+                className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-500 dark:to-teal-500 text-white dark:text-slate-950 font-bold text-xs"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Add Entry</span>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {recentTransactions.map((tx) => {
+                const isIncome = tx.transaction_type === "income";
+                const isTransfer = tx.transaction_type === "transfer";
+                const isCardRepayment = tx.transaction_type === "card_payment";
+                const catName =
+                  categoryMap.get(tx.category_id ?? "") ||
+                  (isTransfer ? "Internal Transfer" : isCardRepayment ? "Card Payment" : "General");
+
+                return (
+                  <div
+                    key={tx.id}
+                    className="aura-panel p-3.5 sm:p-4 rounded-2xl flex items-center justify-between gap-3 group hover:border-emerald-500/30 transition-all"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                          isIncome
+                            ? "bg-emerald-500/15 text-emerald-700 dark:text-[#4edea3] border border-emerald-500/30"
+                            : isTransfer || isCardRepayment
+                            ? "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30"
+                            : "bg-slate-200/60 dark:bg-white/5 text-[var(--foreground-muted)] border border-slate-300/60 dark:border-white/10"
+                        }`}
+                      >
+                        {isIncome ? (
+                          <ArrowDownLeft className="h-4 w-4" />
+                        ) : isTransfer ? (
+                          <ArrowLeftRight className="h-4 w-4" />
+                        ) : isCardRepayment ? (
+                          <CreditCard className="h-4 w-4" />
+                        ) : (
+                          <ArrowUpRight className="h-4 w-4" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs sm:text-sm font-bold text-[var(--foreground)] truncate group-hover:text-emerald-700 dark:group-hover:text-[#4edea3] transition-colors">
+                          {tx.description || catName}
+                        </p>
+                        <p className="text-[11px] text-[var(--foreground-muted)] flex items-center gap-1.5">
+                          <span>{catName}</span>
+                          <span>·</span>
+                          <span className="font-mono text-[10px] text-[var(--foreground-subtle)]">{tx.transaction_date}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <span
+                        className={`text-sm sm:text-base font-black tabular-nums ${
+                          isIncome
+                            ? "text-emerald-700 dark:text-[#4edea3]"
+                            : isTransfer || isCardRepayment
+                            ? "text-cyan-700 dark:text-cyan-300"
+                            : "text-[var(--foreground)]"
+                        }`}
+                      >
+                        {isIncome ? "+" : isTransfer || isCardRepayment ? "" : "−"}
+                        {formatRupees(tx.amount_paise)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
         {/* 6. Minimal Shortcuts to Dedicated Management Areas */}
         <section className="space-y-3 pt-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-slate-400" />
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
                 Management Modules
               </h2>
             </div>
-            <span className="text-[10px] text-slate-500">
+            <span className="text-[10px] text-[var(--foreground-subtle)]">
               Dedicated workspaces
             </span>
           </div>
@@ -1053,102 +1388,102 @@ async function DashboardContent({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
             <Link
               href="/accounts"
-              className="aura-panel group p-4 sm:p-5 rounded-2xl border border-white/10 hover:border-emerald-500/40 bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 transition-all flex items-center justify-between"
+              className="aura-panel group p-4 sm:p-5 rounded-2xl hover:border-emerald-500/40 hover:-translate-y-0.5 transition-all flex items-center justify-between"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 group-hover:scale-105 transition-transform">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 group-hover:scale-105 transition-transform">
                   <Landmark className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors truncate">
+                  <h3 className="text-sm font-bold text-[var(--foreground)] group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors truncate">
                     Accounts & Reserves
                   </h3>
-                  <p className="text-[11px] text-slate-400 truncate">
+                  <p className="text-[11px] text-[var(--foreground-muted)] truncate">
                     {accountRows.length} {accountRows.length === 1 ? "account" : "accounts"} & wallets
                   </p>
                 </div>
               </div>
-              <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-emerald-300 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+              <ChevronRight className="h-4 w-4 text-[var(--foreground-subtle)] group-hover:text-emerald-600 dark:group-hover:text-emerald-300 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
             </Link>
 
             <Link
               href="/budgets"
-              className="aura-panel group p-4 sm:p-5 rounded-2xl border border-white/10 hover:border-purple-500/40 bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 transition-all flex items-center justify-between"
+              className="aura-panel group p-4 sm:p-5 rounded-2xl hover:border-purple-500/40 hover:-translate-y-0.5 transition-all flex items-center justify-between"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-500/15 text-purple-300 border border-purple-500/30 group-hover:scale-105 transition-transform">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30 group-hover:scale-105 transition-transform">
                   <PieChart className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors truncate">
+                  <h3 className="text-sm font-bold text-[var(--foreground)] group-hover:text-purple-700 dark:group-hover:text-purple-300 transition-colors truncate">
                     Budgets & Limits
                   </h3>
-                  <p className="text-[11px] text-slate-400 truncate">
+                  <p className="text-[11px] text-[var(--foreground-muted)] truncate">
                     {budgetOverview.categoriesCount} {budgetOverview.categoriesCount === 1 ? "category" : "categories"} tracked
                   </p>
                 </div>
               </div>
-              <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-purple-300 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+              <ChevronRight className="h-4 w-4 text-[var(--foreground-subtle)] group-hover:text-purple-600 dark:group-hover:text-purple-300 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
             </Link>
 
             <Link
               href="/cards"
-              className="aura-panel group p-4 sm:p-5 rounded-2xl border border-white/10 hover:border-amber-500/40 bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 transition-all flex items-center justify-between"
+              className="aura-panel group p-4 sm:p-5 rounded-2xl hover:border-amber-500/40 hover:-translate-y-0.5 transition-all flex items-center justify-between"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 group-hover:scale-105 transition-transform">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 group-hover:scale-105 transition-transform">
                   <CreditCard className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors truncate">
+                  <h3 className="text-sm font-bold text-[var(--foreground)] group-hover:text-amber-700 dark:group-hover:text-amber-300 transition-colors truncate">
                     Cards & Billing
                   </h3>
-                  <p className="text-[11px] text-slate-400 truncate">
+                  <p className="text-[11px] text-[var(--foreground-muted)] truncate">
                     {cardRows.length} credit lines
                   </p>
                 </div>
               </div>
-              <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-amber-300 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+              <ChevronRight className="h-4 w-4 text-[var(--foreground-subtle)] group-hover:text-amber-600 dark:group-hover:text-amber-300 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
             </Link>
 
             <Link
               href="/emi"
-              className="aura-panel group p-4 sm:p-5 rounded-2xl border border-white/10 hover:border-cyan-500/40 bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 transition-all flex items-center justify-between"
+              className="aura-panel group p-4 sm:p-5 rounded-2xl hover:border-cyan-500/40 hover:-translate-y-0.5 transition-all flex items-center justify-between"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 group-hover:scale-105 transition-transform">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border border-cyan-500/30 group-hover:scale-105 transition-transform">
                   <Percent className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate">
+                  <h3 className="text-sm font-bold text-[var(--foreground)] group-hover:text-cyan-700 dark:group-hover:text-cyan-300 transition-colors truncate">
                     Loans & Amortization
                   </h3>
-                  <p className="text-[11px] text-slate-400 truncate">
+                  <p className="text-[11px] text-[var(--foreground-muted)] truncate">
                     {standaloneLoans.length} active term loans
                   </p>
                 </div>
               </div>
-              <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+              <ChevronRight className="h-4 w-4 text-[var(--foreground-subtle)] group-hover:text-cyan-600 dark:group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
             </Link>
 
             <Link
               href="/transactions"
-              className="aura-panel group p-4 sm:p-5 rounded-2xl border border-white/10 hover:border-indigo-500/40 bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 transition-all flex items-center justify-between"
+              className="aura-panel group p-4 sm:p-5 rounded-2xl hover:border-indigo-500/40 hover:-translate-y-0.5 transition-all flex items-center justify-between"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 group-hover:scale-105 transition-transform">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 group-hover:scale-105 transition-transform">
                   <ArrowLeftRight className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-sm font-bold text-white group-hover:text-indigo-300 transition-colors truncate">
+                  <h3 className="text-sm font-bold text-[var(--foreground)] group-hover:text-indigo-700 dark:group-hover:text-indigo-300 transition-colors truncate">
                     Transactions & Ledger
                   </h3>
-                  <p className="text-[11px] text-slate-400 truncate">
+                  <p className="text-[11px] text-[var(--foreground-muted)] truncate">
                     Analysis & full history
                   </p>
                 </div>
               </div>
-              <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-indigo-300 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+              <ChevronRight className="h-4 w-4 text-[var(--foreground-subtle)] group-hover:text-indigo-600 dark:group-hover:text-indigo-300 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
             </Link>
           </div>
         </section>

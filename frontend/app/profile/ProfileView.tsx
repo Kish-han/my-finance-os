@@ -154,37 +154,37 @@ export function ProfileView({
       <div className="flex items-center justify-between">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white transition-colors"
+          className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>Dashboard</span>
         </Link>
 
-        <span className="text-[10px] font-mono uppercase tracking-widest text-[#4edea3]">
+        <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-700 dark:text-[#4edea3] font-bold">
           ACCOUNT SECURITY · ACTIVE
         </span>
       </div>
 
       {/* Header Profile Identity Hero */}
-      <section className="aura-card-obsidian relative overflow-hidden rounded-[2.5rem] p-6 sm:p-8 shadow-2xl backdrop-blur-2xl border border-white/10">
+      <section className="aura-card-obsidian relative overflow-hidden rounded-[2.5rem] p-6 sm:p-8 shadow-2xl backdrop-blur-2xl border border-[var(--surface-panel-border)]">
         <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[#10b981]/15 blur-3xl animate-pulse-glow" />
         <div className="pointer-events-none absolute -left-20 -bottom-20 h-64 w-64 rounded-full bg-[#8b5cf6]/10 blur-3xl animate-pulse-glow" />
 
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
           <div className="flex items-center gap-4">
             {/* Monogram Avatar */}
-            <div className="flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#4edea3] via-[#10b981] to-[#003824] text-[#003824] font-black text-2xl sm:text-3xl shadow-lg shadow-emerald-500/30 ring-2 ring-white/30">
+            <div className="flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-emerald-700 text-white dark:from-[#4edea3] dark:via-[#10b981] dark:to-[#003824] dark:text-[#003824] font-black text-2xl sm:text-3xl shadow-lg shadow-emerald-500/30 ring-2 ring-white/30">
               {avatarInitial}
             </div>
 
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-[var(--foreground)]">
                   {displayName}
                 </h1>
                 <Badge
                   variant="outline"
-                  className="border-emerald-500/30 text-emerald-400 bg-emerald-500/10 text-[10px] uppercase font-bold py-0.5 px-2"
+                  className="border-emerald-500/30 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 text-[10px] uppercase font-bold py-0.5 px-2"
                 >
                   VERIFIED CLIENT
                 </Badge>

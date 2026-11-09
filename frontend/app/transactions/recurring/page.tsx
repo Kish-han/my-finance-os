@@ -161,7 +161,7 @@ async function RecurringContent({ searchParams }: RecurringPageProps) {
   };
 
   return (
-    <main className="min-h-screen bg-[#10141a] text-[#dfe2eb] pt-20 pb-36 relative overflow-hidden selection:bg-[#4edea3]/30 selection:text-[#4edea3]">
+    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] pt-20 pb-36 lg:pl-64 relative overflow-hidden selection:bg-[#4edea3]/30 selection:text-[#4edea3] transition-colors">
       {/* Obsidian Wealth ambient atmospheric lighting */}
       <div className="pointer-events-none fixed -left-32 top-10 h-96 w-96 rounded-full bg-purple-500/10 blur-[150px] animate-pulse-glow" />
       <div

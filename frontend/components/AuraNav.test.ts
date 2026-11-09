@@ -93,6 +93,24 @@ describe("AuraNav: Active Navigation State Routing", () => {
     expect(state.isRecurring).toBe(false);
   });
 
+  it("activates Money Tracker when on /money-tracker and subroutes", () => {
+    const state1 = getAuraNavActiveState("/money-tracker");
+    expect(state1.isMoneyTracker).toBe(true);
+    expect(state1.isVault).toBe(false);
+
+    const state2 = getAuraNavActiveState("/money-tracker/given");
+    expect(state2.isMoneyTracker).toBe(true);
+
+    const state3 = getAuraNavActiveState("/money-tracker/taken");
+    expect(state3.isMoneyTracker).toBe(true);
+
+    const state4 = getAuraNavActiveState("/money-tracker/settled");
+    expect(state4.isMoneyTracker).toBe(true);
+
+    const state5 = getAuraNavActiveState("/money-tracker/people");
+    expect(state5.isMoneyTracker).toBe(true);
+  });
+
   it("safely handles null, empty, or unknown paths", () => {
     const nullState = getAuraNavActiveState(null);
     expect(nullState.isRecurring).toBe(false);

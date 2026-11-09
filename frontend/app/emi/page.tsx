@@ -329,57 +329,57 @@ async function EmiPageData({
 
       {/* Hero KPIs */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="aura-panel p-5 space-y-2 hover:border-slate-500/40 transition-all">
+        <div className="aura-panel p-5 space-y-2 hover:border-slate-500/40 transition-all rounded-3xl">
           <div className="flex items-center gap-2">
             <span className="flex h-2 w-2 shrink-0 rounded-full bg-slate-400" />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
               Active Loans
             </span>
           </div>
-          <p className="text-3xl sm:text-4xl font-black tracking-tight text-white tabular-nums">
+          <p className="text-3xl sm:text-4xl font-black tracking-tight text-[var(--foreground)] tabular-nums">
             {activeDebts.length}
           </p>
-          <p className="text-xs text-slate-400">Active credit commitments</p>
+          <p className="text-xs text-[var(--foreground-muted)]">Active credit commitments</p>
         </div>
 
-        <div className="aura-panel p-5 space-y-2 hover:border-cyan-400/40 transition-all">
+        <div className="aura-panel p-5 space-y-2 hover:border-cyan-400/40 transition-all rounded-3xl">
           <div className="flex items-center gap-2">
-            <span className="flex h-2 w-2 shrink-0 rounded-full bg-cyan-400 animate-pulse" />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-300">
+            <span className="flex h-2 w-2 shrink-0 rounded-full bg-cyan-500 animate-pulse" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-700 dark:text-cyan-300">
               Outstanding Principal
             </span>
           </div>
-          <p className="text-3xl sm:text-4xl font-black tracking-tight text-cyan-300 tabular-nums">
+          <p className="text-3xl sm:text-4xl font-black tracking-tight text-cyan-700 dark:text-cyan-300 tabular-nums">
             {money(totalOutstanding)}
           </p>
-          <p className="text-xs text-slate-400">Estimated remaining principal</p>
+          <p className="text-xs text-[var(--foreground-muted)]">Estimated remaining principal</p>
         </div>
 
-        <div className="aura-panel p-5 space-y-2 hover:border-[#4edea3]/40 transition-all">
+        <div className="aura-panel p-5 space-y-2 hover:border-emerald-500/40 transition-all rounded-3xl">
           <div className="flex items-center gap-2">
-            <span className="flex h-2 w-2 shrink-0 rounded-full bg-[#4edea3]" />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#4edea3]">
+            <span className="flex h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-[#4edea3]">
               Monthly Commitments
             </span>
           </div>
-          <p className="text-3xl sm:text-4xl font-black tracking-tight text-white tabular-nums">
+          <p className="text-3xl sm:text-4xl font-black tracking-tight text-[var(--foreground)] tabular-nums">
             {money(totalMonthlyEmi)}
           </p>
-          <p className="text-xs text-slate-400">Scheduled monthly outlay</p>
+          <p className="text-xs text-[var(--foreground-muted)]">Scheduled monthly outlay</p>
         </div>
       </section>
 
       {/* Add Loan / EMI Form Module */}
-      <section className="aura-panel p-6 sm:p-8 space-y-6">
+      <section className="aura-panel p-6 sm:p-8 space-y-6 rounded-[2rem]">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-400 ring-1 ring-cyan-500/30">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 ring-1 ring-cyan-500/30">
             <Plus className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="text-base sm:text-lg font-bold tracking-tight text-white">
+            <h2 className="text-base sm:text-lg font-bold tracking-tight text-[var(--foreground)]">
               Add a Loan or EMI
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[var(--foreground-muted)]">
               Select whether you are registering an amortized term loan or a credit card statement EMI.
             </p>
           </div>
@@ -395,8 +395,8 @@ async function EmiPageData({
       {/* Loans Grid Showcase */}
       <section className="space-y-4">
         <div className="flex items-center gap-2.5">
-          <div className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-          <h2 className="text-base sm:text-lg font-bold tracking-tight text-white">
+          <div className="h-2 w-2 rounded-full bg-cyan-500 animate-pulse" />
+          <h2 className="text-base sm:text-lg font-bold tracking-tight text-[var(--foreground)]">
             Recorded Loans ({debts.length})
           </h2>
         </div>

@@ -83,14 +83,14 @@ export function BudgetsView({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500/30">
               <PieChart className="h-4 w-4" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-[var(--foreground)]">
               Monthly Budgets & Alerts
             </h1>
           </div>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-[var(--foreground-muted)]">
             Set category limits, monitor spending progress, and prevent budget overruns.
           </p>
         </div>
@@ -98,17 +98,17 @@ export function BudgetsView({
         {/* Action Controls & Month Switcher */}
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
           {/* Month Selector Pill */}
-          <div className="flex items-center rounded-2xl border border-white/10 bg-white/5 p-1 backdrop-blur-xl">
+          <div className="flex items-center rounded-2xl border border-slate-300/80 dark:border-white/10 bg-slate-200/60 dark:bg-white/5 p-1 backdrop-blur-xl">
             <Link
               href={`/budgets?month=${getRelativeMonthKey(overview.monthKey, -1)}`}
               title="Previous Month"
-              className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+              className="flex h-8 w-8 items-center justify-center rounded-xl text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-slate-300/60 dark:hover:bg-white/10 transition-all cursor-pointer"
             >
               <ChevronLeft className="h-4 w-4" />
             </Link>
 
             <div className="px-3 text-center min-w-[120px]">
-              <span className="text-xs font-black text-white whitespace-nowrap">
+              <span className="text-xs font-black text-[var(--foreground)] whitespace-nowrap">
                 {overview.monthLabel}
               </span>
             </div>
@@ -116,7 +116,7 @@ export function BudgetsView({
             <Link
               href={`/budgets?month=${getRelativeMonthKey(overview.monthKey, 1)}`}
               title="Next Month"
-              className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+              className="flex h-8 w-8 items-center justify-center rounded-xl text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-slate-300/60 dark:hover:bg-white/10 transition-all cursor-pointer"
             >
               <ChevronRight className="h-4 w-4" />
             </Link>
@@ -125,7 +125,7 @@ export function BudgetsView({
           {!isViewingCurrentMonth && (
             <Link
               href={`/budgets?month=${currentSystemMonth}`}
-              className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+              className="rounded-2xl border border-slate-300/80 dark:border-white/10 bg-slate-200/60 dark:bg-white/5 px-3 py-2 text-xs font-bold text-[var(--foreground)] hover:bg-slate-300/70 dark:hover:bg-white/10 transition-all cursor-pointer"
             >
               Current Month
             </Link>
@@ -134,7 +134,7 @@ export function BudgetsView({
           <button
             type="button"
             onClick={handleCreateBudget}
-            className="inline-flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-xs font-bold text-slate-950 shadow-md shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-500 dark:to-teal-500 px-4 py-2 text-xs font-bold text-white dark:text-slate-950 shadow-md shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             <span>Create Budget</span>
@@ -283,52 +283,52 @@ export function BudgetsView({
       ========================================================= */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Budget */}
-        <div className="aura-panel p-4 sm:p-5 relative overflow-hidden group hover:border-[#4edea3]/40 transition-all">
+        <div className="aura-panel p-4 sm:p-5 relative overflow-hidden group hover:border-emerald-500/40 transition-all rounded-3xl">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
               Total Budget
             </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-200/70 dark:bg-white/5 border border-slate-300/80 dark:border-white/10 text-[var(--foreground-muted)]">
               {overview.categoriesCount} {overview.categoriesCount === 1 ? "CATEGORY" : "CATEGORIES"}
             </span>
           </div>
-          <p className="mt-2 text-2xl sm:text-3xl font-black text-white tabular-nums drop-shadow-sm">
+          <p className="mt-2 text-2xl sm:text-3xl font-black text-[var(--foreground)] tabular-nums drop-shadow-sm">
             {formatRupees(overview.totalBudgetPaise)}
           </p>
-          <p className="mt-1 text-[11px] text-slate-400">
+          <p className="mt-1 text-[11px] text-[var(--foreground-muted)]">
             Planned monthly limit for {overview.monthLabel}
           </p>
         </div>
 
         {/* Actual Spending */}
-        <div className="aura-panel p-4 sm:p-5 relative overflow-hidden group hover:border-[#4edea3]/40 transition-all">
+        <div className="aura-panel p-4 sm:p-5 relative overflow-hidden group hover:border-emerald-500/40 transition-all rounded-3xl">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
               Actual Spending
             </span>
             <span
               className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${
                 overview.overallPercentageUsed > 100
-                  ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                  ? "bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/40"
                   : overview.overallPercentageUsed >= 80
-                  ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
-                  : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                  ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40"
+                  : "bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border-emerald-500/40"
               }`}
             >
               {Math.round(overview.overallPercentageUsed)}% CONSUMED
             </span>
           </div>
-          <p className="mt-2 text-2xl sm:text-3xl font-black text-white tabular-nums drop-shadow-sm">
+          <p className="mt-2 text-2xl sm:text-3xl font-black text-[var(--foreground)] tabular-nums drop-shadow-sm">
             {formatRupees(overview.totalActualSpendingPaise)}
           </p>
-          <div className="mt-2 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+          <div className="mt-2 h-1.5 w-full rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-500 ${
                 overview.overallPercentageUsed > 100
                   ? "bg-rose-500"
                   : overview.overallPercentageUsed >= 80
                   ? "bg-amber-400"
-                  : "bg-[#4edea3]"
+                  : "bg-emerald-500"
               }`}
               style={{ width: `${Math.min(100, overview.overallPercentageUsed)}%` }}
             />
@@ -337,14 +337,14 @@ export function BudgetsView({
 
         {/* Remaining Budget / Overspent */}
         <div
-          className={`aura-panel p-4 sm:p-5 relative overflow-hidden group transition-all ${
+          className={`aura-panel p-4 sm:p-5 relative overflow-hidden group transition-all rounded-3xl ${
             overview.totalOverspentPaise > 0
               ? "hover:border-rose-500/40"
-              : "hover:border-[#4edea3]/40"
+              : "hover:border-emerald-500/40"
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
               {overview.totalOverspentPaise > 0 ? "Total Overspent" : "Remaining Budget"}
             </span>
             <span

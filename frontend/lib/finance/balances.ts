@@ -50,6 +50,26 @@ export function calculateAccountBalance(
       transaction.fromAccountId === account.id
     ) {
       balance -= transaction.amountPaise;
+    } else if (
+      transaction.type === "money_lent" &&
+      transaction.accountId === account.id
+    ) {
+      balance -= transaction.amountPaise;
+    } else if (
+      transaction.type === "repayment_received" &&
+      transaction.accountId === account.id
+    ) {
+      balance += transaction.amountPaise;
+    } else if (
+      transaction.type === "money_borrowed" &&
+      transaction.accountId === account.id
+    ) {
+      balance += transaction.amountPaise;
+    } else if (
+      transaction.type === "repayment_paid" &&
+      transaction.accountId === account.id
+    ) {
+      balance -= transaction.amountPaise;
     }
 
     // A credit card purchase does not immediately change
@@ -205,20 +225,32 @@ export function partitionDebtsForLiabilities<T extends DebtLiabilityItem>(
 
 /**
  * Computes net worth and total liabilities without double-counting card EMIs.
+ * Incorporates personal receivables (assets) and personal payables (liabilities).
  */
 export function calculateNetWorth(params: {
   liquidAssetsPaise: number;
   cardOutstandingPaise: number;
   standaloneLoanPrincipalPaise: number;
+  personalReceivablesPaise?: number;
+  personalPayablesPaise?: number;
 }): {
+  totalAssetsPaise: number;
   totalLiabilitiesPaise: number;
   netWorthPaise: number;
 } {
+  const personalReceivablesPaise = params.personalReceivablesPaise ?? 0;
+  const personalPayablesPaise = params.personalPayablesPaise ?? 0;
+
+  const totalAssetsPaise =
+    params.liquidAssetsPaise + personalReceivablesPaise;
   const totalLiabilitiesPaise =
-    params.cardOutstandingPaise + params.standaloneLoanPrincipalPaise;
-  const netWorthPaise = params.liquidAssetsPaise - totalLiabilitiesPaise;
+    params.cardOutstandingPaise +
+    params.standaloneLoanPrincipalPaise +
+    personalPayablesPaise;
+  const netWorthPaise = totalAssetsPaise - totalLiabilitiesPaise;
 
   return {
+    totalAssetsPaise,
     totalLiabilitiesPaise,
     netWorthPaise,
   };

@@ -23,7 +23,11 @@ export interface TransactionRecord {
     | "expense"
     | "transfer"
     | "card_purchase"
-    | "card_payment";
+    | "card_payment"
+    | "money_lent"
+    | "repayment_received"
+    | "money_borrowed"
+    | "repayment_paid";
   account_id?: string | null;
   from_account_id?: string | null;
   to_account_id?: string | null;
@@ -480,7 +484,11 @@ export function aggregateTransactionRange(
       }
     } else if (
       tx.transaction_type === "transfer" ||
-      tx.transaction_type === "card_payment"
+      tx.transaction_type === "card_payment" ||
+      tx.transaction_type === "money_lent" ||
+      tx.transaction_type === "repayment_received" ||
+      tx.transaction_type === "money_borrowed" ||
+      tx.transaction_type === "repayment_paid"
     ) {
       transferCount++;
       if (bucket) {

@@ -1,25 +1,122 @@
 @import "tailwindcss";
 
+/* -------------------------------------------------------------
+   AURA WEALTH — ADAPTIVE LIQUID GLASS DESIGN SYSTEM TOKENS
+   Phase 1: Light Theme (Warm Ivory) & Dark Theme (Midnight Charcoal)
+------------------------------------------------------------- */
+
 :root {
-  --background: #10141a;
-  --foreground: #dfe2eb;
-  --surface: #10141a;
-  --surface-dim: #10141a;
-  --surface-bright: #353940;
-  --surface-container-lowest: #0a0e14;
-  --surface-container-low: #181c22;
-  --surface-container: #1c2026;
-  --surface-container-high: #262a31;
-  --surface-container-highest: #31353c;
-  --on-surface: #dfe2eb;
-  --on-surface-variant: #bbcabf;
+  /* =========================================================
+     LIGHT THEME (Warm Ivory & Translucent Glass)
+  ========================================================= */
+  --theme-mode: light;
+  --background: #f8f9fb;
+  --foreground: #0f172a;
+  --foreground-muted: #475569;
+  --foreground-subtle: #64748b;
+  
+  --surface-canvas: #f8f9fb;
+  --surface-card: rgba(255, 255, 255, 0.85);
+  --surface-card-border: rgba(15, 23, 42, 0.08);
+  --surface-card-highlight: inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
+  --surface-card-shadow: 0 20px 40px -12px rgba(15, 23, 42, 0.08), 0 1px 3px 0 rgba(15, 23, 42, 0.04);
+  
+  --surface-panel: rgba(255, 255, 255, 0.72);
+  --surface-panel-border: rgba(15, 23, 42, 0.07);
+  --surface-panel-shadow: 0 8px 30px -4px rgba(15, 23, 42, 0.05), inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+  
+  --surface-dock: rgba(255, 255, 255, 0.85);
+  --surface-dock-border: rgba(15, 23, 42, 0.10);
+  --surface-dock-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.15), inset 0 1px 0 0 rgba(255, 255, 255, 1);
+  
+  --surface-sidebar: rgba(255, 255, 255, 0.80);
+  --surface-sidebar-border: rgba(15, 23, 42, 0.08);
+
+  /* Primary Brand & Semantic Fintech Palette */
+  --primary: #059669;
+  --primary-container: #10b981;
+  --primary-hover: #047857;
+  --on-primary: #ffffff;
+  
+  --color-income: #059669;
+  --color-income-bg: rgba(5, 150, 105, 0.08);
+  --color-income-border: rgba(5, 150, 105, 0.20);
+  
+  --color-expense: #e11d48;
+  --color-expense-bg: rgba(225, 29, 72, 0.08);
+  --color-expense-border: rgba(225, 29, 72, 0.20);
+  
+  --color-transfer: #0891b2;
+  --color-transfer-bg: rgba(8, 145, 178, 0.08);
+  --color-transfer-border: rgba(8, 145, 178, 0.20);
+  
+  --color-card-amber: #d97706;
+  --color-card-amber-bg: rgba(217, 119, 6, 0.08);
+  --color-card-amber-border: rgba(217, 119, 6, 0.20);
+  
+  --color-loan-violet: #7c3aed;
+  --color-loan-violet-bg: rgba(124, 58, 237, 0.08);
+  --color-loan-violet-border: rgba(124, 58, 237, 0.20);
+  
+  --glass-highlight-color: rgba(255, 255, 255, 0.9);
+  --glass-specular-edge: rgba(15, 23, 42, 0.08);
+}
+
+.dark {
+  /* =========================================================
+     DARK THEME (Midnight Charcoal & Deep Graphite Glass)
+  ========================================================= */
+  --theme-mode: dark;
+  --background: #0d1117;
+  --foreground: #f1f5f9;
+  --foreground-muted: #94a3b8;
+  --foreground-subtle: #cbd5e1;
+  
+  --surface-canvas: #0d1117;
+  --surface-card: linear-gradient(135deg, rgba(26, 32, 44, 0.85) 0%, rgba(13, 17, 23, 0.95) 60%, rgba(20, 26, 36, 0.90) 100%);
+  --surface-card-border: rgba(255, 255, 255, 0.12);
+  --surface-card-highlight: inset 0 1px 1px 0 rgba(255, 255, 255, 0.25);
+  --surface-card-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.75), inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
+  
+  --surface-panel: rgba(22, 27, 34, 0.75);
+  --surface-panel-border: rgba(255, 255, 255, 0.08);
+  --surface-panel-shadow: 0 12px 36px -6px rgba(0, 0, 0, 0.55), inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+  
+  --surface-dock: rgba(22, 27, 34, 0.85);
+  --surface-dock-border: rgba(255, 255, 255, 0.14);
+  --surface-dock-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.75), inset 0 1px 0 0 rgba(255, 255, 255, 0.18);
+  
+  --surface-sidebar: rgba(16, 20, 26, 0.85);
+  --surface-sidebar-border: rgba(255, 255, 255, 0.08);
+
+  /* Primary Brand & Semantic Fintech Palette */
   --primary: #4edea3;
   --primary-container: #10b981;
+  --primary-hover: #34d399;
   --on-primary: #003824;
-  --secondary: #d0bcff;
-  --secondary-container: #571bc1;
-  --tertiary: #ffb2b7;
-  --tertiary-container: #ff7886;
+  
+  --color-income: #4edea3;
+  --color-income-bg: rgba(78, 222, 163, 0.12);
+  --color-income-border: rgba(78, 222, 163, 0.28);
+  
+  --color-expense: #ff7886;
+  --color-expense-bg: rgba(255, 120, 134, 0.12);
+  --color-expense-border: rgba(255, 120, 134, 0.28);
+  
+  --color-transfer: #22d3ee;
+  --color-transfer-bg: rgba(34, 211, 238, 0.12);
+  --color-transfer-border: rgba(34, 211, 238, 0.28);
+  
+  --color-card-amber: #fbbf24;
+  --color-card-amber-bg: rgba(251, 191, 36, 0.12);
+  --color-card-amber-border: rgba(251, 191, 36, 0.28);
+  
+  --color-loan-violet: #d0bcff;
+  --color-loan-violet-bg: rgba(208, 188, 255, 0.12);
+  --color-loan-violet-border: rgba(208, 188, 255, 0.28);
+  
+  --glass-highlight-color: rgba(255, 255, 255, 0.35);
+  --glass-specular-edge: rgba(255, 255, 255, 0.12);
 }
 
 @theme inline {
@@ -46,7 +143,7 @@ body {
 
 /* Accessible visible focus indicators (WCAG 2.4.7 AA) */
 :focus-visible {
-  outline: 2px solid #4edea3;
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
 
@@ -72,7 +169,7 @@ body {
 }
 
 /* -------------------------------------------------------------
-   Stitch Aura Wealth Keyframe Animations & Micro-physics
+   Micro-physics Animations
 ------------------------------------------------------------- */
 @keyframes float {
   0%, 100% {
@@ -92,23 +189,14 @@ body {
   }
 }
 
-@keyframes float-reverse {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(6px);
-  }
-}
-
 @keyframes pulse-glow {
   0%, 100% {
-    opacity: 0.4;
+    opacity: 0.35;
     transform: scale(1);
   }
   50% {
-    opacity: 0.75;
-    transform: scale(1.05);
+    opacity: 0.65;
+    transform: scale(1.04);
   }
 }
 
@@ -116,16 +204,8 @@ body {
   animation: float 4.5s ease-in-out infinite;
 }
 
-.animate-float-delayed {
-  animation: float 5.5s ease-in-out 1.2s infinite;
-}
-
 .animate-float-slow {
   animation: float-slow 7s ease-in-out infinite;
-}
-
-.animate-float-reverse {
-  animation: float-reverse 5s ease-in-out infinite;
 }
 
 .animate-pulse-glow {
@@ -133,15 +213,53 @@ body {
 }
 
 /* -------------------------------------------------------------
-   Stitch "Obsidian Wealth" Glassmorphic Substrates
+   ADAPTIVE LIQUID GLASS SUBSTRATES (Light & Dark Compatible)
 ------------------------------------------------------------- */
-.aura-card-obsidian {
-  background: linear-gradient(135deg, #171c24 0%, #0b0e14 60%, #141922 100%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.25), 0 20px 40px -12px rgba(0, 0, 0, 0.7);
+
+/* Flagship Hero Card */
+.aura-card-obsidian,
+.glass-card-hero {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-card-border);
+  box-shadow: var(--surface-card-highlight), var(--surface-card-shadow);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
   transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Standard Content Glass Panel */
+.aura-panel,
+.glass-panel {
+  background: var(--surface-panel);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--surface-panel-border);
+  box-shadow: var(--surface-panel-shadow);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Floating Mobile Liquid Glass Dock */
+.aura-dock,
+.glass-dock {
+  background: var(--surface-dock);
+  backdrop-filter: blur(32px) saturate(200%);
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  border: 1px solid var(--surface-dock-border);
+  box-shadow: var(--surface-dock-shadow);
+  transition: all 0.25s ease-out;
+}
+
+/* Executive Desktop Liquid Glass Sidebar */
+.aura-sidebar,
+.glass-sidebar {
+  background: var(--surface-sidebar);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border-right: 1px solid var(--surface-sidebar-border);
+  transition: all 0.25s ease-out;
+}
+
+/* Card Themes */
 .aura-card-gold {
   background: linear-gradient(135deg, #d4af37 0%, #f3e5ab 50%, #aa771c 100%);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -152,44 +270,6 @@ body {
   background: linear-gradient(135deg, #571bc1 0%, #31353c 50%, #d0bcff 100%);
   border: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow: 0 12px 28px -6px rgba(139, 92, 246, 0.25);
-}
-
-.aura-card-iridescent {
-  background: linear-gradient(135deg, rgba(87, 27, 193, 0.9) 0%, rgba(255, 120, 134, 0.85) 50%, rgba(78, 222, 163, 0.75) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.4), 0 20px 40px -10px rgba(0, 0, 0, 0.7);
-}
-
-.aura-panel {
-  background: rgba(24, 28, 34, 0.75);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08), 0 8px 32px -4px rgba(0, 0, 0, 0.45);
-}
-
-.aura-panel-high {
-  background: rgba(38, 42, 49, 0.7);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.12), 0 12px 36px -6px rgba(0, 0, 0, 0.55);
-}
-
-.aura-panel-low {
-  background: rgba(16, 20, 26, 0.65);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-/* Floating Bottom Dock from Stitch */
-.aura-dock {
-  background: rgba(28, 32, 38, 0.75);
-  backdrop-filter: blur(32px) saturate(190%);
-  -webkit-backdrop-filter: blur(32px) saturate(190%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.65), inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
 }
 
 /* Specular glows */
