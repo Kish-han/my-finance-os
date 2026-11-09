@@ -3,45 +3,53 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import {
-  Handshake,
   ArrowUpRight,
   ArrowDownLeft,
-  Scale,
   Users,
   Search,
   Plus,
   ChevronRight,
+  Clock,
+  AlertCircle,
 } from "lucide-react";
 import { MoneyTrackerNav } from "./MoneyTrackerNav";
 import { CreateAgreementModal } from "./CreateAgreementModal";
 import { AgreementCard } from "./AgreementCard";
-import { calculateAgreementBalance } from "@/lib/finance/money-tracker-engine";
+import { calculateRecordBalance } from "@/lib/finance/money-tracker-engine";
 import type {
   FinancialAccount,
   MoneyTrackerMetrics,
   Person,
-  PersonBalanceSummary,
-  PersonalLoanAgreement,
-  PersonalLoanPayment,
+  PersonSummary,
+  PersonalMoneyRecord,
+  PersonalMoneyRepayment,
 } from "@/lib/finance/types";
 
 interface MoneyTrackerOverviewViewProps {
   metrics: MoneyTrackerMetrics;
-  agreements: PersonalLoanAgreement[];
-  payments: PersonalLoanPayment[];
+  records: PersonalMoneyRecord[];
+  repayments: PersonalMoneyRepayment[];
   people: Person[];
-  peopleSummaries: PersonBalanceSummary[];
+  peopleSummaries: PersonSummary[];
   accounts: FinancialAccount[];
+  // Backwards compatibility aliases
+  agreements?: PersonalMoneyRecord[];
+  payments?: PersonalMoneyRepayment[];
 }
 
 export function MoneyTrackerOverviewView({
   metrics,
-  agreements,
-  payments,
+  records: recordsProp,
+  repayments: repaymentsProp,
+  agreements: agreementsProp,
+  payments: paymentsProp,
   people,
   peopleSummaries,
   accounts,
 }: MoneyTrackerOverviewViewProps) {
+  const records = recordsProp || agreementsProp || [];
+  const repayments = repaymentsProp || paymentsProp || [];
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createDirection, setCreateDirection] = useState<"given" | "taken">("given");
   const [searchQuery, setSearchQuery] = useState("");
@@ -51,16 +59,23 @@ export function MoneyTrackerOverviewView({
     setIsCreateModalOpen(true);
   };
 
-  const isNetPositive = metrics.netPositionPaise >= 0;
-
-  // Filter agreements by search
-  const filteredAgreements = agreements.filter((a) => {
+  // Filter records by search query
+  const filteredRecords = records.filter((r) => {
     if (!searchQuery.trim()) return true;
-    const name = a.person?.name?.toLowerCase() || "";
-    const notes = a.notes?.toLowerCase() || "";
+    const name = r.person?.name?.toLowerCase() || "";
+    const notes = r.notes?.toLowerCase() || "";
     const q = searchQuery.toLowerCase();
     return name.includes(q) || notes.includes(q);
   });
+
+  // Outstanding records
+  const outstandingRecords = filteredRecords.filter((r) => {
+    const bal = calculateRecordBalance(r, repayments);
+    return !bal.isSettled;
+  });
+
+  // Recent records (latest 6)
+  const recentRecords = filteredRecords.slice(0, 6);
 
   return (
     <div className="space-y-8">
@@ -73,270 +88,315 @@ export function MoneyTrackerOverviewView({
         onOpenCreateModal={() => openModalWithDirection("given")}
       />
 
-      {/* Flagship KPI Hero: Net Lending Position */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Main Hero Card: Net Position */}
-        <div className="aura-card-obsidian lg:col-span-1 rounded-3xl p-6 sm:p-7 border border-[var(--surface-card-border)] relative overflow-hidden flex flex-col justify-between shadow-xl">
-          <div className="relative z-10">
+      {/* 4 Core Financial KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        {/* 1. Total Money Given */}
+        <div className="aura-card-obsidian rounded-3xl p-5 sm:p-6 border border-[var(--surface-card-border)] relative overflow-hidden flex flex-col justify-between shadow-lg">
+          <div>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-[var(--foreground-subtle)] flex items-center gap-1.5">
-                <Scale className="h-3.5 w-3.5 text-emerald-600 dark:text-[#4edea3]" />
-                <span>NET LENDING POSITION</span>
+              <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-[var(--foreground-subtle)] flex items-center gap-1.5">
+                <ArrowUpRight className="h-4 w-4 text-emerald-500" />
+                <span>TOTAL GIVEN</span>
               </span>
-              <span
-                className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                  isNetPositive
-                    ? "bg-emerald-500/15 text-emerald-800 dark:text-[#4edea3]"
-                    : "bg-cyan-500/15 text-cyan-800 dark:text-cyan-400"
-                }`}
-              >
-                {isNetPositive ? "Net Creditor" : "Net Debtor"}
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-800 dark:text-[#4edea3]">
+                Given
               </span>
             </div>
-
             <div className="mt-3">
-              <span className="text-3xl sm:text-4xl font-black font-mono tracking-tight text-[var(--foreground)] tabular-nums block">
-                {metrics.netPositionPaise < 0 ? "-" : ""}₹
-                {(Math.abs(metrics.netPositionPaise) / 100).toLocaleString(
-                  "en-IN",
-                  { minimumFractionDigits: 2 }
-                )}
+              <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-[var(--foreground)] tabular-nums block">
+                ₹{(metrics.totalGivenPaise / 100).toLocaleString("en-IN", {
+                  minimumFractionDigits: 2,
+                })}
               </span>
-              <p className="text-xs text-[var(--foreground-muted)] mt-1.5">
-                {isNetPositive
-                  ? "Overall people owe you more than you owe others"
-                  : "Overall you owe more than people owe you"}
+              <p className="text-[11px] text-[var(--foreground-subtle)] mt-1">
+                Recovered: ₹{(metrics.totalReceivedBackPaise / 100).toLocaleString("en-IN")}
               </p>
             </div>
           </div>
-
-          <div className="mt-6 pt-4 border-t border-[var(--surface-panel-border)] flex items-center gap-2">
+          <div className="mt-4 pt-3 border-t border-[var(--surface-panel-border)] flex items-center justify-between text-[11px] text-[var(--foreground-subtle)]">
+            <span>Active: {metrics.activeGivenCount}</span>
             <button
-              type="button"
               onClick={() => openModalWithDirection("given")}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-800 dark:text-[#4edea3] text-xs font-bold transition-all cursor-pointer"
+              className="text-emerald-700 dark:text-[#4edea3] font-bold hover:underline cursor-pointer"
             >
-              <ArrowUpRight className="h-3.5 w-3.5 stroke-[2.5]" />
-              <span>Lend Money</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => openModalWithDirection("taken")}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-800 dark:text-cyan-400 text-xs font-bold transition-all cursor-pointer"
-            >
-              <ArrowDownLeft className="h-3.5 w-3.5 stroke-[2.5]" />
-              <span>Borrow Money</span>
+              + Give Money
             </button>
           </div>
         </div>
 
-        {/* Receivables & Payables Breakdown Cards */}
-        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-5">
-          {/* Receivables Card */}
-          <div className="aura-card-obsidian rounded-3xl p-6 border border-[var(--surface-card-border)] flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-emerald-700 dark:text-[#4edea3] flex items-center gap-1.5">
-                  <ArrowUpRight className="h-3.5 w-3.5 stroke-[2.5]" />
-                  <span>MONEY GIVEN (RECEIVABLES)</span>
-                </span>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-800 dark:text-[#4edea3]">
-                  {metrics.activeGivenCount} Active
-                </span>
-              </div>
-
-              <div className="mt-3">
-                <span className="text-2xl sm:text-3xl font-black font-mono text-[var(--foreground)] tabular-nums block">
-                  ₹{(metrics.outstandingReceivablesPaise / 100).toLocaleString(
-                    "en-IN",
-                    { minimumFractionDigits: 2 }
-                  )}
-                </span>
-                <span className="text-[11px] text-[var(--foreground-subtle)] mt-0.5 block">
-                  Outstanding balance to be collected
-                </span>
-              </div>
+        {/* 2. Outstanding to Receive */}
+        <div className="aura-card-obsidian rounded-3xl p-5 sm:p-6 border border-[var(--surface-card-border)] relative overflow-hidden flex flex-col justify-between shadow-lg">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-[var(--foreground-subtle)] flex items-center gap-1.5">
+                <AlertCircle className="h-4 w-4 text-emerald-600 dark:text-[#4edea3]" />
+                <span>TO RECEIVE</span>
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-800 dark:text-[#4edea3] font-mono">
+                Receivable
+              </span>
             </div>
-
-            <div className="mt-5 pt-3 border-t border-[var(--surface-panel-border)] flex items-center justify-between text-xs">
-              <div>
-                <span className="text-[10px] text-[var(--foreground-subtle)] block">Total Lent</span>
-                <span className="font-mono font-bold text-[var(--foreground)]">
-                  ₹{(metrics.totalGivenPaise / 100).toLocaleString("en-IN")}
-                </span>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] text-[var(--foreground-subtle)] block">Recovered</span>
-                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                  ₹{(metrics.totalReceivedBackPaise / 100).toLocaleString("en-IN")}
-                </span>
-              </div>
+            <div className="mt-3">
+              <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-emerald-600 dark:text-[#4edea3] tabular-nums block">
+                ₹{(metrics.outstandingReceivablesPaise / 100).toLocaleString("en-IN", {
+                  minimumFractionDigits: 2,
+                })}
+              </span>
+              <p className="text-[11px] text-[var(--foreground-subtle)] mt-1">
+                Amount people currently owe you
+              </p>
             </div>
           </div>
-
-          {/* Payables Card */}
-          <div className="aura-card-obsidian rounded-3xl p-6 border border-[var(--surface-card-border)] flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-cyan-700 dark:text-cyan-400 flex items-center gap-1.5">
-                  <ArrowDownLeft className="h-3.5 w-3.5 stroke-[2.5]" />
-                  <span>MONEY TAKEN (PAYABLES)</span>
-                </span>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-800 dark:text-cyan-400">
-                  {metrics.activeTakenCount} Active
-                </span>
-              </div>
-
-              <div className="mt-3">
-                <span className="text-2xl sm:text-3xl font-black font-mono text-[var(--foreground)] tabular-nums block">
-                  ₹{(metrics.outstandingPayablesPaise / 100).toLocaleString(
-                    "en-IN",
-                    { minimumFractionDigits: 2 }
-                  )}
-                </span>
-                <span className="text-[11px] text-[var(--foreground-subtle)] mt-0.5 block">
-                  Outstanding debt to be repaid
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-5 pt-3 border-t border-[var(--surface-panel-border)] flex items-center justify-between text-xs">
-              <div>
-                <span className="text-[10px] text-[var(--foreground-subtle)] block">Total Borrowed</span>
-                <span className="font-mono font-bold text-[var(--foreground)]">
-                  ₹{(metrics.totalBorrowedPaise / 100).toLocaleString("en-IN")}
-                </span>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] text-[var(--foreground-subtle)] block">Repaid</span>
-                <span className="font-mono font-bold text-cyan-600 dark:text-cyan-400">
-                  ₹{(metrics.totalRepaidPaise / 100).toLocaleString("en-IN")}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Top Counterparties / People Quick Bar */}
-      {peopleSummaries.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-[var(--foreground)] flex items-center gap-2">
-              <Users className="h-4 w-4 text-emerald-600 dark:text-[#4edea3]" />
-              <span>Counterparties Directory</span>
-            </h3>
+          <div className="mt-4 pt-3 border-t border-[var(--surface-panel-border)]">
             <Link
-              href="/money-tracker/people"
-              className="text-xs font-bold text-emerald-600 dark:text-[#4edea3] hover:underline flex items-center gap-1"
+              href="/money-tracker/given"
+              className="text-[11px] text-emerald-700 dark:text-[#4edea3] font-bold flex items-center justify-between hover:underline"
             >
-              <span>View All ({people.length})</span>
+              <span>View all given</span>
               <ChevronRight className="h-3.5 w-3.5" />
             </Link>
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {peopleSummaries.slice(0, 4).map((p) => {
-              const owesUser = p.netPositionPaise > 0;
-              const userOwes = p.netPositionPaise < 0;
-              return (
-                <div
-                  key={p.person.id}
-                  className="p-3.5 rounded-2xl bg-slate-100/70 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/10 hover:border-emerald-500/30 transition-all flex flex-col justify-between"
-                >
-                  <div>
-                    <h4 className="text-xs font-bold text-[var(--foreground)] truncate">
-                      {p.person.name}
-                    </h4>
-                    {p.person.phone && (
-                      <span className="text-[10px] text-[var(--foreground-subtle)] truncate block">
-                        {p.person.phone}
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-2.5 pt-2 border-t border-[var(--surface-panel-border)] flex items-center justify-between text-[11px] font-mono">
-                    <span className="text-[10px] text-[var(--foreground-subtle)]">
-                      {owesUser ? "Owes you" : userOwes ? "You owe" : "Settled"}
-                    </span>
-                    <span
-                      className={`font-bold ${
-                        owesUser
-                          ? "text-emerald-700 dark:text-[#4edea3]"
-                          : userOwes
-                          ? "text-cyan-700 dark:text-cyan-400"
-                          : "text-[var(--foreground-subtle)]"
-                      }`}
-                    >
-                      ₹{(Math.abs(p.netPositionPaise) / 100).toLocaleString("en-IN")}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* Active Agreements Lists */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-black text-[var(--foreground)] tracking-tight">
-            Active Agreements
-          </h3>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--foreground-subtle)]" />
-              <input
-                type="text"
-                placeholder="Search person..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 pr-3 py-1.5 rounded-xl bg-slate-100/70 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 text-xs text-[var(--foreground)] outline-none focus:border-emerald-500"
-              />
+        {/* 3. Total Money Taken */}
+        <div className="aura-card-obsidian rounded-3xl p-5 sm:p-6 border border-[var(--surface-card-border)] relative overflow-hidden flex flex-col justify-between shadow-lg">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-[var(--foreground-subtle)] flex items-center gap-1.5">
+                <ArrowDownLeft className="h-4 w-4 text-cyan-500" />
+                <span>TOTAL TAKEN</span>
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-800 dark:text-cyan-400">
+                Taken
+              </span>
             </div>
+            <div className="mt-3">
+              <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-[var(--foreground)] tabular-nums block">
+                ₹{(metrics.totalBorrowedPaise / 100).toLocaleString("en-IN", {
+                  minimumFractionDigits: 2,
+                })}
+              </span>
+              <p className="text-[11px] text-[var(--foreground-subtle)] mt-1">
+                Repaid: ₹{(metrics.totalRepaidPaise / 100).toLocaleString("en-IN")}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 pt-3 border-t border-[var(--surface-panel-border)] flex items-center justify-between text-[11px] text-[var(--foreground-subtle)]">
+            <span>Active: {metrics.activeTakenCount}</span>
+            <button
+              onClick={() => openModalWithDirection("taken")}
+              className="text-cyan-700 dark:text-cyan-400 font-bold hover:underline cursor-pointer"
+            >
+              + Take Money
+            </button>
           </div>
         </div>
 
-        {agreements.length === 0 ? (
-          <div className="aura-card-obsidian rounded-3xl p-10 text-center border border-[var(--surface-card-border)] space-y-3">
-            <div className="h-12 w-12 mx-auto rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-[#4edea3] flex items-center justify-center">
-              <Handshake className="h-6 w-6" />
+        {/* 4. Outstanding to Repay */}
+        <div className="aura-card-obsidian rounded-3xl p-5 sm:p-6 border border-[var(--surface-card-border)] relative overflow-hidden flex flex-col justify-between shadow-lg">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-[var(--foreground-subtle)] flex items-center gap-1.5">
+                <Clock className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+                <span>TO REPAY</span>
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-800 dark:text-cyan-400 font-mono">
+                Payable
+              </span>
             </div>
-            <h4 className="text-base font-bold text-[var(--foreground)]">
-              No Agreements Yet
-            </h4>
-            <p className="text-xs text-[var(--foreground-subtle)] max-w-sm mx-auto">
-              Start tracking money you lend to friends, family, or colleagues, and informal personal borrowings.
-            </p>
-            <button
-              type="button"
-              onClick={() => openModalWithDirection("given")}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 text-xs font-bold shadow-md hover:bg-emerald-400 transition-all cursor-pointer mt-2"
+            <div className="mt-3">
+              <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-cyan-700 dark:text-cyan-300 tabular-nums block">
+                ₹{(metrics.outstandingPayablesPaise / 100).toLocaleString("en-IN", {
+                  minimumFractionDigits: 2,
+                })}
+              </span>
+              <p className="text-[11px] text-[var(--foreground-subtle)] mt-1">
+                Amount you currently owe others
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 pt-3 border-t border-[var(--surface-panel-border)]">
+            <Link
+              href="/money-tracker/taken"
+              className="text-[11px] text-cyan-700 dark:text-cyan-400 font-bold flex items-center justify-between hover:underline"
             >
-              <Plus className="h-4 w-4 stroke-[2.5]" />
-              <span>Create First Agreement</span>
-            </button>
+              <span>View all taken</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {filteredAgreements
-              .filter((a) => a.status === "active")
-              .map((agreement) => {
-                const bal = calculateAgreementBalance(agreement, payments);
-                return (
-                  <AgreementCard
-                    key={agreement.id}
-                    agreement={agreement}
-                    balance={bal}
-                    accounts={accounts}
-                  />
-                );
-              })}
-          </div>
-        )}
+        </div>
       </div>
 
-      {/* Create Agreement Modal */}
+      {/* Person-wise Outstanding Amounts (STRICTLY SEPARATE GIVEN & TAKEN) */}
+      <section className="aura-card-obsidian rounded-3xl p-6 sm:p-7 border border-[var(--surface-card-border)] space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-black text-[var(--foreground)] tracking-tight flex items-center gap-2">
+              <Users className="h-4 w-4 text-emerald-500" />
+              <span>Person-Wise Outstanding</span>
+            </h2>
+            <p className="text-xs text-[var(--foreground-subtle)] mt-0.5">
+              Given and Taken records for each person are kept strictly separate
+            </p>
+          </div>
+          <Link
+            href="/money-tracker/people"
+            className="text-xs font-bold text-emerald-700 dark:text-[#4edea3] hover:underline flex items-center gap-1 self-start sm:self-auto"
+          >
+            <span>Directory ({people.length})</span>
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        {peopleSummaries.length === 0 ? (
+          <div className="p-8 rounded-2xl bg-slate-100/50 dark:bg-white/[0.02] border border-dashed border-slate-300 dark:border-white/10 text-center">
+            <p className="text-xs text-[var(--foreground-subtle)]">
+              No contacts yet. When you record money given or taken, people will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {peopleSummaries
+              .filter(
+                (ps) =>
+                  ps.outstandingReceivablePaise > 0 || ps.outstandingPayablePaise > 0
+              )
+              .slice(0, 9)
+              .map((ps) => (
+                <div
+                  key={ps.person.id}
+                  className="p-4 rounded-2xl bg-slate-100/70 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/10 flex flex-col justify-between gap-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-[var(--foreground)] truncate">
+                      {ps.person.name}
+                    </span>
+                    <span className="text-[10px] text-[var(--foreground-subtle)] font-mono">
+                      {ps.activeGivenCount + ps.activeTakenCount} active
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t border-[var(--surface-panel-border)]">
+                    <div>
+                      <span className="text-[10px] text-[var(--foreground-subtle)] block">
+                        To Receive
+                      </span>
+                      <span className="font-mono font-bold text-emerald-600 dark:text-[#4edea3]">
+                        ₹{(ps.outstandingReceivablePaise / 100).toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-[var(--foreground-subtle)] block">
+                        To Repay
+                      </span>
+                      <span className="font-mono font-bold text-cyan-600 dark:text-cyan-400">
+                        ₹{(ps.outstandingPayablePaise / 100).toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
+      </section>
+
+      {/* Filter / Search Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-black text-[var(--foreground)] tracking-tight">
+            Outstanding Records
+          </h2>
+          <p className="text-xs text-[var(--foreground-muted)]">
+            Active balances requiring recovery or repayment
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--foreground-subtle)]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by person or notes..."
+              className="pl-9 pr-4 py-2 rounded-xl bg-slate-100/70 dark:bg-white/5 border border-slate-300/60 dark:border-white/10 text-xs text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:border-emerald-500 transition-all w-full sm:w-64"
+            />
+          </div>
+
+          <button
+            onClick={() => openModalWithDirection("given")}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap"
+          >
+            <Plus className="h-4 w-4 stroke-[2.5]" />
+            <span>Add Record</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Outstanding Records Grid */}
+      {outstandingRecords.length === 0 ? (
+        <div className="aura-card-obsidian rounded-3xl p-12 border border-[var(--surface-card-border)] text-center space-y-4">
+          <p className="text-sm font-semibold text-[var(--foreground-muted)]">
+            {searchQuery ? "No matching records found." : "No outstanding money records at this time."}
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => openModalWithDirection("given")}
+              className="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs"
+            >
+              + Give Money
+            </button>
+            <button
+              onClick={() => openModalWithDirection("taken")}
+              className="px-4 py-2 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs"
+            >
+              + Take Money
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {outstandingRecords.map((record) => {
+            const bal = calculateRecordBalance(record, repayments);
+            return (
+              <AgreementCard
+                key={record.id}
+                record={record}
+                balance={bal}
+                accounts={accounts}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      {/* Recent Activity Section */}
+      <section className="aura-card-obsidian rounded-3xl p-6 sm:p-7 border border-[var(--surface-card-border)] space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-black text-[var(--foreground)] tracking-tight">
+            Recent Records
+          </h2>
+          <span className="text-xs text-[var(--foreground-subtle)] font-mono">
+            {recentRecords.length} records
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {recentRecords.map((record) => {
+            const bal = calculateRecordBalance(record, repayments);
+            return (
+              <AgreementCard
+                key={record.id}
+                record={record}
+                balance={bal}
+                accounts={accounts}
+              />
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Create Modal */}
       <CreateAgreementModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}

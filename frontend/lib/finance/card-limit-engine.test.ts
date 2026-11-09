@@ -553,4 +553,103 @@ describe("Card Limit Engine - Authoritative Credit Limit Enforcement", () => {
       "This transaction exceeds your available credit by ₹2,001. Available credit: -₹2,000. Transaction amount: ₹1."
     );
   });
+
+  // Case 15: Non-duplication of linked EMI in validateCreditCardChargeLimit
+  it("Case 15: correctly prevents double counting of linked EMIs in charge limit validation (₹50k limit, ₹10k linked EMI)", () => {
+    const card50k: CardLimitInput = {
+      id: "card-hdfc-50k",
+      creditLimitPaise: 5_000_000, // ₹50,000
+      openingOutstandingPaise: 0,
+      openingOutstandingDate: "2026-01-01",
+    };
+
+    const transactions: CardTransactionInput[] = [
+      {
+        id: "tx-purchase-10k",
+        creditCardId: card50k.id,
+        amountPaise: 1_000_000, // ₹10,000
+        type: "card_purchase",
+        date: "2026-04-01",
+      },
+    ];
+
+    const linkedEmi: CardLinkedEmiInput = {
+      id: "emi-10k",
+      linkedCreditCardId: card50k.id,
+      linkedTransactionId: "tx-purchase-10k", // Linked!
+      currentOutstandingPrincipalPaise: 1_000_000,
+      status: "active",
+    };
+
+    // Charge within available limit (₹35,000 charge with ₹40,000 available)
+    const allowedCheck = validateCreditCardChargeLimit({
+      card: card50k,
+      transactions,
+      cardLinkedEmis: [linkedEmi],
+      chargeAmountPaise: 3_500_000, // ₹35,000
+    });
+
+    expect(allowedCheck.allowed).toBe(true);
+    expect(allowedCheck.currentUtilizedPaise).toBe(1_000_000); // Only ₹10k, NOT ₹20k!
+    expect(allowedCheck.currentAvailablePaise).toBe(4_000_000); // ₹40,000 available
+    expect(allowedCheck.projectedUtilizedPaise).toBe(4_500_000); // ₹45,000
+    expect(allowedCheck.projectedAvailablePaise).toBe(500_000); // ₹5,000 remaining
+
+    // Charge exceeding available limit (₹45,000 charge with ₹40,000 available)
+    const rejectedCheck = validateCreditCardChargeLimit({
+      card: card50k,
+      transactions,
+      cardLinkedEmis: [linkedEmi],
+      chargeAmountPaise: 4_500_000, // ₹45,000
+    });
+
+    expect(rejectedCheck.allowed).toBe(false);
+    expect(rejectedCheck.currentAvailablePaise).toBe(4_000_000);
+    expect(rejectedCheck.exceededByPaise).toBe(500_000); // Exceeds by ₹5,000
+    expect(rejectedCheck.errorMessage).toBe(
+      "This transaction exceeds your available credit by ₹5,000. Available credit: ₹40,000. Transaction amount: ₹45,000."
+    );
+  });
+
+  // Case 16: Direct EMI purchase limit evaluation
+  it("Case 16: evaluates available credit correctly when user makes a new purchase directly on EMI", () => {
+    const card50k: CardLimitInput = {
+      id: "card-hdfc-50k",
+      creditLimitPaise: 5_000_000, // ₹50,000
+      openingOutstandingPaise: 0,
+      openingOutstandingDate: "2026-01-01",
+    };
+
+    const existingTransactions: CardTransactionInput[] = [
+      {
+        id: "tx-existing",
+        creditCardId: card50k.id,
+        amountPaise: 1_000_000, // ₹10,000 existing spend
+        type: "card_purchase",
+        date: "2026-04-01",
+      },
+    ];
+
+    // Permitted: ₹10,000 new purchase on EMI
+    const permittedResult = validateCreditCardChargeLimit({
+      card: card50k,
+      transactions: existingTransactions,
+      cardLinkedEmis: [],
+      chargeAmountPaise: 1_000_000, // ₹10,000 new purchase
+    });
+    expect(permittedResult.allowed).toBe(true);
+    expect(permittedResult.projectedUtilizedPaise).toBe(2_000_000); // ₹20,000
+    expect(permittedResult.projectedAvailablePaise).toBe(3_000_000); // ₹30,000
+
+    // Blocked: ₹45,000 new purchase on EMI
+    const blockedResult = validateCreditCardChargeLimit({
+      card: card50k,
+      transactions: existingTransactions,
+      cardLinkedEmis: [],
+      chargeAmountPaise: 4_500_000, // ₹45,000 new purchase
+    });
+    expect(blockedResult.allowed).toBe(false);
+    expect(blockedResult.currentAvailablePaise).toBe(4_000_000);
+    expect(blockedResult.exceededByPaise).toBe(500_000);
+  });
 });

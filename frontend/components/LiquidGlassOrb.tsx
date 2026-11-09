@@ -185,28 +185,41 @@ export function LiquidGlassOrb({ className = "", size = 180 }: LiquidGlassOrbPro
     let mouseY = 0;
     let targetMouseX = 0;
     let targetMouseY = 0;
+    let cachedRect: DOMRect | null = null;
+    let lastRectTime = 0;
 
     const handlePointerMove = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width - 0.5;
-      const y = (e.clientY - rect.top) / rect.height - 0.5;
+      const now = performance.now();
+      if (!cachedRect || now - lastRectTime > 1000) {
+        cachedRect = canvas.getBoundingClientRect();
+        lastRectTime = now;
+      }
+      const width = cachedRect.width || size;
+      const height = cachedRect.height || size;
+      const x = (e.clientX - cachedRect.left) / width - 0.5;
+      const y = (e.clientY - cachedRect.top) / height - 0.5;
       targetMouseX = x * 2;
       targetMouseY = y * 2;
     };
 
-    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointermove", handlePointerMove, { passive: true });
 
-    let animationId: number;
+    let animationId = 0;
+    let isVisible = true;
+    let isTabVisible = typeof document !== "undefined" ? !document.hidden : true;
     const startTime = performance.now();
 
     function render() {
-      if (!gl || !canvas) return;
+      if (!gl || !canvas || !isVisible || !isTabVisible) {
+        animationId = 0;
+        return;
+      }
 
       // Smooth mouse interpolation
       mouseX += (targetMouseX - mouseX) * 0.08;
       mouseY += (targetMouseY - mouseY) * 0.08;
 
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       const displayWidth = Math.floor(canvas.clientWidth * dpr);
       const displayHeight = Math.floor(canvas.clientHeight * dpr);
 
@@ -232,10 +245,32 @@ export function LiquidGlassOrb({ className = "", size = 180 }: LiquidGlassOrbPro
       animationId = requestAnimationFrame(render);
     }
 
-    render();
+    // Efficient viewport & tab visibility observers to pause RAF loop when offscreen
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isVisible = entry.isIntersecting;
+        if (isVisible && isTabVisible && !animationId) {
+          animationId = requestAnimationFrame(render);
+        }
+      },
+      { threshold: 0.05 }
+    );
+    observer.observe(canvas);
+
+    const handleVisibilityChange = () => {
+      isTabVisible = !document.hidden;
+      if (isVisible && isTabVisible && !animationId) {
+        animationId = requestAnimationFrame(render);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    animationId = requestAnimationFrame(render);
 
     return () => {
-      cancelAnimationFrame(animationId);
+      if (animationId) cancelAnimationFrame(animationId);
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("pointermove", handlePointerMove);
       if (gl) {
         gl.deleteBuffer(posBuffer);
@@ -244,7 +279,7 @@ export function LiquidGlassOrb({ className = "", size = 180 }: LiquidGlassOrbPro
         gl.deleteShader(fs);
       }
     };
-  }, [hasWebGL, reducedMotion, resolvedTheme]);
+  }, [hasWebGL, reducedMotion, resolvedTheme, size]);
 
   // Fallback CSS/SVG Liquid Glass sphere if WebGL is unavailable or reduced motion is on
   if (!hasWebGL || reducedMotion) {

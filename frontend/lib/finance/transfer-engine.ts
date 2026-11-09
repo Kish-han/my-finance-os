@@ -219,6 +219,25 @@ export function isTransactionEditable(
       code: "transfer-editing-disabled",
     };
   }
+
+  const moneyTrackerTypes = [
+    "money_lent",
+    "money_borrowed",
+    "repayment_received",
+    "repayment_paid",
+  ];
+  if (
+    moneyTrackerTypes.includes(existingType) ||
+    moneyTrackerTypes.includes(targetType)
+  ) {
+    return {
+      allowed: false,
+      error:
+        "Money Tracker records cannot be edited directly from the transactions ledger. Please manage them from the Money Tracker module.",
+      code: "money-tracker-editing-disabled",
+    };
+  }
+
   return { allowed: true };
 }
 

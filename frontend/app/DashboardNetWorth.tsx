@@ -12,8 +12,18 @@ import {
   Landmark,
   Wallet,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { Badge } from "@/components/ui/badge";
-import { LiquidGlassOrb } from "@/components/LiquidGlassOrb";
+
+const LiquidGlassOrb = dynamic(
+  () => import("@/components/LiquidGlassOrb").then((mod) => mod.LiquidGlassOrb),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-[210px] h-[210px] rounded-full bg-emerald-500/10 dark:bg-emerald-400/5 blur-xl pointer-events-none select-none" />
+    ),
+  }
+);
 
 interface DashboardNetWorthProps {
   netWorthPaise: number;

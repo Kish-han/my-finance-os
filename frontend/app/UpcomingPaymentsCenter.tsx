@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   CreditCard,
@@ -31,15 +32,25 @@ import {
   recordStatementPayment,
   saveCardStatement,
 } from "./cards/statements/actions";
-import {
-  ConfirmRecurringModal,
-  type ConfirmOccurrenceData,
-} from "./transactions/recurring/ConfirmRecurringModal";
-import {
-  SnoozeRecurringModal,
-  type SnoozeModalData,
-} from "./transactions/recurring/SnoozeRecurringModal";
+import type { ConfirmOccurrenceData } from "./transactions/recurring/ConfirmRecurringModal";
+import type { SnoozeModalData } from "./transactions/recurring/SnoozeRecurringModal";
 import { skipRecurringOccurrence } from "./transactions/recurring/actions";
+
+const ConfirmRecurringModal = dynamic(
+  () =>
+    import("./transactions/recurring/ConfirmRecurringModal").then(
+      (m) => m.ConfirmRecurringModal
+    ),
+  { ssr: false }
+);
+
+const SnoozeRecurringModal = dynamic(
+  () =>
+    import("./transactions/recurring/SnoozeRecurringModal").then(
+      (m) => m.SnoozeRecurringModal
+    ),
+  { ssr: false }
+);
 
 interface Props {
   activePayments: UpcomingPaymentItem[];

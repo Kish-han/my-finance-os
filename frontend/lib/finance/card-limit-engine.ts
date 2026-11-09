@@ -43,6 +43,8 @@ export interface CardLinkedEmiInput {
   debt_type?: string;
   linkedCreditCardId?: string | null;
   linked_credit_card_id?: string | null;
+  linkedTransactionId?: string | null;
+  linked_transaction_id?: string | null;
   currentOutstandingPrincipalPaise?: number | string;
   current_outstanding_principal_paise?: number | string;
   status?: string;
@@ -169,12 +171,27 @@ export function calculateRevolvingOutstanding(
 /**
  * Calculates blocked credit limit from active card-linked EMI principal.
  * Closed or foreclosed loans do not block credit limit.
+ *
+ * Core Accounting Rule:
+ * If an EMI is linked to a transaction that already exists on this card in the ledger,
+ * its amount is already counted in revolving outstanding (or card purchases).
+ * It is NOT double counted as blocked EMI principal.
+ * Only unlinked/legacy EMIs block additional credit limit.
  */
 export function calculateBlockedEmiPrincipal(
   cardId: string,
-  cardLinkedEmis: CardLinkedEmiInput[] = []
+  cardLinkedEmis: CardLinkedEmiInput[] = [],
+  transactions: CardTransactionInput[] = []
 ): number {
   let blockedPaise = 0;
+
+  const cardTxIds = new Set<string>();
+  for (const tx of transactions) {
+    const txCardId = tx.creditCardId ?? tx.credit_card_id;
+    if (txCardId === cardId && tx.id) {
+      cardTxIds.add(String(tx.id));
+    }
+  }
 
   for (const emi of cardLinkedEmis) {
     const linkedId = emi.linkedCreditCardId ?? emi.linked_credit_card_id;
@@ -182,6 +199,12 @@ export function calculateBlockedEmiPrincipal(
 
     const status = (emi.status || "active").toLowerCase();
     if (status === "closed" || status === "foreclosed") continue;
+
+    const linkedTxId = emi.linkedTransactionId ?? emi.linked_transaction_id;
+    if (linkedTxId && cardTxIds.has(String(linkedTxId))) {
+      // Already represented in card ledger transactions; skip to prevent double counting
+      continue;
+    }
 
     const principal = Number(
       emi.currentOutstandingPrincipalPaise ??
@@ -213,7 +236,8 @@ export function calculateCardCreditUtilization(
   );
   const blockedEmiPrincipalPaise = calculateBlockedEmiPrincipal(
     card.id,
-    cardLinkedEmis
+    cardLinkedEmis,
+    transactions
   );
 
   const totalUtilizedCreditPaise =
@@ -271,7 +295,8 @@ export function validateCreditCardChargeLimit({
   );
   const blockedEmiPaise = calculateBlockedEmiPrincipal(
     card.id,
-    cardLinkedEmis
+    cardLinkedEmis,
+    effectiveTransactions
   );
 
   const currentUtilizedPaise = revolvingPaise + blockedEmiPaise;

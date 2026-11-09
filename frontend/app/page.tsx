@@ -21,7 +21,7 @@ import {
   Handshake,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { fetchMoneyTrackerData } from "@/lib/finance/money-tracker-data";
+import { fetchMoneyTrackerMetrics } from "@/lib/finance/money-tracker-data";
 import {
   calculateAccountBalance,
   separateAccountBalances,
@@ -353,7 +353,6 @@ async function DashboardContent({
     paymentsResult,
     statementRows,
     transactionResult,
-    pendingRecurringResult,
     budgetRows,
     categoryRows,
     moneyTrackerResult,
@@ -379,7 +378,7 @@ async function DashboardContent({
     supabase
       .from("emi_debts")
       .select(
-        "id, name, lender_name, debt_type, linked_credit_card_id, status, emi_amount_paise, current_outstanding_principal_paise, original_principal_paise, annual_interest_rate_basis_points, total_tenure_months, installments_paid_before_tracking, first_emi_due_date, outstanding_as_of_date, next_due_date"
+        "id, name, lender_name, debt_type, linked_credit_card_id, linked_transaction_id, status, emi_amount_paise, current_outstanding_principal_paise, original_principal_paise, annual_interest_rate_basis_points, total_tenure_months, installments_paid_before_tracking, first_emi_due_date, outstanding_as_of_date, next_due_date"
       )
       .eq("user_id", userId)
       .eq("status", "active")
@@ -410,7 +409,6 @@ async function DashboardContent({
     })(),
 
     loadTransactions(supabase, userId),
-    fetchUserPendingOccurrences(supabase, userId, indiaToday),
 
     (async (): Promise<CategoryBudget[]> => {
       try {
@@ -440,22 +438,24 @@ async function DashboardContent({
       }
     })(),
 
-    (async () => {
-      try {
-        return await fetchMoneyTrackerData(supabase);
-      } catch {
-        return null;
-      }
-    })(),
+    fetchMoneyTrackerMetrics(supabase),
   ]);
-
-  const moneyTrackerData = moneyTrackerResult;
 
   const accountRows =
     (accountsResult.data ?? []) as unknown as AccountRow[];
 
   const cardRows =
     (cardsResult.data ?? []) as unknown as CreditCardRow[];
+
+  const pendingRecurringResult = await fetchUserPendingOccurrences(
+    supabase,
+    userId,
+    indiaToday,
+    accountRows,
+    cardRows
+  );
+
+  const moneyTrackerMetrics = moneyTrackerResult;
 
   const debtRows =
     (debtsResult.data ?? []) as unknown as EmiDebtRow[];
@@ -569,9 +569,9 @@ async function DashboardContent({
   } = partitionDebtsForLiabilities(activeEmis);
 
   const personalReceivablesPaise =
-    moneyTrackerData?.metrics.outstandingReceivablesPaise ?? 0;
+    moneyTrackerMetrics?.outstandingReceivablesPaise ?? 0;
   const personalPayablesPaise =
-    moneyTrackerData?.metrics.outstandingPayablesPaise ?? 0;
+    moneyTrackerMetrics?.outstandingPayablesPaise ?? 0;
 
   const { totalAssetsPaise, totalLiabilitiesPaise, netWorthPaise } = calculateNetWorth({
     liquidAssetsPaise: totalBankCashPaise,
@@ -1116,7 +1116,7 @@ async function DashboardContent({
         />
 
         {/* Personal Lending & Money Tracker Status */}
-        {moneyTrackerData && (
+        {moneyTrackerMetrics && (
           <section className="aura-card-obsidian rounded-3xl p-5 sm:p-6 border border-[var(--surface-card-border)] space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -1151,7 +1151,7 @@ async function DashboardContent({
                   {formatRupees(personalReceivablesPaise)}
                 </span>
                 <span className="text-[10px] text-[var(--foreground-subtle)] block mt-0.5">
-                  {moneyTrackerData.metrics.activeGivenCount} active borrower(s)
+                  {moneyTrackerMetrics.activeGivenCount} active borrower(s)
                 </span>
               </div>
 
@@ -1163,7 +1163,7 @@ async function DashboardContent({
                   {formatRupees(personalPayablesPaise)}
                 </span>
                 <span className="text-[10px] text-[var(--foreground-subtle)] block mt-0.5">
-                  {moneyTrackerData.metrics.activeTakenCount} active creditor(s)
+                  {moneyTrackerMetrics.activeTakenCount} active creditor(s)
                 </span>
               </div>
 

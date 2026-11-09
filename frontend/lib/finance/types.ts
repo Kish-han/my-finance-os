@@ -120,6 +120,9 @@ export interface EmiDebt {
     // Link card-based EMIs to the associated credit card.
     linkedCreditCardId?: string;
 
+    // Optional link to the underlying card_purchase transaction (prevents double counting)
+    linkedTransactionId?: string | null;
+
     // Optional account normally used to repay the EMI.
     paymentAccountId?: string;
 
@@ -199,7 +202,7 @@ export interface ForeclosureQuote {
 }
 
 // ============================================================================
-// MONEY TRACKER: Personal Lending & Borrowing Types
+// MONEY TRACKER: Simple Personal Money Records & Repayments (No Interest)
 // ============================================================================
 
 export interface Person {
@@ -212,26 +215,20 @@ export interface Person {
     updatedAt?: string;
 }
 
-export type PersonalLoanDirection = "given" | "taken";
+export type MoneyRecordDirection = "given" | "taken";
+export type MoneyRecordStatus = "active" | "settled";
 
-export type PersonalLoanInterestType = "none" | "fixed_amount" | "simple_annual";
-
-export type PersonalLoanStatus = "active" | "settled";
-
-export interface PersonalLoanAgreement {
+export interface PersonalMoneyRecord {
     id: string;
     userId?: string;
     personId: string;
-    direction: PersonalLoanDirection;
-    principalPaise: number;
-    interestType: PersonalLoanInterestType;
-    interestRateAnnualBasisPoints?: number;
-    agreedInterestPaise?: number;
-    agreementDate: string; // YYYY-MM-DD
-    expectedRepaymentDate?: string | null; // YYYY-MM-DD
+    direction: MoneyRecordDirection;
+    amountPaise: number;
+    recordDate: string; // YYYY-MM-DD
+    dueDate?: string | null; // YYYY-MM-DD
     accountId: string;
     linkedTransactionId?: string | null;
-    status: PersonalLoanStatus;
+    status: MoneyRecordStatus;
     notes?: string | null;
     createdAt?: string;
     updatedAt?: string;
@@ -241,14 +238,12 @@ export interface PersonalLoanAgreement {
     account?: FinancialAccount;
 }
 
-export interface PersonalLoanPayment {
+export interface PersonalMoneyRepayment {
     id: string;
     userId?: string;
-    personalLoanId: string;
-    paymentAmountPaise: number;
-    principalComponentPaise: number;
-    interestComponentPaise: number;
-    paymentDate: string; // YYYY-MM-DD
+    recordId: string;
+    amountPaise: number;
+    repaymentDate: string; // YYYY-MM-DD
     accountId: string;
     linkedTransactionId?: string | null;
     notes?: string | null;
@@ -258,20 +253,15 @@ export interface PersonalLoanPayment {
     account?: FinancialAccount;
 }
 
-export interface AgreementBalance {
-    totalExpectedPaise: number;
-    totalInterestPaise: number;
-    totalPrincipalRepaidPaise: number;
-    totalInterestRepaidPaise: number;
+export interface RecordBalance {
+    originalAmountPaise: number;
     totalRepaidPaise: number;
-    remainingPrincipalPaise: number;
-    remainingInterestPaise: number;
-    totalOutstandingPaise: number;
+    outstandingPaise: number;
     isSettled: boolean;
     progressPercent: number;
 }
 
-export interface PersonBalanceSummary {
+export interface PersonSummary {
     person: Person;
     totalGivenPaise: number;
     totalGivenRecoveredPaise: number;
@@ -279,9 +269,9 @@ export interface PersonBalanceSummary {
     totalTakenPaise: number;
     totalTakenRepaidPaise: number;
     outstandingPayablePaise: number;
-    netPositionPaise: number; // positive = they owe user; negative = user owes them
-    activeAgreementsCount: number;
-    settledAgreementsCount: number;
+    activeGivenCount: number;
+    activeTakenCount: number;
+    settledCount: number;
 }
 
 export interface MoneyTrackerMetrics {
@@ -291,8 +281,15 @@ export interface MoneyTrackerMetrics {
     totalBorrowedPaise: number;
     totalRepaidPaise: number;
     outstandingPayablesPaise: number;
-    netPositionPaise: number; // outstandingReceivablesPaise - outstandingPayablesPaise
     activeGivenCount: number;
     activeTakenCount: number;
     settledCount: number;
 }
+
+// Aliases for compatibility with any existing imports during migration
+export type PersonalLoanDirection = MoneyRecordDirection;
+export type PersonalLoanStatus = MoneyRecordStatus;
+export type PersonalLoanAgreement = PersonalMoneyRecord;
+export type PersonalLoanPayment = PersonalMoneyRepayment;
+export type AgreementBalance = RecordBalance;
+export type PersonBalanceSummary = PersonSummary;

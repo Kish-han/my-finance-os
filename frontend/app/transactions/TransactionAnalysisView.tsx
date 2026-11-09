@@ -138,13 +138,9 @@ export function TransactionAnalysisView({
   const [localUpdatedSuccess, setLocalUpdatedSuccess] = useState<boolean>(false);
 
   // 4. Progressive List Rendering (Avoids rendering hundreds of DOM cards at once)
-  const [visibleCount, setVisibleCount] = useState<number>(40);
   const filterKey = `${rangePreset}_${typeFilter}_${categoryFilter}_${accountFilter}_${searchQuery}`;
-  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
-  if (filterKey !== prevFilterKey) {
-    setPrevFilterKey(filterKey);
-    setVisibleCount(40);
-  }
+  const [pageByFilter, setPageByFilter] = useState<Record<string, number>>({});
+  const visibleCount = (pageByFilter[filterKey] || 1) * 40;
 
   // Quick Account & Card Lookup Maps
   const accountMap = useMemo(() => {
@@ -900,7 +896,12 @@ export function TransactionAnalysisView({
               <div className="pt-2 text-center">
                 <button
                   type="button"
-                  onClick={() => setVisibleCount((prev) => prev + 40)}
+                  onClick={() =>
+                    setPageByFilter((prev) => ({
+                      ...prev,
+                      [filterKey]: (prev[filterKey] || 1) + 1,
+                    }))
+                  }
                   className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-6 py-2.5 text-xs font-bold text-slate-300 hover:text-white hover:border-[#4edea3]/40 hover:bg-white/10 transition-all cursor-pointer active:scale-95 shadow-lg"
                 >
                   <span>Show More Transactions</span>

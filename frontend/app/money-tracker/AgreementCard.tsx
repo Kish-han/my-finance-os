@@ -13,25 +13,30 @@ import {
 } from "lucide-react";
 import { RecordRepaymentModal } from "./RecordRepaymentModal";
 import type {
-  AgreementBalance,
   FinancialAccount,
-  PersonalLoanAgreement,
+  PersonalMoneyRecord,
+  RecordBalance,
 } from "@/lib/finance/types";
 
 interface AgreementCardProps {
-  agreement: PersonalLoanAgreement;
-  balance: AgreementBalance;
+  record?: PersonalMoneyRecord;
+  agreement?: PersonalMoneyRecord;
+  balance: RecordBalance;
   accounts: FinancialAccount[];
 }
 
 export function AgreementCard({
-  agreement,
+  record: recordProp,
+  agreement: agreementProp,
   balance,
   accounts,
 }: AgreementCardProps) {
   const [isRepayModalOpen, setIsRepayModalOpen] = useState(false);
+  const activeRecord = recordProp || agreementProp;
 
-  const isLent = agreement.direction === "given";
+  if (!activeRecord) return null;
+
+  const isLent = activeRecord.direction === "given";
   const isSettled = balance.isSettled;
 
   return (
@@ -75,28 +80,28 @@ export function AgreementCard({
 
             <div className="flex items-center gap-1 text-[11px] font-mono text-[var(--foreground-subtle)]">
               <Calendar className="h-3.5 w-3.5" />
-              <span>{agreement.agreementDate}</span>
+              <span>{activeRecord.recordDate}</span>
             </div>
           </div>
 
           {/* Person & Notes */}
           <div className="mt-4">
             <Link
-              href={`/money-tracker/agreement/${agreement.id}`}
+              href={`/money-tracker/${activeRecord.id}`}
               className="text-base font-black text-[var(--foreground)] hover:text-emerald-600 dark:hover:text-[#4edea3] transition-colors flex items-center gap-1.5"
             >
-              <span>{agreement.person?.name || "Counterparty"}</span>
+              <span>{activeRecord.person?.name || "Person"}</span>
               <ChevronRight className="h-4 w-4 opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
             </Link>
-            {agreement.person?.phone && (
+            {activeRecord.person?.phone && (
               <p className="text-[11px] text-[var(--foreground-subtle)] mt-0.5 flex items-center gap-1">
                 <Phone className="h-3 w-3" />
-                <span>{agreement.person.phone}</span>
+                <span>{activeRecord.person.phone}</span>
               </p>
             )}
-            {agreement.notes && (
+            {activeRecord.notes && (
               <p className="text-xs text-[var(--foreground-muted)] line-clamp-1 mt-1.5 italic">
-                &ldquo;{agreement.notes}&rdquo;
+                &ldquo;{activeRecord.notes}&rdquo;
               </p>
             )}
           </div>
@@ -106,23 +111,21 @@ export function AgreementCard({
             <div className="flex items-end justify-between">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-subtle)] block">
-                  {isSettled ? "Settled Amount" : "Outstanding Balance"}
+                  {isSettled ? "Settled Amount" : isLent ? "To Receive" : "To Repay"}
                 </span>
                 <span className="text-xl sm:text-2xl font-black font-mono text-[var(--foreground)] tabular-nums mt-0.5 block">
-                  ₹{(balance.totalOutstandingPaise / 100).toLocaleString("en-IN", {
+                  ₹{(balance.outstandingPaise / 100).toLocaleString("en-IN", {
                     minimumFractionDigits: 2,
                   })}
                 </span>
               </div>
               <div className="text-right">
-                <span className="text-[10px] font-mono text-[var(--foreground-subtle)] block">
-                  Principal: ₹{(agreement.principalPaise / 100).toLocaleString("en-IN")}
+                <span className="text-[11px] font-mono text-[var(--foreground-subtle)] block">
+                  Total: ₹{(activeRecord.amountPaise / 100).toLocaleString("en-IN")}
                 </span>
-                {balance.totalInterestPaise > 0 && (
-                  <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 block">
-                    + Interest: ₹{(balance.totalInterestPaise / 100).toLocaleString("en-IN")}
-                  </span>
-                )}
+                <span className="text-[11px] font-mono text-emerald-600 dark:text-[#4edea3] block mt-0.5">
+                  Repaid: ₹{(balance.totalRepaidPaise / 100).toLocaleString("en-IN")}
+                </span>
               </div>
             </div>
 
@@ -130,7 +133,7 @@ export function AgreementCard({
             <div className="mt-3">
               <div className="flex items-center justify-between text-[10px] font-mono mb-1 text-[var(--foreground-subtle)]">
                 <span>
-                  Recovered: ₹{(balance.totalRepaidPaise / 100).toLocaleString("en-IN")}
+                  {isSettled ? "Fully Settled" : `${balance.progressPercent}% Repaid`}
                 </span>
                 <span>{balance.progressPercent}%</span>
               </div>
@@ -153,10 +156,10 @@ export function AgreementCard({
         {/* Footer Actions */}
         <div className="mt-5 pt-4 border-t border-[var(--surface-panel-border)] flex items-center justify-between gap-3">
           <div className="text-[11px] text-[var(--foreground-subtle)]">
-            {agreement.expectedRepaymentDate ? (
-              <span>Due: <strong className="text-[var(--foreground)] font-mono">{agreement.expectedRepaymentDate}</strong></span>
+            {activeRecord.dueDate ? (
+              <span>Return by: <strong className="text-[var(--foreground)] font-mono">{activeRecord.dueDate}</strong></span>
             ) : (
-              <span>No due date</span>
+              <span>No return date</span>
             )}
           </div>
 
@@ -173,7 +176,7 @@ export function AgreementCard({
             )}
 
             <Link
-              href={`/money-tracker/agreement/${agreement.id}`}
+              href={`/money-tracker/${activeRecord.id}`}
               className="px-3 py-1.5 rounded-xl bg-slate-200/60 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-800 dark:text-slate-200 text-xs font-bold transition-all"
             >
               Details
@@ -186,10 +189,12 @@ export function AgreementCard({
       <RecordRepaymentModal
         isOpen={isRepayModalOpen}
         onClose={() => setIsRepayModalOpen(false)}
-        agreement={agreement}
+        record={activeRecord}
         balance={balance}
         accounts={accounts}
       />
     </>
   );
 }
+
+export const MoneyRecordCard = AgreementCard;

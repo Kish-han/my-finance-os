@@ -3,6 +3,7 @@ import type { CreditCard, FinancialAccount, Transaction } from "./types";
 import {
   calculateCardOutstanding,
   calculateAvailableCredit,
+  calculateCardCreditUtilization,
   partitionDebtsForLiabilities,
   calculateNetWorth,
 } from "./balances";
@@ -213,5 +214,207 @@ describe("Credit Card & EMI Accounting Integration", () => {
       .reduce((sum, tx) => sum + tx.amountPaise, 0);
 
     expect(monthlyExpensesPaise).toBe(6_000_000); // Only the purchase, not the repayment
+  });
+
+  describe("Scenario 1: Convert an existing card purchase into EMI", () => {
+    const card50k: CreditCard = {
+      id: "card-hdfc-50k",
+      name: "HDFC Regalia",
+      bankName: "HDFC Bank",
+      creditLimitPaise: 5_000_000, // ₹50,000.00
+      openingOutstandingPaise: 0,
+      openingOutstandingDate: "2026-01-01",
+      isArchived: false,
+    };
+
+    it("leaves card outstanding and available credit unchanged at ₹10k and ₹40k respectively with 1 transaction", () => {
+      // 1. Initial State: ₹10,000 purchase recorded on the card
+      const existingPurchase: Transaction = {
+        id: "tx-purchase-10k",
+        date: "2026-04-01",
+        description: "Electronics Store",
+        amountPaise: 1_000_000, // ₹10,000
+        type: "card_purchase",
+        creditCardId: card50k.id,
+        categoryId: "cat-electronics",
+      };
+      const transactions: Transaction[] = [existingPurchase];
+
+      // Before conversion:
+      const preOutstanding = calculateCardOutstanding(card50k, transactions);
+      const preAvailable = calculateAvailableCredit(card50k, transactions);
+      expect(preOutstanding).toBe(1_000_000); // ₹10,000
+      expect(preAvailable).toBe(4_000_000); // ₹40,000
+
+      // 2. User converts this ₹10,000 purchase into EMI:
+      // EMI plan is created and linked to the existing purchase transaction.
+      // Crucial rules:
+      // - Do NOT create another card purchase transaction.
+      // - Do NOT create a fake payment adjustment.
+      // - Do NOT add the EMI principal to outstanding again.
+      // - Do NOT subtract the EMI principal simply because it was converted.
+      const emiPlan = {
+        id: "emi-plan-electronics",
+        name: "Electronics Store EMI",
+        debtType: "credit_card_emi",
+        linkedCreditCardId: card50k.id,
+        linkedTransactionId: existingPurchase.id, // Linked to existing purchase!
+        currentOutstandingPrincipalPaise: 1_000_000, // ₹10,000
+        status: "active",
+      };
+
+      // Exactly 1 transaction exists in the ledger
+      expect(transactions).toHaveLength(1);
+      expect(transactions[0].id).toBe("tx-purchase-10k");
+
+      // Card outstanding remains ₹10,000
+      const postOutstanding = calculateCardOutstanding(card50k, transactions);
+      expect(postOutstanding).toBe(1_000_000); // ₹10,000 (unchanged)
+
+      // Available credit remains ₹40,000
+      const postAvailable = calculateAvailableCredit(card50k, transactions);
+      expect(postAvailable).toBe(4_000_000); // ₹40,000 (unchanged)
+
+      // Total utilized credit in Card Limit Engine
+      const utilization = calculateCardCreditUtilization(
+        card50k,
+        transactions,
+        [emiPlan]
+      );
+      expect(utilization.revolvingOutstandingPaise).toBe(1_000_000);
+      expect(utilization.blockedEmiPrincipalPaise).toBe(0); // Linked EMI is not added again
+      expect(utilization.totalUtilizedCreditPaise).toBe(1_000_000); // Exactly ₹10,000
+      expect(utilization.availableCreditPaise).toBe(4_000_000); // Exactly ₹40,000
+      expect(utilization.isOverLimit).toBe(false);
+    });
+  });
+
+  describe("Scenario 2: Make a new purchase directly on EMI", () => {
+    const card50k: CreditCard = {
+      id: "card-hdfc-50k",
+      name: "HDFC Regalia",
+      bankName: "HDFC Bank",
+      creditLimitPaise: 5_000_000, // ₹50,000.00
+      openingOutstandingPaise: 0,
+      openingOutstandingDate: "2026-01-01",
+      isArchived: false,
+    };
+
+    it("increases card outstanding from ₹10k to ₹20k and decreases available credit to ₹30k with 2 transactions", () => {
+      // 1. Initial State: ₹10,000 prior purchase
+      const priorPurchase: Transaction = {
+        id: "tx-prior-10k",
+        date: "2026-04-01",
+        description: "Grocery Supermarket",
+        amountPaise: 1_000_000, // ₹10,000
+        type: "card_purchase",
+        creditCardId: card50k.id,
+        categoryId: "cat-groceries",
+      };
+      const transactions: Transaction[] = [priorPurchase];
+
+      expect(calculateCardOutstanding(card50k, transactions)).toBe(1_000_000);
+      expect(calculateAvailableCredit(card50k, transactions)).toBe(4_000_000);
+
+      // 2. User makes a new ₹10,000 purchase directly on EMI:
+      // Exactly ONE new card purchase transaction is created in the ledger
+      const newEmiPurchase: Transaction = {
+        id: "tx-new-emi-10k",
+        date: "2026-04-10",
+        description: "Smartphone on 6M EMI",
+        amountPaise: 1_000_000, // ₹10,000
+        type: "card_purchase",
+        creditCardId: card50k.id,
+        categoryId: "cat-electronics",
+      };
+      transactions.push(newEmiPurchase);
+
+      // EMI plan is created and linked to the new transaction
+      const emiPlan = {
+        id: "emi-plan-smartphone",
+        name: "Smartphone on 6M EMI",
+        debtType: "credit_card_emi",
+        linkedCreditCardId: card50k.id,
+        linkedTransactionId: newEmiPurchase.id,
+        currentOutstandingPrincipalPaise: 1_000_000, // ₹10,000
+        status: "active",
+      };
+
+      // Ledger has exactly two purchases
+      expect(transactions).toHaveLength(2);
+
+      // Card outstanding becomes ₹20,000 (NOT ₹30,000!)
+      const postOutstanding = calculateCardOutstanding(card50k, transactions);
+      expect(postOutstanding).toBe(2_000_000); // ₹20,000
+
+      // Available credit becomes ₹30,000
+      const postAvailable = calculateAvailableCredit(card50k, transactions);
+      expect(postAvailable).toBe(3_000_000); // ₹30,000
+
+      // Utilization engine reflects ₹20,000 total utilized and ₹30,000 available
+      const utilization = calculateCardCreditUtilization(
+        card50k,
+        transactions,
+        [emiPlan]
+      );
+      expect(utilization.revolvingOutstandingPaise).toBe(2_000_000);
+      expect(utilization.blockedEmiPrincipalPaise).toBe(0);
+      expect(utilization.totalUtilizedCreditPaise).toBe(2_000_000); // ₹20,000
+      expect(utilization.availableCreditPaise).toBe(3_000_000); // ₹30,000
+
+      // 3. Repayment: User pays ₹10,000 card bill
+      const billPayment: Transaction = {
+        id: "tx-payment-10k",
+        date: "2026-04-25",
+        description: "HDFC Card Bill Payment",
+        amountPaise: 1_000_000, // ₹10,000
+        type: "card_payment",
+        fromAccountId: sampleBank.id,
+        creditCardId: card50k.id,
+      };
+      transactions.push(billPayment);
+
+      // Card outstanding reduces to ₹10,000 and available credit returns to ₹40,000
+      const postRepaymentOutstanding = calculateCardOutstanding(card50k, transactions);
+      const postRepaymentAvailable = calculateAvailableCredit(card50k, transactions);
+      expect(postRepaymentOutstanding).toBe(1_000_000); // ₹10,000
+      expect(postRepaymentAvailable).toBe(4_000_000); // ₹40,000
+    });
+  });
+
+  describe("Backward compatibility with unlinked legacy EMIs", () => {
+    const card50k: CreditCard = {
+      id: "card-hdfc-50k",
+      name: "HDFC Regalia",
+      bankName: "HDFC Bank",
+      creditLimitPaise: 5_000_000, // ₹50,000.00
+      openingOutstandingPaise: 0,
+      openingOutstandingDate: "2026-01-01",
+      isArchived: false,
+    };
+
+    it("blocks limit for unlinked legacy EMIs without corresponding transaction rows", () => {
+      // Legacy EMI entered without a corresponding transaction row in the ledger
+      const legacyUnlinkedEmi = {
+        id: "emi-legacy",
+        name: "Old Laptop EMI",
+        debtType: "credit_card_emi",
+        linkedCreditCardId: card50k.id,
+        linkedTransactionId: null, // Unlinked!
+        currentOutstandingPrincipalPaise: 1_500_000, // ₹15,000
+        status: "active",
+      };
+
+      const utilization = calculateCardCreditUtilization(
+        card50k,
+        [], // No transactions
+        [legacyUnlinkedEmi]
+      );
+
+      expect(utilization.revolvingOutstandingPaise).toBe(0);
+      expect(utilization.blockedEmiPrincipalPaise).toBe(1_500_000); // ₹15,000 blocked
+      expect(utilization.totalUtilizedCreditPaise).toBe(1_500_000);
+      expect(utilization.availableCreditPaise).toBe(3_500_000); // ₹35,000 remaining
+    });
   });
 });

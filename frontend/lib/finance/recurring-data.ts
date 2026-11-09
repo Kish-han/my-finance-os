@@ -92,7 +92,7 @@ export async function fetchUserRecurringSchedules(
 
 /**
  * Ensures that active schedules have their pending occurrence record generated in the database.
- * Uses ON CONFLICT DO NOTHING to guarantee idempotency and avoid duplicates.
+ * Batches lookups and inserts to avoid N+1 query waterfalls.
  */
 export async function ensurePendingOccurrencesForSchedules(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -100,32 +100,37 @@ export async function ensurePendingOccurrencesForSchedules(
   userId: string,
   schedules: RecurringScheduleRecord[]
 ): Promise<void> {
-  const activeSchedules = schedules.filter((s) => s.status === "active");
+  const activeSchedules = schedules.filter(
+    (s) => s.status === "active" && Boolean(s.nextDueDate)
+  );
   if (activeSchedules.length === 0) return;
 
   try {
-    for (const schedule of activeSchedules) {
-      // Check if an occurrence already exists for this schedule and next_due_date
-      const { data: existing } = await supabase
-        .from("recurring_occurrences")
-        .select("id, status")
-        .eq("schedule_id", schedule.id)
-        .eq("due_date", schedule.nextDueDate)
-        .maybeSingle();
+    const scheduleIds = activeSchedules.map((s) => s.id);
+    const { data: existingRows } = await supabase
+      .from("recurring_occurrences")
+      .select("schedule_id, due_date")
+      .in("schedule_id", scheduleIds);
 
-      if (!existing) {
-        await supabase
-          .from("recurring_occurrences")
-          .insert({
-            user_id: userId,
-            schedule_id: schedule.id,
-            due_date: schedule.nextDueDate,
-            expected_amount_paise: schedule.amountPaise,
-            status: "pending",
-          })
-          .select()
-          .maybeSingle();
-      }
+    const existingKeySet = new Set(
+      (existingRows || []).map(
+        (row: { schedule_id: string; due_date: string }) =>
+          `${row.schedule_id}_${row.due_date}`
+      )
+    );
+
+    const missingOccurrences = activeSchedules
+      .filter((s) => !existingKeySet.has(`${s.id}_${s.nextDueDate}`))
+      .map((schedule) => ({
+        user_id: userId,
+        schedule_id: schedule.id,
+        due_date: schedule.nextDueDate,
+        expected_amount_paise: schedule.amountPaise,
+        status: "pending",
+      }));
+
+    if (missingOccurrences.length > 0) {
+      await supabase.from("recurring_occurrences").insert(missingOccurrences);
     }
   } catch {
     // Non-fatal if occurrence generation fails
@@ -134,12 +139,25 @@ export async function ensurePendingOccurrencesForSchedules(
 
 /**
  * Fetches pending occurrences mapped with their schedule metadata.
+ * Optionally reuses prefetched accounts and cards to avoid redundant round-trips.
  */
 export async function fetchUserPendingOccurrences(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   userId: string,
-  today: string
+  today: string,
+  prefetchedAccounts?: Array<{
+    id: string;
+    name: string;
+    account_type?: string;
+    institution?: string | null;
+  }>,
+  prefetchedCards?: Array<{
+    id: string;
+    name: string;
+    bank_name?: string;
+    last_four_digits?: string | null;
+  }>
 ): Promise<{
   pendingItems: RecurringTransactionPaymentItem[];
   error: string | null;
@@ -156,10 +174,24 @@ export async function fetchUserPendingOccurrences(
     // Ensure pending occurrence rows exist for active schedules
     await ensurePendingOccurrencesForSchedules(supabase, userId, schedules);
 
-    // Fetch accounts and credit cards to provide human labels
+    // Use prefetched accounts and cards if supplied to eliminate duplicate queries
+    const accountsPromise = prefetchedAccounts
+      ? Promise.resolve({ data: prefetchedAccounts })
+      : supabase
+          .from("accounts")
+          .select("id, name, account_type, institution")
+          .eq("user_id", userId);
+
+    const cardsPromise = prefetchedCards
+      ? Promise.resolve({ data: prefetchedCards })
+      : supabase
+          .from("credit_cards")
+          .select("id, name, bank_name, last_four_digits")
+          .eq("user_id", userId);
+
     const [accRes, cardRes, occRes] = await Promise.all([
-      supabase.from("accounts").select("id, name, account_type, institution").eq("user_id", userId),
-      supabase.from("credit_cards").select("id, name, bank_name, last_four_digits").eq("user_id", userId),
+      accountsPromise,
+      cardsPromise,
       supabase
         .from("recurring_occurrences")
         .select("*")

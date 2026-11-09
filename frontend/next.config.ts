@@ -12,6 +12,13 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "@supabase/ssr",
+      "@supabase/supabase-js",
+    ],
+  },
 };
 
 export default nextConfig;

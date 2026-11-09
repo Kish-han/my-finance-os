@@ -34,8 +34,8 @@ export default async function MoneyTrackerPage() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 space-y-6">
         <MoneyTrackerOverviewView
           metrics={data.metrics}
-          agreements={data.agreements}
-          payments={data.payments}
+          records={data.records}
+          repayments={data.repayments}
           people={data.people}
           peopleSummaries={data.peopleSummaries}
           accounts={data.accounts}

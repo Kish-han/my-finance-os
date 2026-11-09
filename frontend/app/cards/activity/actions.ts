@@ -144,7 +144,7 @@ export async function createCardPurchase(formData: FormData) {
       .eq("credit_card_id", card.id),
     supabase
       .from("emi_debts")
-      .select("id, linked_credit_card_id, current_outstanding_principal_paise, status")
+      .select("id, linked_credit_card_id, linked_transaction_id, current_outstanding_principal_paise, status")
       .eq("user_id", userId)
       .eq("linked_credit_card_id", card.id)
       .eq("status", "active"),

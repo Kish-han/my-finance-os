@@ -6,6 +6,8 @@ import {
   Search,
   Plus,
   Phone,
+  ArrowUpRight,
+  ArrowDownLeft,
 } from "lucide-react";
 import { MoneyTrackerNav } from "../MoneyTrackerNav";
 import { CreateAgreementModal } from "../CreateAgreementModal";
@@ -13,13 +15,13 @@ import type {
   FinancialAccount,
   MoneyTrackerMetrics,
   Person,
-  PersonBalanceSummary,
+  PersonSummary,
 } from "@/lib/finance/types";
 
 interface PeopleDirectoryViewProps {
   metrics: MoneyTrackerMetrics;
   people: Person[];
-  peopleSummaries: PersonBalanceSummary[];
+  peopleSummaries: PersonSummary[];
   accounts: FinancialAccount[];
 }
 
@@ -55,10 +57,10 @@ export function PeopleDirectoryView({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-[var(--foreground)] tracking-tight">
-            People & Counterparties Directory
+            People Directory
           </h2>
           <p className="text-xs text-[var(--foreground-subtle)] mt-1">
-            Bilateral lending and borrowing positions with friends, family, and colleagues
+            People you have given money to or taken money from (records remain strictly separate)
           </p>
         </div>
 
@@ -82,10 +84,10 @@ export function PeopleDirectoryView({
             <Users className="h-6 w-6 text-emerald-500" />
           </div>
           <h4 className="text-base font-bold text-[var(--foreground)]">
-            No Counterparties Found
+            No Contacts Found
           </h4>
           <p className="text-xs text-[var(--foreground-subtle)] max-w-sm mx-auto">
-            Add your first lending or borrowing agreement to create contacts automatically.
+            Add your first money record to create contacts automatically.
           </p>
           <button
             type="button"
@@ -93,23 +95,21 @@ export function PeopleDirectoryView({
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 text-xs font-bold shadow-md hover:bg-emerald-400 transition-all cursor-pointer mt-2"
           >
             <Plus className="h-4 w-4 stroke-[2.5]" />
-            <span>Create First Agreement</span>
+            <span>Add First Record</span>
           </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredPeople.map((summary) => {
-            const { person, netPositionPaise } = summary;
-            const owesUser = netPositionPaise > 0;
-            const userOwes = netPositionPaise < 0;
+            const { person } = summary;
 
             return (
               <div
                 key={person.id}
-                className="aura-card-obsidian rounded-3xl p-5 sm:p-6 border border-[var(--surface-card-border)] hover:border-emerald-500/30 transition-all flex flex-col justify-between"
+                className="aura-card-obsidian rounded-3xl p-5 sm:p-6 border border-[var(--surface-card-border)] hover:border-emerald-500/30 transition-all flex flex-col justify-between gap-4"
               >
                 <div>
-                  {/* Top Bar: Contact Info & Status Badge */}
+                  {/* Contact Info Header */}
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h3 className="text-base font-bold text-[var(--foreground)] tracking-tight">
@@ -122,84 +122,64 @@ export function PeopleDirectoryView({
                         </p>
                       )}
                     </div>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        owesUser
-                          ? "bg-emerald-500/15 text-emerald-800 dark:text-[#4edea3]"
-                          : userOwes
-                          ? "bg-cyan-500/15 text-cyan-800 dark:text-cyan-400"
-                          : "bg-slate-200/80 dark:bg-white/10 text-slate-700 dark:text-slate-300"
-                      }`}
-                    >
-                      {owesUser
-                        ? "Owes You"
-                        : userOwes
-                        ? "You Owe"
-                        : "Settled"}
+                    <span className="text-[10px] font-mono text-[var(--foreground-subtle)]">
+                      {summary.activeGivenCount + summary.activeTakenCount} active
                     </span>
                   </div>
 
-                  {/* Net Balance Card */}
-                  <div className="mt-4 p-3.5 rounded-2xl bg-slate-100/70 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/10">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-subtle)] block">
-                      Net Bilateral Position
-                    </span>
-                    <span
-                      className={`text-xl font-black font-mono tabular-nums mt-0.5 block ${
-                        owesUser
-                          ? "text-emerald-700 dark:text-[#4edea3]"
-                          : userOwes
-                          ? "text-cyan-700 dark:text-cyan-400"
-                          : "text-[var(--foreground-subtle)]"
-                      }`}
-                    >
-                      {netPositionPaise < 0 ? "-" : ""}₹
-                      {(Math.abs(netPositionPaise) / 100).toLocaleString(
-                        "en-IN",
-                        { minimumFractionDigits: 2 }
-                      )}
-                    </span>
-                  </div>
-
-                  {/* Bilateral Details Breakdown */}
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                    <div className="p-2.5 rounded-xl bg-slate-100/50 dark:bg-white/[0.02]">
-                      <span className="text-[10px] text-[var(--foreground-subtle)] block">
-                        Money Given
-                      </span>
-                      <span className="font-mono font-bold text-emerald-700 dark:text-[#4edea3]">
-                        ₹{(summary.outstandingReceivablePaise / 100).toLocaleString("en-IN")}
-                      </span>
-                      <span className="text-[9px] text-[var(--foreground-subtle)] block mt-0.5">
-                        Recovered: ₹{(summary.totalGivenRecoveredPaise / 100).toLocaleString("en-IN")}
-                      </span>
+                  {/* Strictly Separate Given and Taken Cards (Never Auto-Offset) */}
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                    {/* Given Block */}
+                    <div className="p-3 rounded-2xl bg-emerald-500/5 border border-emerald-500/15 flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-emerald-800 dark:text-[#4edea3] flex items-center gap-1 mb-1">
+                          <ArrowUpRight className="h-3 w-3" />
+                          <span>Money Given</span>
+                        </span>
+                        <span className="text-sm font-black font-mono text-emerald-700 dark:text-[#4edea3] block">
+                          ₹{(summary.outstandingReceivablePaise / 100).toLocaleString("en-IN")}
+                        </span>
+                        <span className="text-[9px] text-[var(--foreground-subtle)] block">
+                          Outstanding to Receive
+                        </span>
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-emerald-500/10 text-[10px] text-[var(--foreground-subtle)]">
+                        <span>Total: ₹{(summary.totalGivenPaise / 100).toLocaleString("en-IN")}</span>
+                      </div>
                     </div>
 
-                    <div className="p-2.5 rounded-xl bg-slate-100/50 dark:bg-white/[0.02]">
-                      <span className="text-[10px] text-[var(--foreground-subtle)] block">
-                        Money Taken
-                      </span>
-                      <span className="font-mono font-bold text-cyan-700 dark:text-cyan-400">
-                        ₹{(summary.outstandingPayablePaise / 100).toLocaleString("en-IN")}
-                      </span>
-                      <span className="text-[9px] text-[var(--foreground-subtle)] block mt-0.5">
-                        Repaid: ₹{(summary.totalTakenRepaidPaise / 100).toLocaleString("en-IN")}
-                      </span>
+                    {/* Taken Block */}
+                    <div className="p-3 rounded-2xl bg-cyan-500/5 border border-cyan-500/15 flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-cyan-800 dark:text-cyan-400 flex items-center gap-1 mb-1">
+                          <ArrowDownLeft className="h-3 w-3" />
+                          <span>Money Taken</span>
+                        </span>
+                        <span className="text-sm font-black font-mono text-cyan-700 dark:text-cyan-300 block">
+                          ₹{(summary.outstandingPayablePaise / 100).toLocaleString("en-IN")}
+                        </span>
+                        <span className="text-[9px] text-[var(--foreground-subtle)] block">
+                          Outstanding to Repay
+                        </span>
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-cyan-500/10 text-[10px] text-[var(--foreground-subtle)]">
+                        <span>Total: ₹{(summary.totalTakenPaise / 100).toLocaleString("en-IN")}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Footer: Agreement Counts */}
-                <div className="mt-4 pt-3 border-t border-[var(--surface-panel-border)] flex items-center justify-between text-xs text-[var(--foreground-subtle)]">
+                {/* Footer */}
+                <div className="pt-3 border-t border-[var(--surface-panel-border)] flex items-center justify-between text-xs text-[var(--foreground-subtle)]">
                   <span>
-                    {summary.activeAgreementsCount} Active · {summary.settledAgreementsCount} Settled
+                    {summary.activeGivenCount + summary.activeTakenCount} Active · {summary.settledCount} Settled
                   </span>
                   <button
                     type="button"
                     onClick={() => setIsCreateModalOpen(true)}
                     className="text-xs font-bold text-emerald-600 dark:text-[#4edea3] hover:underline cursor-pointer"
                   >
-                    + New Agreement
+                    + Add Record
                   </button>
                 </div>
               </div>
@@ -208,7 +188,7 @@ export function PeopleDirectoryView({
         </div>
       )}
 
-      {/* Create Agreement Modal */}
+      {/* Create Record Modal */}
       <CreateAgreementModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}

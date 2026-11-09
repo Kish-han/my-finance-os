@@ -79,6 +79,78 @@ export function calculateAccountBalance(
   return balance;
 }
 
+// Calculate the balance of one bank account or cash wallet strictly as of a specific date.
+// Transactions after asOfDate are strictly ignored to prevent historical balance distortions.
+export function calculateAccountBalanceAsOfDate(
+  account: FinancialAccount,
+  transactions: Transaction[],
+  asOfDate: string
+): number {
+  let balance = account.openingBalancePaise;
+
+  for (const transaction of transactions) {
+    if (
+      !isOnOrAfterOpeningDate(
+        transaction.date,
+        account.openingBalanceDate
+      )
+    ) {
+      continue;
+    }
+
+    if (transaction.date > asOfDate) {
+      continue;
+    }
+
+    if (
+      transaction.type === "income" &&
+      transaction.accountId === account.id
+    ) {
+      balance += transaction.amountPaise;
+    } else if (
+      transaction.type === "expense" &&
+      transaction.accountId === account.id
+    ) {
+      balance -= transaction.amountPaise;
+    } else if (transaction.type === "transfer") {
+      if (transaction.fromAccountId === account.id) {
+        balance -= transaction.amountPaise;
+      }
+
+      if (transaction.toAccountId === account.id) {
+        balance += transaction.amountPaise;
+      }
+    } else if (
+      transaction.type === "card_payment" &&
+      transaction.fromAccountId === account.id
+    ) {
+      balance -= transaction.amountPaise;
+    } else if (
+      transaction.type === "money_lent" &&
+      transaction.accountId === account.id
+    ) {
+      balance -= transaction.amountPaise;
+    } else if (
+      transaction.type === "repayment_received" &&
+      transaction.accountId === account.id
+    ) {
+      balance += transaction.amountPaise;
+    } else if (
+      transaction.type === "money_borrowed" &&
+      transaction.accountId === account.id
+    ) {
+      balance += transaction.amountPaise;
+    } else if (
+      transaction.type === "repayment_paid" &&
+      transaction.accountId === account.id
+    ) {
+      balance -= transaction.amountPaise;
+    }
+  }
+
+  return balance;
+}
+
 // Calculate outstanding debt on one credit card.
 export function calculateCardOutstanding(
   card: CreditCard,

@@ -222,41 +222,43 @@ body {
   background: var(--surface-card);
   border: 1px solid var(--surface-card-border);
   box-shadow: var(--surface-card-highlight), var(--surface-card-shadow);
-  backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
-  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.25s ease;
+  contain: layout style;
 }
 
 /* Standard Content Glass Panel */
 .aura-panel,
 .glass-panel {
   background: var(--surface-panel);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
   border: 1px solid var(--surface-panel-border);
   box-shadow: var(--surface-panel-shadow);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+  contain: layout style;
 }
 
 /* Floating Mobile Liquid Glass Dock */
 .aura-dock,
 .glass-dock {
   background: var(--surface-dock);
-  backdrop-filter: blur(32px) saturate(200%);
-  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid var(--surface-dock-border);
   box-shadow: var(--surface-dock-shadow);
-  transition: all 0.25s ease-out;
+  transition: transform 0.2s ease-out, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 /* Executive Desktop Liquid Glass Sidebar */
 .aura-sidebar,
 .glass-sidebar {
   background: var(--surface-sidebar);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-right: 1px solid var(--surface-sidebar-border);
-  transition: all 0.25s ease-out;
+  transition: border-color 0.2s ease;
 }
 
 /* Card Themes */

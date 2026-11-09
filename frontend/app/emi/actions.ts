@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { calculateStandardEmiPaise } from "@/lib/finance/amortization";
+import { validateCreditCardChargeLimit } from "@/lib/finance/card-limit-engine";
 import {
   validateAdditionalCharges,
   embedChargesInNotes,
@@ -281,12 +282,116 @@ export async function createEmiDebt(formData: FormData) {
     }
   }
 
+  // Determine EMI Scenario and Linkage:
+  // Scenario 1: Convert an existing card purchase into EMI.
+  //   - Links to existing card_purchase transaction.
+  //   - Does NOT create a second transaction.
+  //   - Does NOT create a fake payment adjustment.
+  // Scenario 2: Make a new purchase directly on EMI.
+  //   - Records exactly ONE card_purchase transaction.
+  //   - Links the EMI plan to that transaction.
+  //   - Does NOT double count.
+  const emiScenario = String(formData.get("emi_scenario") ?? "").trim();
+  const existingTransactionId = String(formData.get("existing_transaction_id") ?? "").trim();
+  const categoryId = String(formData.get("category_id") ?? "").trim() || null;
+  const purchaseDateInput = String(formData.get("purchase_date") ?? "").trim();
+  const purchaseDate = isValidDate(purchaseDateInput) ? purchaseDateInput : outstandingAsOfDate;
+
+  let resolvedLinkedTransactionId: string | null = null;
+
+  if (debtType === "credit_card_emi" && linkedCreditCardId) {
+    if (emiScenario === "convert_purchase" || Boolean(existingTransactionId)) {
+      // Scenario 1: Convert existing purchase to EMI
+      const { data: existingTx, error: txError } = await supabase
+        .from("transactions")
+        .select("id, credit_card_id, amount_paise, transaction_type")
+        .eq("id", existingTransactionId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (txError || !existingTx || existingTx.transaction_type !== "card_purchase") {
+        redirect("/emi?error=invalid-transaction");
+      }
+      if (existingTx.credit_card_id !== linkedCreditCardId) {
+        redirect("/emi?error=card-mismatch");
+      }
+
+      resolvedLinkedTransactionId = existingTx.id;
+    } else if (emiScenario === "new_purchase" || formData.get("is_new_purchase") === "true") {
+      // Scenario 2: Make a new purchase directly on EMI
+      const [cardResult, txResult, emiResult] = await Promise.all([
+        supabase
+          .from("credit_cards")
+          .select("id, credit_limit_paise, opening_outstanding_paise, opening_outstanding_date")
+          .eq("id", linkedCreditCardId)
+          .eq("user_id", userId)
+          .maybeSingle(),
+        supabase
+          .from("transactions")
+          .select("id, transaction_date, amount_paise, transaction_type, credit_card_id")
+          .eq("user_id", userId)
+          .eq("credit_card_id", linkedCreditCardId),
+        supabase
+          .from("emi_debts")
+          .select("id, linked_credit_card_id, linked_transaction_id, current_outstanding_principal_paise, status")
+          .eq("user_id", userId)
+          .eq("linked_credit_card_id", linkedCreditCardId)
+          .eq("status", "active"),
+      ]);
+
+      const card = cardResult.data;
+      if (!card) {
+        redirect("/emi?error=invalid-link");
+      }
+
+      const limitCheck = validateCreditCardChargeLimit({
+        card,
+        transactions: txResult.data ?? [],
+        cardLinkedEmis: emiResult.data ?? [],
+        chargeAmountPaise: originalPrincipalPaise,
+      });
+
+      if (!limitCheck.allowed) {
+        const exceededRupees = (limitCheck.exceededByPaise / 100).toLocaleString("en-IN");
+        const availableRupees = (limitCheck.currentAvailablePaise / 100).toLocaleString("en-IN");
+        redirect(
+          `/emi?error=${encodeURIComponent(
+            `This purchase exceeds your available credit by ₹${exceededRupees}. Available credit: ₹${availableRupees}.`
+          )}`
+        );
+      }
+
+      // Record exactly ONE card_purchase transaction
+      const { data: createdTx, error: createTxError } = await supabase
+        .from("transactions")
+        .insert({
+          user_id: userId,
+          transaction_date: purchaseDate,
+          description: name,
+          amount_paise: originalPrincipalPaise,
+          transaction_type: "card_purchase",
+          credit_card_id: linkedCreditCardId,
+          category_id: categoryId,
+          notes: notes ? `Direct EMI: ${notes}` : `Direct EMI Purchase · ${name}`,
+        })
+        .select("id")
+        .single();
+
+      if (createTxError || !createdTx) {
+        redirect("/emi?error=save-purchase-failed");
+      }
+
+      resolvedLinkedTransactionId = createdTx.id;
+    }
+  }
+
   const baseDebtRecord = {
     user_id: userId,
     name,
     lender_name: lenderName,
     debt_type: debtType,
     linked_credit_card_id: linkedCreditCardId || null,
+    linked_transaction_id: resolvedLinkedTransactionId,
     payment_account_id: paymentAccountId || null,
     original_principal_paise: originalPrincipalPaise,
     current_outstanding_principal_paise: outstandingPrincipalPaise,
@@ -309,21 +414,31 @@ export async function createEmiDebt(formData: FormData) {
   });
 
   if (insertError) {
-    // If schema cache on live DB does not have additional_charges_paise yet, fallback gracefully to notes
-    if (
+    const isColumnMissing =
+      insertError.message?.includes("linked_transaction_id") ||
       insertError.message?.includes("additional_charges_paise") ||
       insertError.message?.includes("charge_description") ||
-      insertError.code === "PGRST204"
-    ) {
-      const fallbackNotes = embedChargesInNotes(
+      insertError.code === "PGRST204";
+
+    if (isColumnMissing) {
+      let fallbackNotes = embedChargesInNotes(
         notes,
         chargeValidation.chargesPaise,
         chargeValidation.description
       );
+      if (resolvedLinkedTransactionId && insertError.message?.includes("linked_transaction_id")) {
+        fallbackNotes = fallbackNotes
+          ? `${fallbackNotes} [LinkedTx: ${resolvedLinkedTransactionId}]`
+          : `[LinkedTx: ${resolvedLinkedTransactionId}]`;
+      }
+
+      const recordWithoutExtraCols = { ...baseDebtRecord };
+      delete (recordWithoutExtraCols as Record<string, unknown>).linked_transaction_id;
+
       const { error: fallbackError } = await supabase
         .from("emi_debts")
         .insert({
-          ...baseDebtRecord,
+          ...recordWithoutExtraCols,
           notes: fallbackNotes,
         });
 
@@ -333,23 +448,6 @@ export async function createEmiDebt(formData: FormData) {
     } else {
       redirect("/emi?error=save-failed");
     }
-  }
-
-  // If converting revolving card dues to EMI, record card conversion adjustment to release revolving dues
-  if (
-    formData.get("convert_existing_dues") === "true" &&
-    debtType === "credit_card_emi" &&
-    linkedCreditCardId
-  ) {
-    await supabase.from("transactions").insert({
-      user_id: userId,
-      transaction_date: outstandingAsOfDate,
-      description: `EMI Conversion Adjustment · ${name}`,
-      amount_paise: originalPrincipalPaise,
-      transaction_type: "card_payment",
-      from_account_id: null, // No bank debit
-      credit_card_id: linkedCreditCardId,
-    });
   }
 
   revalidatePath("/");

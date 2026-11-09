@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
   CreditCard,
@@ -257,6 +257,38 @@ function renderBrandMonogram(brand: string, isLightCard: boolean) {
   );
 }
 
+function getCardVisualOffset(targetIdx: number, selectedIdx: number, N: number): number {
+  let d = targetIdx - selectedIdx;
+  if (N === 4) {
+    while (d > 1.8) d -= 4;
+    while (d < -2.2) d += 4;
+  } else {
+    const half = N / 2;
+    while (d > half) d -= N;
+    while (d < -half) d += N;
+  }
+  return d;
+}
+
+function formatCardDisplayName(bankName?: string | null, cardName?: string | null): string {
+  const bank = (bankName ?? "").trim();
+  const name = (cardName ?? "").trim();
+  if (!bank && !name) return "CREDIT CARD";
+  if (!bank) return name;
+  if (!name) return bank;
+
+  const lowerBank = bank.toLowerCase();
+  const lowerName = name.toLowerCase();
+
+  // If card name already incorporates the bank name (e.g. "Standard Chartered Platinum" with "Standard Chartered Bank")
+  if (lowerName.includes(lowerBank) || lowerBank.includes(lowerName)) {
+    return name.length >= bank.length ? name : bank;
+  }
+
+  // Concatenate cleanly in a single line
+  return `${bank} · ${name}`;
+}
+
 export function CreditCardStackView({
   cards,
   transactions,
@@ -278,38 +310,56 @@ export function CreditCardStackView({
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
 
   const cardContainerRef = useRef<HTMLDivElement>(null);
+  const containerRectRef = useRef<DOMRect | null>(null);
+  const tiltRafRef = useRef<number | null>(null);
   const dragStartY = useRef<number | null>(null);
+  const hasDraggedRef = useRef(false);
+  const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isBusyRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const selectedCard = cards[selectedIndex] || cards[0] || null;
 
   // Transactions for the selected primary card (most recent first)
-  const cardTransactions = selectedCard
-    ? transactions
-        .filter((tx) => tx.credit_card_id === selectedCard.id)
-        .slice()
-        .reverse()
-    : [];
+  const cardTransactions = useMemo(() => {
+    if (!selectedCard) return [];
+    return transactions
+      .filter((tx) => tx.credit_card_id === selectedCard.id)
+      .slice()
+      .reverse();
+  }, [selectedCard, transactions]);
 
   // =========================================================
   // 3D Circular Wheel Rotation
-  // direction +1: rotate UP (card below comes to primary)
-  // direction -1: rotate DOWN (card above comes to primary)
+  // step > 0: rotate UP (card below comes to primary)
+  // step < 0: rotate DOWN (card above comes to primary)
   // =========================================================
   const triggerRotate = useCallback(
-    (direction: 1 | -1) => {
-      if (cards.length <= 1 || isBusyRef.current) return;
+    (step: number = 1) => {
+      if (cards.length <= 1) return;
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current);
+        transitionTimeoutRef.current = null;
+      }
       isBusyRef.current = true;
       setIsTransitioning(true);
 
-      // Animate dragY in circular direction
-      setDragY(direction === 1 ? -150 : 150);
+      // Animate dragY in circular direction towards the target step
+      setDragY(-step * 150);
 
-      setTimeout(() => {
-        setSelectedIndex((prev) => (prev + direction + cards.length) % cards.length);
+      transitionTimeoutRef.current = setTimeout(() => {
+        setSelectedIndex((prev) => (prev + step + cards.length * 100) % cards.length);
         setDragY(0);
         setIsTransitioning(false);
         isBusyRef.current = false;
+        transitionTimeoutRef.current = null;
       }, 340);
     },
     [cards.length]
@@ -318,22 +368,25 @@ export function CreditCardStackView({
   // Directly select a card with smooth directional rotation
   const handleSelectCard = useCallback(
     (targetIdx: number) => {
-      if (targetIdx === selectedIndex || cards.length <= 1 || isBusyRef.current) return;
-      let diff = targetIdx - selectedIndex;
-      const half = cards.length / 2;
-      while (diff > half) diff -= cards.length;
-      while (diff < -half) diff += cards.length;
+      if (targetIdx === selectedIndex || cards.length <= 1) return;
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current);
+        transitionTimeoutRef.current = null;
+      }
+
+      const visualOffset = getCardVisualOffset(targetIdx, selectedIndex, cards.length);
 
       isBusyRef.current = true;
       setIsTransitioning(true);
-      // Directional rotation towards target
-      setDragY(diff > 0 ? -150 : 150);
+      // Directional rotation towards target (scales with exact visual distance)
+      setDragY(-visualOffset * 150);
 
-      setTimeout(() => {
+      transitionTimeoutRef.current = setTimeout(() => {
         setSelectedIndex(targetIdx);
         setDragY(0);
         setIsTransitioning(false);
         isBusyRef.current = false;
+        transitionTimeoutRef.current = null;
       }, 340);
     },
     [cards.length, selectedIndex]
@@ -353,49 +406,80 @@ export function CreditCardStackView({
 
   // Pointer drag for real-time circular wheel movement
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    if (cards.length <= 1 || isBusyRef.current) return;
+    if (cards.length <= 1) return;
     dragStartY.current = e.clientY;
-    setIsDragging(true);
-    try {
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    } catch {}
+    hasDraggedRef.current = false;
   }
 
   function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
     if (cards.length <= 1) return;
 
-    if (isDragging && dragStartY.current !== null) {
+    if (dragStartY.current !== null) {
       const dy = e.clientY - dragStartY.current;
-      setDragY(dy);
-      return;
+      if (!hasDraggedRef.current && Math.abs(dy) > 7) {
+        hasDraggedRef.current = true;
+        setIsDragging(true);
+        try {
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        } catch {}
+      }
+      if (hasDraggedRef.current) {
+        setDragY(dy);
+        return;
+      }
     }
 
     // Hover 3D perspective tilt on the primary center card
     const el = cardContainerRef.current;
     if (!el || isBusyRef.current || isTransitioning) return;
-    const rect = el.getBoundingClientRect();
+    if (!containerRectRef.current) {
+      containerRectRef.current = el.getBoundingClientRect();
+    }
+    const rect = containerRectRef.current;
     const x = e.clientX - rect.left - rect.width / 2;
     const y = e.clientY - rect.top - rect.height / 2;
     const rotateX = (-y / rect.height) * 8;
     const rotateY = (x / rect.width) * 8;
-    setTilt({ x: rotateX, y: rotateY });
+
+    if (tiltRafRef.current === null) {
+      tiltRafRef.current = requestAnimationFrame(() => {
+        setTilt({ x: rotateX, y: rotateY });
+        tiltRafRef.current = null;
+      });
+    }
   }
 
   function handlePointerUp(e: React.PointerEvent<HTMLDivElement>) {
-    try {
-      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    } catch {}
+    if (hasDraggedRef.current) {
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {}
+    }
 
-    if (!isDragging) return;
-    setIsDragging(false);
+    const wasDragging = hasDraggedRef.current;
+    const currentDragY = dragY;
+
     dragStartY.current = null;
+    hasDraggedRef.current = false;
+    setIsDragging(false);
 
-    if (dragY < -35) {
-      // Pushed UP -> card below comes to primary place!
-      triggerRotate(1);
-    } else if (dragY > 35) {
-      // Moved DOWN -> card above comes to primary place!
-      triggerRotate(-1);
+    if (!wasDragging) {
+      // User tapped or clicked without dragging
+      return;
+    }
+
+    // Determine how many cards to step based on drag distance
+    const rawStep = -currentDragY / 150;
+    let step = 0;
+    if (Math.abs(currentDragY) >= 35) {
+      step =
+        rawStep > 0
+          ? Math.max(1, Math.round(rawStep))
+          : Math.min(-1, Math.round(rawStep));
+    }
+
+    if (step !== 0) {
+      triggerRotate(step);
     } else {
       // Snap back smoothly to center
       setIsTransitioning(true);
@@ -407,6 +491,11 @@ export function CreditCardStackView({
   }
 
   function handlePointerLeave() {
+    containerRectRef.current = null;
+    if (tiltRafRef.current !== null) {
+      cancelAnimationFrame(tiltRafRef.current);
+      tiltRafRef.current = null;
+    }
     if (!isDragging && !isTransitioning) {
       setTilt({ x: 0, y: 0 });
     }
@@ -613,6 +702,11 @@ export function CreditCardStackView({
             ref={cardContainerRef}
             onWheel={handleWheel}
             onPointerDown={handlePointerDown}
+            onPointerEnter={() => {
+              if (cardContainerRef.current) {
+                containerRectRef.current = cardContainerRef.current.getBoundingClientRect();
+              }
+            }}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerLeave}
@@ -710,8 +804,15 @@ export function CreditCardStackView({
               return (
                 <div
                   key={card.id}
-                  onClick={() => {
+                  onClick={(e) => {
                     if (idx !== selectedIndex) {
+                      e.stopPropagation();
+                      handleSelectCard(idx);
+                    }
+                  }}
+                  onPointerUp={(e) => {
+                    if (!hasDraggedRef.current && idx !== selectedIndex) {
+                      e.stopPropagation();
                       handleSelectCard(idx);
                     }
                   }}
@@ -733,12 +834,12 @@ export function CreditCardStackView({
                     style={{ backgroundColor: theme.glowColor }}
                   />
 
-                  {/* Card Top: Chip, Contactless, Bank & Monogram */}
-                  <div className="relative z-10 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
+                  {/* Card Top: Chip, Contactless, Card Name & Network Monogram */}
+                  <div className="relative z-10 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
                       {/* Brushed Brass EMV Chip */}
                       <div
-                        className={`w-8 h-6 sm:w-9 sm:h-7 rounded-sm bg-gradient-to-br ${theme.chipBg} p-0.5 shadow-inner flex flex-col justify-around border border-black/20`}
+                        className={`w-8 h-6 sm:w-9 sm:h-7 shrink-0 rounded-sm bg-gradient-to-br ${theme.chipBg} p-0.5 shadow-inner flex flex-col justify-around border border-black/20`}
                       >
                         <div
                           className="w-full h-px"
@@ -755,31 +856,23 @@ export function CreditCardStackView({
                       </div>
                       {/* Contactless Waves Glyph */}
                       <span
-                        className={`text-xs font-mono tracking-widest hidden sm:inline ${
+                        className={`text-xs font-mono tracking-widest shrink-0 hidden sm:inline ${
                           isLightCard ? "text-[#2c1d02]/80" : "text-[#bbcabf]"
                         }`}
                       >
                         )))
                       </span>
                       <span
-                        className={`text-xs font-bold tracking-wide truncate max-w-[110px] sm:max-w-[150px] ${
+                        className={`text-xs sm:text-sm font-bold tracking-wide truncate whitespace-nowrap min-w-0 ${
                           isLightCard ? "text-[#2c1d02]" : "text-white/95"
                         }`}
+                        title={formatCardDisplayName(card.bank_name, card.name)}
                       >
-                        {card.name}
+                        {formatCardDisplayName(card.bank_name, card.name)}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border backdrop-blur-sm ${
-                          isLightCard
-                            ? "border-[#2c1d02]/20 bg-[#2c1d02]/10 text-[#2c1d02]"
-                            : "border-white/20 bg-white/10 text-slate-200"
-                        }`}
-                      >
-                        {card.bank_name}
-                      </span>
+                    <div className="flex items-center shrink-0">
                       {renderBrandMonogram(cardBrand, isLightCard)}
                     </div>
                   </div>
@@ -848,28 +941,30 @@ export function CreditCardStackView({
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                       <span
-                        className={`text-xs font-mono ${
-                          isLightCard ? "text-[#2c1d02]/80" : "text-[#bbcabf]"
+                        className={`text-xs font-bold inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg ${
+                          card.availablePaise < 0
+                            ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                            : isLightCard
+                            ? "bg-[#2c1d02]/10 text-[#2c1d02] border border-[#2c1d02]/20"
+                            : "bg-emerald-500/15 text-[#4edea3] border border-emerald-500/25"
                         }`}
                       >
-                        {card.name}
+                        <span className="text-[11px] font-medium opacity-90">Left to spend:</span>
+                        <span className="tabular-nums font-mono font-black">
+                          {isPrimary && isCardMasked
+                            ? "••••••••"
+                            : formatRupees(Math.max(0, card.availablePaise))}
+                        </span>
                       </span>
-                      <span
-                        className={
-                          isLightCard ? "text-[#2c1d02]/40" : "text-[#bbcabf]/40"
-                        }
-                      >
-                        •
-                      </span>
-                      <span
-                        className={`text-xs ${
-                          isLightCard ? "text-[#2c1d02]/80" : "text-[#bbcabf]"
-                        }`}
-                      >
-                        Limit {formatRupees(card.credit_limit_paise)}
-                      </span>
+
+                      {card.availablePaise < 0 && (
+                        <span className="text-[11px] font-bold text-rose-400">
+                          (Exceeded by {formatRupees(Math.abs(card.availablePaise))})
+                        </span>
+                      )}
+
                       {card.payment_due_day !== null && (
                         <>
                           <span
@@ -895,20 +990,20 @@ export function CreditCardStackView({
 
                   {/* Card Bottom: Cardholder, Digits & Action Pill */}
                   <div
-                    className={`relative z-10 flex items-end justify-between pt-1 border-t ${
+                    className={`relative z-10 flex items-end justify-between pt-1 border-t gap-2 ${
                       isLightCard ? "border-[#2c1d02]/15" : "border-white/10"
                     }`}
                   >
-                    <div className="flex flex-col">
+                    <div className="flex flex-col min-w-0 flex-1">
                       <span
-                        className={`text-[9px] tracking-wider uppercase font-medium ${
+                        className={`text-[9px] tracking-wider uppercase font-medium truncate whitespace-nowrap block max-w-[170px] sm:max-w-[220px] ${
                           isLightCard ? "text-[#2c1d02]/70" : "text-[#bbcabf]/70"
                         }`}
                       >
-                        {card.bank_name} • {card.name}
+                        {card.bank_name}
                       </span>
                       <span
-                        className={`text-xs sm:text-sm tracking-wide font-semibold uppercase truncate max-w-[150px] sm:max-w-[200px] ${
+                        className={`text-xs sm:text-sm tracking-wide font-semibold uppercase truncate whitespace-nowrap block max-w-[150px] sm:max-w-[200px] ${
                           isLightCard ? "text-[#2c1d02]" : "text-white"
                         }`}
                       >
@@ -916,17 +1011,17 @@ export function CreditCardStackView({
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                       <div className="flex flex-col items-end">
                         <span
-                          className={`font-mono text-xs tracking-widest ${
+                          className={`font-mono text-xs tracking-widest whitespace-nowrap ${
                             isLightCard ? "text-[#2c1d02]/90" : "text-[#bbcabf]"
                           }`}
                         >
                           •••• {card.last_four_digits || "4920"}
                         </span>
                         <span
-                          className={`font-mono text-[10px] ${
+                          className={`font-mono text-[10px] whitespace-nowrap ${
                             isLightCard ? "text-[#2c1d02]/60" : "text-[#bbcabf]/60"
                           }`}
                         >

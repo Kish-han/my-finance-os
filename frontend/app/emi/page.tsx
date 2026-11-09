@@ -46,6 +46,7 @@ type EmiDebtRow = {
   debt_type: string;
   lender_name: string | null;
   linked_credit_card_id: string | null;
+  linked_transaction_id?: string | null;
   payment_account_id: string | null;
   original_principal_paise: number | string;
   current_outstanding_principal_paise: number | string;
@@ -202,12 +203,12 @@ async function EmiPageData({
     redirect("/login");
   }
 
-  const [debtResult, accountResult, cardResult, paymentResult] =
+  const [debtResult, accountResult, cardResult, paymentResult, categoryResult, purchasesResult] =
     await Promise.all([
       supabase
         .from("emi_debts")
         .select(
-          "id, name, debt_type, lender_name, linked_credit_card_id, payment_account_id, original_principal_paise, current_outstanding_principal_paise, outstanding_as_of_date, annual_interest_rate_basis_points, interest_method, total_tenure_months, installments_paid_before_tracking, emi_amount_paise, first_emi_due_date, next_due_date, status, additional_charges_paise, charge_description, notes"
+          "id, name, debt_type, lender_name, linked_credit_card_id, linked_transaction_id, payment_account_id, original_principal_paise, current_outstanding_principal_paise, outstanding_as_of_date, annual_interest_rate_basis_points, interest_method, total_tenure_months, installments_paid_before_tracking, emi_amount_paise, first_emi_due_date, next_due_date, status, additional_charges_paise, charge_description, notes"
         )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false }),
@@ -233,12 +234,46 @@ async function EmiPageData({
         )
         .eq("user_id", user.id)
         .order("payment_date", { ascending: false }),
+
+      supabase
+        .from("categories")
+        .select("id,name,type")
+        .eq("user_id", user.id)
+        .eq("is_archived", false)
+        .order("name"),
+
+      supabase
+        .from("transactions")
+        .select("id,description,amount_paise,transaction_date,credit_card_id")
+        .eq("user_id", user.id)
+        .eq("transaction_type", "card_purchase")
+        .order("transaction_date", { ascending: false })
+        .limit(100),
     ]);
 
   const debts = (debtResult.data ?? []) as unknown as EmiDebtRow[];
   const accounts = (accountResult.data ?? []) as unknown as AccountRow[];
   const cards = (cardResult.data ?? []) as unknown as CardRow[];
   const payments = (paymentResult.data ?? []) as unknown as PaymentRow[];
+  const categories = (categoryResult.data ?? []) as { id: string; name: string; type: string }[];
+  const rawPurchases = (purchasesResult.data ?? []) as {
+    id: string;
+    description: string;
+    amount_paise: number;
+    transaction_date: string;
+    credit_card_id: string;
+  }[];
+
+  const linkedTxIds = new Set(
+    debts
+      .filter((d) => d.status === "active" && d.linked_transaction_id)
+      .map((d) => d.linked_transaction_id as string)
+  );
+
+  const cardPurchases = rawPurchases.map((p) => ({
+    ...p,
+    is_converted: linkedTxIds.has(p.id),
+  }));
 
   const accountNames = new Map(
     accounts.map((account) => [account.id, account.name]),
@@ -388,6 +423,8 @@ async function EmiPageData({
         <AddEmiDebtForm
           accounts={accounts}
           cards={cards}
+          categories={categories}
+          cardPurchases={cardPurchases}
           today={todayIndia()}
         />
       </section>

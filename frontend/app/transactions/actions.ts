@@ -149,7 +149,7 @@ export async function createTransaction(formData: FormData) {
         .eq("credit_card_id", card.id),
       supabase
         .from("emi_debts")
-        .select("id, linked_credit_card_id, current_outstanding_principal_paise, status")
+        .select("id, linked_credit_card_id, linked_transaction_id, current_outstanding_principal_paise, status")
         .eq("user_id", userId)
         .eq("linked_credit_card_id", card.id)
         .eq("status", "active"),
@@ -512,6 +512,31 @@ export async function deleteTransaction(
     redirect("/login");
   }
 
+  // Protect Money Tracker ledger entries from accidental deletion in ordinary transactions
+  const { data: existingTx } = await supabase
+    .from("transactions")
+    .select("transaction_type")
+    .eq("id", transactionId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (
+    existingTx &&
+    [
+      "money_lent",
+      "money_borrowed",
+      "repayment_received",
+      "repayment_paid",
+    ].includes(existingTx.transaction_type)
+  ) {
+    return {
+      success: false,
+      error:
+        "Money Tracker records cannot be deleted directly from the transactions ledger. Please delete the record from the Money Tracker module.",
+      code: "money-tracker-deletion-disabled",
+    };
+  }
+
   const { error: deleteError } = await supabase
     .from("transactions")
     .delete()
@@ -676,7 +701,7 @@ export async function updateTransaction(
           .eq("credit_card_id", card.id),
         supabase
           .from("emi_debts")
-          .select("id, linked_credit_card_id, current_outstanding_principal_paise, status")
+          .select("id, linked_credit_card_id, linked_transaction_id, current_outstanding_principal_paise, status")
           .eq("user_id", userId)
           .eq("linked_credit_card_id", card.id)
           .eq("status", "active"),

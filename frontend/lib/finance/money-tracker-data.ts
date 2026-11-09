@@ -1,17 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  calculateAgreementBalance,
-  calculateOverallMoneyTrackerMetrics,
-  calculatePersonBalances,
+  calculateOverallMetrics,
+  calculatePersonSummaries,
+  calculateRecordBalance,
 } from "./money-tracker-engine";
 import type {
-  AgreementBalance,
   FinancialAccount,
   MoneyTrackerMetrics,
   Person,
-  PersonBalanceSummary,
-  PersonalLoanAgreement,
-  PersonalLoanPayment,
+  PersonSummary,
+  PersonalMoneyRecord,
+  PersonalMoneyRepayment,
+  RecordBalance,
 } from "./types";
 
 interface DbPerson {
@@ -34,17 +34,14 @@ interface DbAccount {
   is_archived: boolean;
 }
 
-interface DbPersonalLoan {
+interface DbMoneyRecord {
   id: string;
   user_id: string;
   person_id: string;
   direction: "given" | "taken";
-  principal_amount_paise: number | string;
-  interest_type: "none" | "fixed_amount" | "simple_annual";
-  interest_rate_basis_points: number;
-  agreed_interest_paise: number | string;
-  agreement_date: string;
-  expected_repayment_date: string | null;
+  amount_paise: number | string;
+  record_date: string;
+  due_date: string | null;
   account_id: string;
   linked_transaction_id: string | null;
   status: "active" | "settled";
@@ -55,14 +52,12 @@ interface DbPersonalLoan {
   accounts?: DbAccount | null;
 }
 
-interface DbPersonalPayment {
+interface DbMoneyRepayment {
   id: string;
   user_id: string;
-  personal_loan_id: string;
-  payment_amount_paise: number | string;
-  principal_component_paise: number | string;
-  interest_component_paise: number | string;
-  payment_date: string;
+  record_id: string;
+  amount_paise: number | string;
+  repayment_date: string;
   account_id: string;
   linked_transaction_id: string | null;
   notes: string | null;
@@ -96,10 +91,10 @@ export function mapDbPersonToDomain(p: DbPerson | DbRecord): Person {
   };
 }
 
-export function mapDbLoanToDomain(
-  l: DbPersonalLoan | DbRecord,
+export function mapDbMoneyRecordToDomain(
+  l: DbMoneyRecord | DbRecord,
   peopleMap: Map<string, Person>
-): PersonalLoanAgreement {
+): PersonalMoneyRecord {
   const rawPerson = Array.isArray(l.people) ? l.people[0] : l.people;
   const person = rawPerson
     ? mapDbPersonToDomain(rawPerson as DbRecord)
@@ -113,20 +108,15 @@ export function mapDbLoanToDomain(
     ? mapDbAccountToDomain(rawAccount as DbAccount)
     : undefined;
 
+  const raw = l as DbRecord;
   return {
     id: String(l.id ?? ""),
     userId: l.user_id ? String(l.user_id) : undefined,
     personId: String(l.person_id ?? ""),
     direction: (l.direction as "given" | "taken") || "given",
-    principalPaise: Number(l.principal_amount_paise) || 0,
-    interestType:
-      (l.interest_type as "none" | "fixed_amount" | "simple_annual") || "none",
-    interestRateAnnualBasisPoints: Number(l.interest_rate_basis_points) || 0,
-    agreedInterestPaise: Number(l.agreed_interest_paise) || 0,
-    agreementDate: String(l.agreement_date ?? ""),
-    expectedRepaymentDate: l.expected_repayment_date
-      ? String(l.expected_repayment_date)
-      : null,
+    amountPaise: Number(l.amount_paise ?? raw.principal_amount_paise) || 0,
+    recordDate: String(l.record_date ?? raw.agreement_date ?? ""),
+    dueDate: l.due_date ? String(l.due_date) : raw.expected_repayment_date ? String(raw.expected_repayment_date) : null,
     accountId: String(l.account_id ?? ""),
     linkedTransactionId: l.linked_transaction_id
       ? String(l.linked_transaction_id)
@@ -140,18 +130,17 @@ export function mapDbLoanToDomain(
   };
 }
 
-export function mapDbPaymentToDomain(
-  p: DbPersonalPayment | DbRecord
-): PersonalLoanPayment {
+export function mapDbRepaymentToDomain(
+  p: DbMoneyRepayment | DbRecord
+): PersonalMoneyRepayment {
   const rawAccount = Array.isArray(p.accounts) ? p.accounts[0] : p.accounts;
+  const raw = p as DbRecord;
   return {
     id: String(p.id ?? ""),
     userId: p.user_id ? String(p.user_id) : undefined,
-    personalLoanId: String(p.personal_loan_id ?? ""),
-    paymentAmountPaise: Number(p.payment_amount_paise) || 0,
-    principalComponentPaise: Number(p.principal_component_paise) || 0,
-    interestComponentPaise: Number(p.interest_component_paise) || 0,
-    paymentDate: String(p.payment_date ?? ""),
+    recordId: String(p.record_id ?? raw.personal_loan_id ?? ""),
+    amountPaise: Number(p.amount_paise ?? raw.payment_amount_paise) || 0,
+    repaymentDate: String(p.repayment_date ?? raw.payment_date ?? ""),
     accountId: String(p.account_id ?? ""),
     linkedTransactionId: p.linked_transaction_id
       ? String(p.linked_transaction_id)
@@ -166,11 +155,14 @@ export function mapDbPaymentToDomain(
 
 export interface MoneyTrackerDataBundle {
   people: Person[];
-  agreements: PersonalLoanAgreement[];
-  payments: PersonalLoanPayment[];
+  records: PersonalMoneyRecord[];
+  repayments: PersonalMoneyRepayment[];
   metrics: MoneyTrackerMetrics;
-  peopleSummaries: PersonBalanceSummary[];
+  peopleSummaries: PersonSummary[];
   accounts: FinancialAccount[];
+  // Backwards compatibility alias
+  agreements: PersonalMoneyRecord[];
+  payments: PersonalMoneyRepayment[];
 }
 
 export async function fetchMoneyTrackerData(
@@ -179,8 +171,8 @@ export async function fetchMoneyTrackerData(
   const [
     { data: dbPeople },
     { data: dbAccounts },
-    { data: dbLoans },
-    { data: dbPayments },
+    { data: dbRecords },
+    { data: dbRepayments },
   ] = await Promise.all([
     supabase
       .from("people")
@@ -194,29 +186,27 @@ export async function fetchMoneyTrackerData(
       .eq("is_archived", false)
       .order("name"),
     supabase
-      .from("personal_loans")
+      .from("personal_money_records")
       .select(
         `
-        id, user_id, person_id, direction, principal_amount_paise, interest_type,
-        interest_rate_basis_points, agreed_interest_paise, agreement_date,
-        expected_repayment_date, account_id, linked_transaction_id, status, notes,
+        id, user_id, person_id, direction, amount_paise, record_date,
+        due_date, account_id, linked_transaction_id, status, notes,
         created_at, updated_at,
         people ( id, user_id, name, phone, notes, created_at, updated_at ),
         accounts ( id, name, account_type, institution, opening_balance_paise, opening_balance_date, is_archived )
       `
       )
-      .order("agreement_date", { ascending: false }),
+      .order("record_date", { ascending: false }),
     supabase
-      .from("personal_loan_payments")
+      .from("personal_money_repayments")
       .select(
         `
-        id, user_id, personal_loan_id, payment_amount_paise, principal_component_paise,
-        interest_component_paise, payment_date, account_id, linked_transaction_id,
+        id, user_id, record_id, amount_paise, repayment_date, account_id, linked_transaction_id,
         notes, created_at,
         accounts ( id, name, account_type, institution, opening_balance_paise, opening_balance_date, is_archived )
       `
       )
-      .order("payment_date", { ascending: true }),
+      .order("repayment_date", { ascending: true }),
   ]);
 
   const peopleMap = new Map<string, Person>();
@@ -230,70 +220,128 @@ export async function fetchMoneyTrackerData(
     mapDbAccountToDomain(a)
   );
 
-  const agreements: PersonalLoanAgreement[] = (dbLoans || []).map(
-    (l: unknown) => mapDbLoanToDomain(l as DbRecord, peopleMap)
+  const records: PersonalMoneyRecord[] = (dbRecords || []).map(
+    (l: unknown) => mapDbMoneyRecordToDomain(l as DbRecord, peopleMap)
   );
 
-  const payments: PersonalLoanPayment[] = (dbPayments || []).map(
-    (p: unknown) => mapDbPaymentToDomain(p as DbRecord)
+  const repayments: PersonalMoneyRepayment[] = (dbRepayments || []).map(
+    (p: unknown) => mapDbRepaymentToDomain(p as DbRecord)
   );
 
-  const metrics = calculateOverallMoneyTrackerMetrics(agreements, payments);
+  const metrics = calculateOverallMetrics(records, repayments);
 
-  const peopleSummaries = people.map((person) =>
-    calculatePersonBalances(person, agreements, payments)
+  const peopleSummaries = calculatePersonSummaries(
+    people,
+    records,
+    repayments
   );
 
   return {
     people,
-    agreements,
-    payments,
+    records,
+    repayments,
     metrics,
     peopleSummaries,
     accounts,
+    agreements: records,
+    payments: repayments,
   };
 }
 
-export async function fetchAgreementDetail(
+/**
+ * Lightweight metrics query for dashboard overview.
+ * Avoids joining people, accounts, and calculating per-person summaries.
+ */
+export async function fetchMoneyTrackerMetrics(
+  supabase: SupabaseClient
+): Promise<MoneyTrackerMetrics | null> {
+  try {
+    const [
+      { data: dbRecords, error: recordsError },
+      { data: dbRepayments, error: repaymentsError },
+    ] = await Promise.all([
+      supabase
+        .from("personal_money_records")
+        .select("id, direction, amount_paise, status"),
+      supabase
+        .from("personal_money_repayments")
+        .select("record_id, amount_paise"),
+    ]);
+
+    if (recordsError || repaymentsError || !dbRecords) {
+      return null;
+    }
+
+    const records: PersonalMoneyRecord[] = dbRecords.map((r) => ({
+      id: String(r.id),
+      direction: (r.direction as "given" | "taken") || "given",
+      amountPaise: Number(r.amount_paise) || 0,
+      status: (r.status as "active" | "settled") || "active",
+      personId: "",
+      recordDate: "",
+      dueDate: null,
+      accountId: "",
+      linkedTransactionId: null,
+      notes: null,
+    }));
+
+    const repayments: PersonalMoneyRepayment[] = (dbRepayments || []).map((p) => ({
+      id: "",
+      recordId: String(p.record_id),
+      amountPaise: Number(p.amount_paise) || 0,
+      repaymentDate: "",
+      accountId: "",
+      linkedTransactionId: null,
+      notes: null,
+    }));
+
+    return calculateOverallMetrics(records, repayments);
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchRecordDetail(
   supabase: SupabaseClient,
-  agreementId: string
+  recordId: string
 ): Promise<{
-  agreement: PersonalLoanAgreement | null;
-  payments: PersonalLoanPayment[];
-  balance: AgreementBalance | null;
+  record: PersonalMoneyRecord | null;
+  repayments: PersonalMoneyRepayment[];
+  balance: RecordBalance | null;
   accounts: FinancialAccount[];
+  // Backwards compatibility alias
+  agreement: PersonalMoneyRecord | null;
+  payments: PersonalMoneyRepayment[];
 }> {
   const [
-    { data: dbLoan },
-    { data: dbPayments },
+    { data: dbRecord },
+    { data: dbRepayments },
     { data: dbAccounts },
   ] = await Promise.all([
     supabase
-      .from("personal_loans")
+      .from("personal_money_records")
       .select(
         `
-        id, user_id, person_id, direction, principal_amount_paise, interest_type,
-        interest_rate_basis_points, agreed_interest_paise, agreement_date,
-        expected_repayment_date, account_id, linked_transaction_id, status, notes,
+        id, user_id, person_id, direction, amount_paise, record_date,
+        due_date, account_id, linked_transaction_id, status, notes,
         created_at, updated_at,
         people ( id, user_id, name, phone, notes, created_at, updated_at ),
         accounts ( id, name, account_type, institution, opening_balance_paise, opening_balance_date, is_archived )
       `
       )
-      .eq("id", agreementId)
+      .eq("id", recordId)
       .single(),
     supabase
-      .from("personal_loan_payments")
+      .from("personal_money_repayments")
       .select(
         `
-        id, user_id, personal_loan_id, payment_amount_paise, principal_component_paise,
-        interest_component_paise, payment_date, account_id, linked_transaction_id,
+        id, user_id, record_id, amount_paise, repayment_date, account_id, linked_transaction_id,
         notes, created_at,
         accounts ( id, name, account_type, institution, opening_balance_paise, opening_balance_date, is_archived )
       `
       )
-      .eq("personal_loan_id", agreementId)
-      .order("payment_date", { ascending: true }),
+      .eq("record_id", recordId)
+      .order("repayment_date", { ascending: true }),
     supabase
       .from("accounts")
       .select(
@@ -303,29 +351,37 @@ export async function fetchAgreementDetail(
       .order("name"),
   ]);
 
-  if (!dbLoan) {
+  if (!dbRecord) {
     return {
-      agreement: null,
-      payments: [],
+      record: null,
+      repayments: [],
       balance: null,
       accounts: [],
+      agreement: null,
+      payments: [],
     };
   }
 
   const peopleMap = new Map<string, Person>();
-  const agreement = mapDbLoanToDomain(dbLoan as DbRecord, peopleMap);
-  const payments = (dbPayments || []).map((p: unknown) =>
-    mapDbPaymentToDomain(p as DbRecord)
+  const record = mapDbMoneyRecordToDomain(dbRecord as DbRecord, peopleMap);
+  const repayments = (dbRepayments || []).map((p: unknown) =>
+    mapDbRepaymentToDomain(p as DbRecord)
   );
-  const balance = calculateAgreementBalance(agreement, payments);
+  const balance = calculateRecordBalance(record, repayments);
   const accounts = (dbAccounts || []).map((a: DbAccount) =>
     mapDbAccountToDomain(a)
   );
 
   return {
-    agreement,
-    payments,
+    record,
+    repayments,
     balance,
     accounts,
+    agreement: record,
+    payments: repayments,
   };
 }
+
+export const fetchAgreementDetail = fetchRecordDetail;
+export const mapDbLoanToDomain = mapDbMoneyRecordToDomain;
+export const mapDbPaymentToDomain = mapDbRepaymentToDomain;
