@@ -77,16 +77,16 @@ export function MoneyTrackerNav({
   ];
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[var(--surface-panel-border)]">
-      {/* Scrollable Subnav Tabs */}
-      <nav className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-2 border-b border-[var(--surface-panel-border)] min-w-0">
+      {/* Scrollable Subnav Tabs with touch support and smooth scrolling */}
+      <nav className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 px-0.5 min-w-0 flex-1 touch-pan-x">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
             <Link
               key={tab.href}
               href={tab.href}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+              className={`flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all touch-manipulation min-h-[38px] shrink-0 ${
                 tab.active
                   ? "bg-emerald-500/15 dark:bg-[#10b981]/20 text-emerald-800 dark:text-[#4edea3] font-bold border border-emerald-500/30 dark:border-[#10b981]/40 shadow-sm"
                   : "text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-slate-200/50 dark:hover:bg-white/[0.04]"
@@ -117,7 +117,7 @@ export function MoneyTrackerNav({
         <button
           type="button"
           onClick={onOpenCreateModal}
-          className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer shrink-0"
+          className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer shrink-0 w-full sm:w-auto"
         >
           <Plus className="h-4 w-4 stroke-[2.5]" />
           <span>New Agreement</span>

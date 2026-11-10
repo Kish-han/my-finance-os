@@ -89,35 +89,35 @@ export function MoneyTrackerOverviewView({
       />
 
       {/* 4 Core Financial KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 sm:gap-4">
         {/* 1. Total Money Given */}
-        <div className="aura-card-obsidian rounded-3xl p-5 sm:p-6 border border-[var(--surface-card-border)] relative overflow-hidden flex flex-col justify-between shadow-lg">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-[var(--foreground-subtle)] flex items-center gap-1.5">
-                <ArrowUpRight className="h-4 w-4 text-emerald-500" />
-                <span>TOTAL GIVEN</span>
+        <div className="aura-card-obsidian rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-[var(--surface-card-border)] relative overflow-hidden flex flex-col justify-between shadow-md min-w-0">
+          <div className="min-w-0">
+            <div className="flex items-center justify-between gap-2 min-w-0">
+              <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-[var(--foreground-subtle)] flex items-center gap-1.5 truncate">
+                <ArrowUpRight className="h-4 w-4 text-emerald-500 shrink-0" />
+                <span className="truncate">TOTAL GIVEN</span>
               </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-800 dark:text-[#4edea3]">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-800 dark:text-[#4edea3] shrink-0">
                 Given
               </span>
             </div>
-            <div className="mt-3">
-              <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-[var(--foreground)] tabular-nums block">
+            <div className="mt-2.5 sm:mt-3 min-w-0">
+              <span className="text-xl sm:text-2xl xl:text-3xl font-black font-mono tracking-tight text-[var(--foreground)] tabular-nums block truncate">
                 ₹{(metrics.totalGivenPaise / 100).toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
                 })}
               </span>
-              <p className="text-[11px] text-[var(--foreground-subtle)] mt-1">
+              <p className="text-[11px] text-[var(--foreground-subtle)] mt-0.5 sm:mt-1 truncate">
                 Recovered: ₹{(metrics.totalReceivedBackPaise / 100).toLocaleString("en-IN")}
               </p>
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-[var(--surface-panel-border)] flex items-center justify-between text-[11px] text-[var(--foreground-subtle)]">
-            <span>Active: {metrics.activeGivenCount}</span>
+          <div className="mt-3.5 pt-2.5 sm:mt-4 sm:pt-3 border-t border-[var(--surface-panel-border)] flex items-center justify-between text-[11px] text-[var(--foreground-subtle)] min-w-0">
+            <span className="truncate">Active: {metrics.activeGivenCount}</span>
             <button
               onClick={() => openModalWithDirection("given")}
-              className="text-emerald-700 dark:text-[#4edea3] font-bold hover:underline cursor-pointer"
+              className="text-emerald-700 dark:text-[#4edea3] font-bold hover:underline cursor-pointer shrink-0 ml-2"
             >
               + Give Money
             </button>
@@ -125,67 +125,67 @@ export function MoneyTrackerOverviewView({
         </div>
 
         {/* 2. Outstanding to Receive */}
-        <div className="aura-card-obsidian rounded-3xl p-5 sm:p-6 border border-[var(--surface-card-border)] relative overflow-hidden flex flex-col justify-between shadow-lg">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-[var(--foreground-subtle)] flex items-center gap-1.5">
-                <AlertCircle className="h-4 w-4 text-emerald-600 dark:text-[#4edea3]" />
-                <span>TO RECEIVE</span>
+        <div className="aura-card-obsidian rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-[var(--surface-card-border)] relative overflow-hidden flex flex-col justify-between shadow-md min-w-0">
+          <div className="min-w-0">
+            <div className="flex items-center justify-between gap-2 min-w-0">
+              <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-[var(--foreground-subtle)] flex items-center gap-1.5 truncate">
+                <AlertCircle className="h-4 w-4 text-emerald-600 dark:text-[#4edea3] shrink-0" />
+                <span className="truncate">TO RECEIVE</span>
               </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-800 dark:text-[#4edea3] font-mono">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-800 dark:text-[#4edea3] font-mono shrink-0">
                 Receivable
               </span>
             </div>
-            <div className="mt-3">
-              <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-emerald-600 dark:text-[#4edea3] tabular-nums block">
+            <div className="mt-2.5 sm:mt-3 min-w-0">
+              <span className="text-xl sm:text-2xl xl:text-3xl font-black font-mono tracking-tight text-emerald-600 dark:text-[#4edea3] tabular-nums block truncate">
                 ₹{(metrics.outstandingReceivablesPaise / 100).toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
                 })}
               </span>
-              <p className="text-[11px] text-[var(--foreground-subtle)] mt-1">
+              <p className="text-[11px] text-[var(--foreground-subtle)] mt-0.5 sm:mt-1 truncate">
                 Amount people currently owe you
               </p>
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-[var(--surface-panel-border)]">
+          <div className="mt-3.5 pt-2.5 sm:mt-4 sm:pt-3 border-t border-[var(--surface-panel-border)] min-w-0">
             <Link
               href="/money-tracker/given"
               className="text-[11px] text-emerald-700 dark:text-[#4edea3] font-bold flex items-center justify-between hover:underline"
             >
               <span>View all given</span>
-              <ChevronRight className="h-3.5 w-3.5" />
+              <ChevronRight className="h-3.5 w-3.5 shrink-0" />
             </Link>
           </div>
         </div>
 
         {/* 3. Total Money Taken */}
-        <div className="aura-card-obsidian rounded-3xl p-5 sm:p-6 border border-[var(--surface-card-border)] relative overflow-hidden flex flex-col justify-between shadow-lg">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-[var(--foreground-subtle)] flex items-center gap-1.5">
-                <ArrowDownLeft className="h-4 w-4 text-cyan-500" />
-                <span>TOTAL TAKEN</span>
+        <div className="aura-card-obsidian rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-[var(--surface-card-border)] relative overflow-hidden flex flex-col justify-between shadow-md min-w-0">
+          <div className="min-w-0">
+            <div className="flex items-center justify-between gap-2 min-w-0">
+              <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-[var(--foreground-subtle)] flex items-center gap-1.5 truncate">
+                <ArrowDownLeft className="h-4 w-4 text-cyan-500 shrink-0" />
+                <span className="truncate">TOTAL TAKEN</span>
               </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-800 dark:text-cyan-400">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-800 dark:text-cyan-400 shrink-0">
                 Taken
               </span>
             </div>
-            <div className="mt-3">
-              <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-[var(--foreground)] tabular-nums block">
+            <div className="mt-2.5 sm:mt-3 min-w-0">
+              <span className="text-xl sm:text-2xl xl:text-3xl font-black font-mono tracking-tight text-[var(--foreground)] tabular-nums block truncate">
                 ₹{(metrics.totalBorrowedPaise / 100).toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
                 })}
               </span>
-              <p className="text-[11px] text-[var(--foreground-subtle)] mt-1">
+              <p className="text-[11px] text-[var(--foreground-subtle)] mt-0.5 sm:mt-1 truncate">
                 Repaid: ₹{(metrics.totalRepaidPaise / 100).toLocaleString("en-IN")}
               </p>
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-[var(--surface-panel-border)] flex items-center justify-between text-[11px] text-[var(--foreground-subtle)]">
-            <span>Active: {metrics.activeTakenCount}</span>
+          <div className="mt-3.5 pt-2.5 sm:mt-4 sm:pt-3 border-t border-[var(--surface-panel-border)] flex items-center justify-between text-[11px] text-[var(--foreground-subtle)] min-w-0">
+            <span className="truncate">Active: {metrics.activeTakenCount}</span>
             <button
               onClick={() => openModalWithDirection("taken")}
-              className="text-cyan-700 dark:text-cyan-400 font-bold hover:underline cursor-pointer"
+              className="text-cyan-700 dark:text-cyan-400 font-bold hover:underline cursor-pointer shrink-0 ml-2"
             >
               + Take Money
             </button>
@@ -193,35 +193,35 @@ export function MoneyTrackerOverviewView({
         </div>
 
         {/* 4. Outstanding to Repay */}
-        <div className="aura-card-obsidian rounded-3xl p-5 sm:p-6 border border-[var(--surface-card-border)] relative overflow-hidden flex flex-col justify-between shadow-lg">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-[var(--foreground-subtle)] flex items-center gap-1.5">
-                <Clock className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
-                <span>TO REPAY</span>
+        <div className="aura-card-obsidian rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-[var(--surface-card-border)] relative overflow-hidden flex flex-col justify-between shadow-md min-w-0">
+          <div className="min-w-0">
+            <div className="flex items-center justify-between gap-2 min-w-0">
+              <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-[var(--foreground-subtle)] flex items-center gap-1.5 truncate">
+                <Clock className="h-4 w-4 text-cyan-600 dark:text-cyan-400 shrink-0" />
+                <span className="truncate">TO REPAY</span>
               </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-800 dark:text-cyan-400 font-mono">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-800 dark:text-cyan-400 font-mono shrink-0">
                 Payable
               </span>
             </div>
-            <div className="mt-3">
-              <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-cyan-700 dark:text-cyan-300 tabular-nums block">
+            <div className="mt-2.5 sm:mt-3 min-w-0">
+              <span className="text-xl sm:text-2xl xl:text-3xl font-black font-mono tracking-tight text-cyan-700 dark:text-cyan-300 tabular-nums block truncate">
                 ₹{(metrics.outstandingPayablesPaise / 100).toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
                 })}
               </span>
-              <p className="text-[11px] text-[var(--foreground-subtle)] mt-1">
+              <p className="text-[11px] text-[var(--foreground-subtle)] mt-0.5 sm:mt-1 truncate">
                 Amount you currently owe others
               </p>
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-[var(--surface-panel-border)]">
+          <div className="mt-3.5 pt-2.5 sm:mt-4 sm:pt-3 border-t border-[var(--surface-panel-border)] min-w-0">
             <Link
               href="/money-tracker/taken"
               className="text-[11px] text-cyan-700 dark:text-cyan-400 font-bold flex items-center justify-between hover:underline"
             >
               <span>View all taken</span>
-              <ChevronRight className="h-3.5 w-3.5" />
+              <ChevronRight className="h-3.5 w-3.5 shrink-0" />
             </Link>
           </div>
         </div>
@@ -255,7 +255,7 @@ export function MoneyTrackerOverviewView({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-4">
             {peopleSummaries
               .filter(
                 (ps) =>
@@ -265,31 +265,31 @@ export function MoneyTrackerOverviewView({
               .map((ps) => (
                 <div
                   key={ps.person.id}
-                  className="p-4 rounded-2xl bg-slate-100/70 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/10 flex flex-col justify-between gap-3"
+                  className="p-3.5 sm:p-4 rounded-2xl bg-slate-100/70 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/10 flex flex-col justify-between gap-3 min-w-0"
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2 min-w-0">
                     <span className="text-xs font-black text-[var(--foreground)] truncate">
                       {ps.person.name}
                     </span>
-                    <span className="text-[10px] text-[var(--foreground-subtle)] font-mono">
+                    <span className="text-[10px] text-[var(--foreground-subtle)] font-mono shrink-0">
                       {ps.activeGivenCount + ps.activeTakenCount} active
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t border-[var(--surface-panel-border)]">
-                    <div>
-                      <span className="text-[10px] text-[var(--foreground-subtle)] block">
+                  <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t border-[var(--surface-panel-border)] min-w-0">
+                    <div className="min-w-0">
+                      <span className="text-[10px] text-[var(--foreground-subtle)] block truncate">
                         To Receive
                       </span>
-                      <span className="font-mono font-bold text-emerald-600 dark:text-[#4edea3]">
+                      <span className="font-mono font-bold text-emerald-600 dark:text-[#4edea3] truncate block">
                         ₹{(ps.outstandingReceivablePaise / 100).toLocaleString("en-IN")}
                       </span>
                     </div>
-                    <div className="text-right">
-                      <span className="text-[10px] text-[var(--foreground-subtle)] block">
+                    <div className="text-right min-w-0">
+                      <span className="text-[10px] text-[var(--foreground-subtle)] block truncate">
                         To Repay
                       </span>
-                      <span className="font-mono font-bold text-cyan-600 dark:text-cyan-400">
+                      <span className="font-mono font-bold text-cyan-600 dark:text-cyan-400 truncate block">
                         ₹{(ps.outstandingPayablePaise / 100).toLocaleString("en-IN")}
                       </span>
                     </div>
@@ -355,7 +355,7 @@ export function MoneyTrackerOverviewView({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
           {outstandingRecords.map((record) => {
             const bal = calculateRecordBalance(record, repayments);
             return (
@@ -371,7 +371,7 @@ export function MoneyTrackerOverviewView({
       )}
 
       {/* Recent Activity Section */}
-      <section className="aura-card-obsidian rounded-3xl p-6 sm:p-7 border border-[var(--surface-card-border)] space-y-4">
+      <section className="aura-card-obsidian rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-[var(--surface-card-border)] space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-black text-[var(--foreground)] tracking-tight">
             Recent Records
@@ -381,7 +381,7 @@ export function MoneyTrackerOverviewView({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {recentRecords.map((record) => {
             const bal = calculateRecordBalance(record, repayments);
             return (

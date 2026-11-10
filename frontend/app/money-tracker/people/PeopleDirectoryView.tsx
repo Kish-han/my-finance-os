@@ -99,70 +99,70 @@ export function PeopleDirectoryView({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
           {filteredPeople.map((summary) => {
             const { person } = summary;
 
             return (
               <div
                 key={person.id}
-                className="aura-card-obsidian rounded-3xl p-5 sm:p-6 border border-[var(--surface-card-border)] hover:border-emerald-500/30 transition-all flex flex-col justify-between gap-4"
+                className="aura-card-obsidian rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-[var(--surface-card-border)] hover:border-emerald-500/30 transition-all flex flex-col justify-between gap-4 min-w-0"
               >
-                <div>
+                <div className="min-w-0">
                   {/* Contact Info Header */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-base font-bold text-[var(--foreground)] tracking-tight">
+                  <div className="flex items-start justify-between gap-2.5 min-w-0">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm sm:text-base font-bold text-[var(--foreground)] tracking-tight truncate">
                         {person.name}
                       </h3>
                       {person.phone && (
-                        <p className="text-xs text-[var(--foreground-subtle)] mt-0.5 flex items-center gap-1 font-mono">
-                          <Phone className="h-3 w-3" />
-                          <span>{person.phone}</span>
+                        <p className="text-xs text-[var(--foreground-subtle)] mt-0.5 flex items-center gap-1 font-mono truncate">
+                          <Phone className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{person.phone}</span>
                         </p>
                       )}
                     </div>
-                    <span className="text-[10px] font-mono text-[var(--foreground-subtle)]">
+                    <span className="text-[10px] font-mono text-[var(--foreground-subtle)] shrink-0">
                       {summary.activeGivenCount + summary.activeTakenCount} active
                     </span>
                   </div>
 
                   {/* Strictly Separate Given and Taken Cards (Never Auto-Offset) */}
-                  <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                  <div className="mt-3.5 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs min-w-0">
                     {/* Given Block */}
-                    <div className="p-3 rounded-2xl bg-emerald-500/5 border border-emerald-500/15 flex flex-col justify-between">
-                      <div>
-                        <span className="text-[10px] font-bold text-emerald-800 dark:text-[#4edea3] flex items-center gap-1 mb-1">
-                          <ArrowUpRight className="h-3 w-3" />
-                          <span>Money Given</span>
+                    <div className="p-3 rounded-2xl bg-emerald-500/5 border border-emerald-500/15 flex flex-col justify-between min-w-0">
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-bold text-emerald-800 dark:text-[#4edea3] flex items-center gap-1 mb-1 truncate">
+                          <ArrowUpRight className="h-3 w-3 shrink-0" />
+                          <span className="truncate">Money Given</span>
                         </span>
-                        <span className="text-sm font-black font-mono text-emerald-700 dark:text-[#4edea3] block">
+                        <span className="text-sm font-black font-mono text-emerald-700 dark:text-[#4edea3] block truncate">
                           ₹{(summary.outstandingReceivablePaise / 100).toLocaleString("en-IN")}
                         </span>
-                        <span className="text-[9px] text-[var(--foreground-subtle)] block">
+                        <span className="text-[9px] text-[var(--foreground-subtle)] block truncate">
                           Outstanding to Receive
                         </span>
                       </div>
-                      <div className="mt-2 pt-2 border-t border-emerald-500/10 text-[10px] text-[var(--foreground-subtle)]">
+                      <div className="mt-2 pt-2 border-t border-emerald-500/10 text-[10px] text-[var(--foreground-subtle)] truncate">
                         <span>Total: ₹{(summary.totalGivenPaise / 100).toLocaleString("en-IN")}</span>
                       </div>
                     </div>
 
                     {/* Taken Block */}
-                    <div className="p-3 rounded-2xl bg-cyan-500/5 border border-cyan-500/15 flex flex-col justify-between">
-                      <div>
-                        <span className="text-[10px] font-bold text-cyan-800 dark:text-cyan-400 flex items-center gap-1 mb-1">
-                          <ArrowDownLeft className="h-3 w-3" />
-                          <span>Money Taken</span>
+                    <div className="p-3 rounded-2xl bg-cyan-500/5 border border-cyan-500/15 flex flex-col justify-between min-w-0">
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-bold text-cyan-800 dark:text-cyan-400 flex items-center gap-1 mb-1 truncate">
+                          <ArrowDownLeft className="h-3 w-3 shrink-0" />
+                          <span className="truncate">Money Taken</span>
                         </span>
-                        <span className="text-sm font-black font-mono text-cyan-700 dark:text-cyan-300 block">
+                        <span className="text-sm font-black font-mono text-cyan-700 dark:text-cyan-300 block truncate">
                           ₹{(summary.outstandingPayablePaise / 100).toLocaleString("en-IN")}
                         </span>
-                        <span className="text-[9px] text-[var(--foreground-subtle)] block">
+                        <span className="text-[9px] text-[var(--foreground-subtle)] block truncate">
                           Outstanding to Repay
                         </span>
                       </div>
-                      <div className="mt-2 pt-2 border-t border-cyan-500/10 text-[10px] text-[var(--foreground-subtle)]">
+                      <div className="mt-2 pt-2 border-t border-cyan-500/10 text-[10px] text-[var(--foreground-subtle)] truncate">
                         <span>Total: ₹{(summary.totalTakenPaise / 100).toLocaleString("en-IN")}</span>
                       </div>
                     </div>

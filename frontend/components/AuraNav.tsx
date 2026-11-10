@@ -313,13 +313,13 @@ export function AuraHeader({
             <span className="text-[var(--foreground)] font-bold">{sectionTitle}</span>
           </div>
 
-          <span className="lg:hidden text-xs font-bold text-[var(--foreground-muted)] truncate">
+          <span className="lg:hidden text-xs font-bold text-[var(--foreground-muted)] truncate max-w-[140px] sm:max-w-none">
             {sectionTitle}
           </span>
         </div>
 
         {/* Tactical Actions & Controls */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 md:gap-3 shrink-0">
           <Link
             href="/transactions/transfer"
             className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-xs font-bold text-cyan-700 dark:text-cyan-300 hover:text-cyan-900 dark:hover:text-white transition-all cursor-pointer active:scale-95"
@@ -331,7 +331,7 @@ export function AuraHeader({
 
           <Link
             href="/transactions/new"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-500 dark:to-teal-500 text-white dark:text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-500 dark:to-teal-500 text-white dark:text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
             <span className="hidden sm:inline">Add Transaction</span>
@@ -350,8 +350,8 @@ export function AuraHeader({
             <User className="h-4 w-4" />
           </Link>
 
-          {/* Quick Sign Out Action */}
-          <form action={signOutAction || logout} className="shrink-0">
+          {/* Quick Sign Out Action (hidden on mobile to preserve title space; available in drawer & profile) */}
+          <form action={signOutAction || logout} className="shrink-0 hidden sm:block">
             <button
               type="submit"
               title="Sign out of AURA Wealth"
