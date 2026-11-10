@@ -16,6 +16,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AuraHeader, AuraBottomNav } from "@/components/AuraNav";
 import { resolveDisplayName } from "@/lib/auth/user-display";
+import {
+  calculateAccountBalance,
+  toFinancialAccount,
+  toFinancialTransaction,
+  type RawAccountRow,
+  type RawTransactionRow,
+} from "@/lib/finance/balances";
 import AccountsLoading from "./loading";
 
 type AccountsPageProps = {
@@ -69,14 +76,43 @@ async function AccountsContent({
   const userEmail = user.email || "Private Client";
   const displayName = resolveDisplayName(user);
 
-  const { data: accounts, error: accountsError } = await supabase
-    .from("accounts")
-    .select(
-      "id, name, account_type, institution, opening_balance_paise, opening_balance_date, currency_code"
-    )
-    .eq("user_id", userId)
-    .eq("is_archived", false)
-    .order("created_at", { ascending: false });
+  const [accountsResult, transactionsResult] = await Promise.all([
+    supabase
+      .from("accounts")
+      .select(
+        "id, name, account_type, institution, opening_balance_paise, opening_balance_date, currency_code, is_archived"
+      )
+      .eq("user_id", userId)
+      .eq("is_archived", false)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("transactions")
+      .select(
+        "id, description, transaction_date, amount_paise, transaction_type, account_id, from_account_id, to_account_id"
+      )
+      .eq("user_id", userId)
+      .order("transaction_date", { ascending: false }),
+  ]);
+
+  const accounts = accountsResult.data ?? [];
+  const accountsError = accountsResult.error;
+
+  const rawTransactions = transactionsResult.data ?? [];
+  const financeTransactions = rawTransactions.map((tx) =>
+    toFinancialTransaction(tx as unknown as RawTransactionRow)
+  );
+
+  const accountCardData = accounts.map((account) => {
+    const finAccount = toFinancialAccount(account as unknown as RawAccountRow);
+    const currentBalancePaise = calculateAccountBalance(
+      finAccount,
+      financeTransactions
+    );
+    return {
+      ...account,
+      currentBalancePaise,
+    };
+  });
 
   const messages: Record<string, string> = {
     "invalid-input":
@@ -85,8 +121,8 @@ async function AccountsContent({
       "We couldn't save the account. Please try again.",
   };
 
-  const totalLiquidPaise = (accounts ?? []).reduce(
-    (total, account) => total + Number(account.opening_balance_paise || 0),
+  const totalLiquidPaise = accountCardData.reduce(
+    (total, account) => total + account.currentBalancePaise,
     0
   );
 
@@ -158,7 +194,7 @@ async function AccountsContent({
             <div className="flex items-center gap-2">
               <span className="flex h-2 w-2 rounded-full bg-emerald-600 dark:bg-[#4edea3] animate-pulse" />
               <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-[#4edea3]">
-                Total Opening Liquid Reserves
+                Total Liquid Reserves
               </span>
             </div>
 
@@ -333,8 +369,9 @@ async function AccountsContent({
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {accounts.map((account) => {
+              {accountCardData.map((account) => {
                 const isBank = account.account_type === "bank";
+                const isNegative = account.currentBalancePaise < 0;
 
                 return (
                   <article
@@ -378,16 +415,25 @@ async function AccountsContent({
                     <div className="mt-5 border-t border-white/10 pt-4 flex items-end justify-between">
                       <div>
                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                          Opening Balance
+                          Current Balance
                         </span>
-                        <div className="text-xl sm:text-2xl font-black tracking-tight text-white tabular-nums">
-                          {formatRupees(account.opening_balance_paise)}
+                        <div
+                          className={`text-xl sm:text-2xl font-black tracking-tight tabular-nums ${
+                            isNegative ? "text-rose-400" : "text-white"
+                          }`}
+                        >
+                          {formatRupees(account.currentBalancePaise)}
                         </div>
                       </div>
 
-                      <span className="text-[10px] text-slate-400 font-mono">
-                        Since {account.opening_balance_date}
-                      </span>
+                      <div className="flex flex-col items-end text-right">
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          Opening {formatRupees(account.opening_balance_paise)}
+                        </span>
+                        <span className="text-[9px] text-slate-500 font-mono">
+                          Since {account.opening_balance_date}
+                        </span>
+                      </div>
                     </div>
                   </article>
                 );

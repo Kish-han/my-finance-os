@@ -327,3 +327,126 @@ export function calculateNetWorth(params: {
     netWorthPaise,
   };
 }
+
+export type RawAccountRow = {
+  id: string;
+  name: string;
+  account_type: "bank" | "cash";
+  institution?: string | null;
+  opening_balance_paise: number | string;
+  opening_balance_date: string;
+  is_archived?: boolean;
+};
+
+export type RawTransactionRow = {
+  id: string;
+  transaction_date: string;
+  amount_paise: number | string;
+  transaction_type: string;
+  description?: string | null;
+  account_id?: string | null;
+  from_account_id?: string | null;
+  to_account_id?: string | null;
+  credit_card_id?: string | null;
+  category_id?: string | null;
+};
+
+export function toFinancialAccount(row: RawAccountRow): FinancialAccount {
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.account_type,
+    institution: row.institution ?? undefined,
+    openingBalancePaise: Number(row.opening_balance_paise),
+    openingBalanceDate: row.opening_balance_date,
+    isArchived: Boolean(row.is_archived),
+  };
+}
+
+export function toFinancialTransaction(row: RawTransactionRow): Transaction {
+  const base = {
+    id: row.id,
+    date: row.transaction_date,
+    description: row.description ?? "",
+    amountPaise: Number(row.amount_paise),
+  };
+
+  switch (row.transaction_type) {
+    case "income":
+      return {
+        ...base,
+        type: "income",
+        accountId: row.account_id ?? "",
+        categoryId: row.category_id ?? "",
+      };
+
+    case "expense":
+      return {
+        ...base,
+        type: "expense",
+        accountId: row.account_id ?? "",
+        categoryId: row.category_id ?? "",
+      };
+
+    case "transfer":
+      return {
+        ...base,
+        type: "transfer",
+        fromAccountId: row.from_account_id ?? "",
+        toAccountId: row.to_account_id ?? "",
+      };
+
+    case "card_purchase":
+      return {
+        ...base,
+        type: "card_purchase",
+        creditCardId: row.credit_card_id ?? "",
+        categoryId: row.category_id ?? "",
+      };
+
+    case "card_payment":
+      return {
+        ...base,
+        type: "card_payment",
+        fromAccountId: row.from_account_id ?? "",
+        creditCardId: row.credit_card_id ?? "",
+      };
+
+    case "money_lent":
+      return {
+        ...base,
+        type: "money_lent",
+        accountId: row.account_id ?? "",
+      };
+
+    case "repayment_received":
+      return {
+        ...base,
+        type: "repayment_received",
+        accountId: row.account_id ?? "",
+      };
+
+    case "money_borrowed":
+      return {
+        ...base,
+        type: "money_borrowed",
+        accountId: row.account_id ?? "",
+      };
+
+    case "repayment_paid":
+      return {
+        ...base,
+        type: "repayment_paid",
+        accountId: row.account_id ?? "",
+      };
+
+    default:
+      return {
+        ...base,
+        type: "expense",
+        accountId: row.account_id ?? "",
+        categoryId: row.category_id ?? "",
+      };
+  }
+}
+

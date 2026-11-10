@@ -5,6 +5,8 @@ import {
   calculateCardOutstanding,
   calculateAvailableCredit,
   separateAccountBalances,
+  toFinancialAccount,
+  toFinancialTransaction,
 } from "./balances";
 
 const sampleAccount: FinancialAccount = {
@@ -339,5 +341,42 @@ describe("Physical Cash and Bank Balances Separation", () => {
     expect(empty.totalBankBalancesPaise).toBe(0);
     expect(empty.totalCashInHandPaise).toBe(0);
     expect(empty.totalLiquidPaise).toBe(0);
+  });
+
+  it("converts raw database rows to financial models and calculates current balance correctly", () => {
+    const rawAccount = {
+      id: "acc-fed",
+      name: "Jupiter",
+      account_type: "bank" as const,
+      institution: "Federal Bank",
+      opening_balance_paise: "111167", // ₹1,111.67
+      opening_balance_date: "2026-11-10",
+      is_archived: false,
+    };
+
+    const finAccount = toFinancialAccount(rawAccount);
+    expect(finAccount.openingBalancePaise).toBe(111167);
+
+    const rawTxs = [
+      {
+        id: "tx-income",
+        transaction_date: "2026-11-10",
+        amount_paise: "500000", // +₹5,000
+        transaction_type: "income",
+        account_id: "acc-fed",
+      },
+      {
+        id: "tx-expense",
+        transaction_date: "2026-11-10",
+        amount_paise: "100000", // -₹1,000
+        transaction_type: "expense",
+        account_id: "acc-fed",
+      },
+    ];
+
+    const finTxs = rawTxs.map(toFinancialTransaction);
+    const currentBalance = calculateAccountBalance(finAccount, finTxs);
+    // 1,111.67 + 5,000 - 1,000 = 5,111.67 (511167 paise)
+    expect(currentBalance).toBe(511167);
   });
 });
